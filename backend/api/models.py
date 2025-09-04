@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 import uuid
+import json
 
 
 class UserSession(models.Model):
@@ -52,3 +53,14 @@ class UserAnalysisHistory(models.Model):
     class Meta:
         db_table = 'user_analysis_history'
         ordering = ['-created_at']
+
+class KeynessResult(models.Model):
+    method = models.CharField(max_length=50)
+    uploaded_text = models.TextField()
+    results_json = models.JSONField()  # stores the keyness results dict
+    uploaded_total = models.IntegerField()
+    corpus_total = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"KeynessResult {self.id} ({self.method})"

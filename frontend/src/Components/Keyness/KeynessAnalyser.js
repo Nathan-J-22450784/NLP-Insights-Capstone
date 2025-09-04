@@ -11,124 +11,140 @@ const KeynessAnalyser = ({ uploadedText, uploadedPreview, corpusPreview, method,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [analysisDone, setAnalysisDone] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState("nltk"); 
+  const [selectedMethod, setSelectedMethod] = useState("nltk");
+  const [resultId, setResultId] = useState(null); // <-- store backend result ID
 
+  // --- Perform new analysis ---
   const performAnalysis = async (method) => {
-  if (!uploadedText) return;
-  setLoading(true);
-  setError("");
-  setAnalysisDone(false);
-  setSelectedMethod(method);
+    if (!uploadedText) return;
+    setLoading(true);
+    setError("");
+    setAnalysisDone(false);
+    setSelectedMethod(method);
 
-  try {
-    console.log("Perform analysis clicked. Method:", method);
+    try {
+      const response = await fetch("http://localhost:8000/api/analyse-keyness/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uploaded_text: uploadedText, method: method.toLowerCase() }),
+      });
 
-    const response = await fetch("http://localhost:8000/api/analyse-keyness/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uploaded_text: uploadedText, method: method.toLowerCase() }),
-    });
+      const data = await response.json();
 
-    const data = await response.json();
+      if (data.error) throw new Error(data.error);
 
-    if (data.error) throw new Error(data.error);
+      // Store backend result ID
+      setResultId(data.id);
 
-    console.log("Received data:", data);
-
-    // Update state with results
-    setComparisonResults(data.results.results || data.results); // support both methods
-    setStats({
-  uploadedTotal: data.uploaded_total || uploadedText.split(/\s+/).length,
-  corpusTotal: data.corpus_total || 0
+      // Update state with results
+      setComparisonResults(data.results || data.results.results || []);
+      setStats({
+  uploadedTotal: data.uploaded_total ?? uploadedText.split(/\s+/).length,
+  corpusTotal: data.corpus_total ?? data.results?.corpus_total ?? 0
 });
 
 
-    setSelectedMethod(method); // store which method was used
-    setAnalysisDone(true);
+      setAnalysisDone(true);
+    } catch (err) {
+      console.error("Analysis error:", err);
+      setError("Analysis failed: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  } catch (err) {
-    console.error("Analysis error:", err);
-    setError("Analysis failed: " + err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+  // --- Fetch previous analysis by result ID ---
+  const fetchPreviousResult = async (id) => {
+    if (!id) return;
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`http://localhost:8000/api/keyness-results/${id}/`);
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
 
+      setComparisonResults(data.results || []);
+      setStats({
+        uploaded_total: data.uploaded_total,
+        corpus_total: data.corpus_total
+      });
+      setSelectedMethod(data.method);
+      setAnalysisDone(true);
+    } catch (err) {
+      console.error("Fetch previous result error:", err);
+      setError("Failed to load previous analysis: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    
     <div className="mb-6">
       <button
-  onClick={onBack}
-  className="mb-6 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded shadow"
->
-  ← Back
-</button>
+        onClick={onBack}
+        className="mb-6 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded shadow"
+      >
+        ← Back
+      </button>
 
-      {/* Analyse Button */}
+      {/* Analyse Buttons */}
       <div className="text-center mb-6 flex justify-center gap-4">
-  <button
-    onClick={() => performAnalysis("NLTK")}
-    disabled={loading || !uploadedText}
-    className="btn"
-  >
-    Analyse with NLTK
-  </button>
+        {["NLTK", "sklearn", "gensim", "spaCy"].map((m) => (
+          <button
+            key={m}
+            onClick={() => performAnalysis(m)}
+            disabled={loading || !uploadedText}
+            className="btn"
+          >
+            Analyse with {m}
+          </button>
+        ))}
+      </div>
 
-  <button
-    onClick={() => performAnalysis("sklearn")}
-    disabled={loading || !uploadedText}
-    className="btn"
-  >
-    Analyse with Scikit-Learn
-  </button>
-
-  <button
-    onClick={() => performAnalysis("gensim")}
-    disabled={loading || !uploadedText}
-    className="btn"
-  >
-    Analyse with Gensim
-  </button>
-
-  <button
-  onClick={() => performAnalysis("spaCy")}
-  disabled={loading || !uploadedText}
-  className="btn"
->
-  Analyse with spaCy
-</button>
-
-</div>
-
+      {/* Reload previous result button */}
+      {resultId && (
+        <div className="text-center mb-6">
+          <button
+            onClick={() => fetchPreviousResult(resultId)}
+            disabled={loading}
+            className="btn btn-secondary"
+          >
+            Reload Previous Analysis
+          </button>
+        </div>
+      )}
 
       {loading && <p className="text-gray-500 italic">Analyzing text...</p>}
       {error && <p className="text-red-500">{error}</p>}
 
       {analysisDone && (
-  <>
-    {/* Results Summary */}
-    <ResultsSummary
-  stats={stats}
-  selectedMethod={selectedMethod}
-  comparisonResults={comparisonResults}
-/>
+        <>
+          {/* Results Summary */}
+          <ResultsSummary
+            stats={stats}
+            selectedMethod={selectedMethod}
+            comparisonResults={comparisonResults}
+          />
 
+          {/* Significant Keywords Grid */}
+          <KeynessResultsGrid
+            results={comparisonResults.slice(0, 20)}
+            method={selectedMethod}
+          />
 
+          {/* Charts */}
+          <Charts
+            results={comparisonResults}
+            method={selectedMethod}
+          />
 
-    {/* Significant Keywords Grid */}
-    <KeynessResultsGrid results={comparisonResults.slice(0, 20)} method={selectedMethod} />
-
-    {/* Charts */}
-    <Charts results={comparisonResults.results ?? comparisonResults} method={selectedMethod} />
-
-
-    {/* Full Results Table */}
-    <ResultsTable results={comparisonResults} method={selectedMethod} />
-  </>
-)}
-
-
+          {/* Full Results Table */}
+          <ResultsTable
+            results={comparisonResults}
+            method={selectedMethod}
+          />
+        </>
+      )}
     </div>
   );
 };

@@ -1,0 +1,41 @@
+INFO 2025-09-04 17:09:49,332 autoreload 39580 44440 Watching for file changes with StatReloader
+INFO 2025-09-04 17:09:58,398 basehttp 39580 6736 "GET /api/corpus-preview/ HTTP/1.1" 200 196
+INFO 2025-09-04 17:09:58,404 basehttp 39580 6736 "GET /api/corpus-preview/ HTTP/1.1" 200 196
+INFO 2025-09-04 17:10:06,854 basehttp 39580 1612 "POST /api/upload-files/ HTTP/1.1" 200 476537
+INFO 2025-09-04 17:10:11,992 basehttp 39580 1612 "POST /api/analyse-keyness/ HTTP/1.1" 200 4437
+INFO 2025-09-04 17:10:17,075 basehttp 39580 1612 "POST /api/analyse-keyness/ HTTP/1.1" 200 2543
+INFO 2025-09-04 17:10:27,393 basehttp 39580 1612 "POST /api/analyse-keyness/ HTTP/1.1" 200 3291
+INFO 2025-09-04 17:10:41,786 basehttp 39580 1612 "POST /api/analyse-keyness/ HTTP/1.1" 200 4406
+INFO 2025-09-04 17:13:44,907 autoreload 39580 44440 C:\Users\ntast\NLP-Insights-Capstone\backend\api\views.py changed, reloading.
+INFO 2025-09-04 17:13:45,429 autoreload 45180 46956 Watching for file changes with StatReloader
+INFO 2025-09-04 17:14:23,475 autoreload 45180 46956 C:\Users\ntast\NLP-Insights-Capstone\backend\api\views.py changed, reloading.
+INFO 2025-09-04 17:14:24,049 autoreload 39132 49964 Watching for file changes with StatReloader
+INFO 2025-09-04 17:14:36,229 autoreload 39132 49964 C:\Users\ntast\NLP-Insights-Capstone\backend\api\views.py changed, reloading.
+INFO 2025-09-04 17:14:36,767 autoreload 49896 43056 Watching for file changes with StatReloader
+INFO 2025-09-04 17:15:00,563 basehttp 49896 38896 "GET /api/corpus-preview/ HTTP/1.1" 200 196
+INFO 2025-09-04 17:15:00,570 basehttp 49896 38896 "GET /api/corpus-preview/ HTTP/1.1" 200 196
+INFO 2025-09-04 17:15:07,344 basehttp 49896 11876 "POST /api/upload-files/ HTTP/1.1" 200 11596
+INFO 2025-09-04 17:15:11,214 basehttp 49896 11876 "POST /api/analyse-keyness/ HTTP/1.1" 200 4403
+INFO 2025-09-04 17:15:12,735 basehttp 49896 11876 "POST /api/analyse-keyness/ HTTP/1.1" 200 3209
+INFO 2025-09-04 17:39:49,149 autoreload 49896 43056 C:\Users\ntast\NLP-Insights-Capstone\backend\api\views.py changed, reloading.
+INFO 2025-09-04 17:39:49,699 autoreload 41072 44068 Watching for file changes with StatReloader
+INFO 2025-09-04 17:40:06,313 autoreload 41072 44068 C:\Users\ntast\NLP-Insights-Capstone\backend\api\views.py changed, reloading.
+INFO 2025-09-04 17:40:06,815 autoreload 21316 23856 Watching for file changes with StatReloader
+INFO 2025-09-04 17:40:35,454 basehttp 21316 6108 "GET /api/corpus-preview/ HTTP/1.1" 200 196
+INFO 2025-09-04 17:40:35,461 basehttp 21316 6108 "GET /api/corpus-preview/ HTTP/1.1" 200 196
+INFO 2025-09-04 17:40:41,723 views 21316 2708 File uploaded: austen-persuasion.txt (466288 bytes, 83308 words)
+INFO 2025-09-04 17:40:41,726 views 21316 2708 Upload complete. 1 files processed, 0 failed.
+INFO 2025-09-04 17:40:41,729 basehttp 21316 2708 "POST /api/upload-files/ HTTP/1.1" 200 476537
+INFO 2025-09-04 17:40:46,039 views 21316 2708 Keyness analysis requested: method=nltk, uploaded_text_words=83308
+INFO 2025-09-04 17:40:46,333 views 21316 2708 Keyness analysis completed: method=nltk, results_count=20, id=33
+INFO 2025-09-04 17:40:46,333 basehttp 21316 2708 "POST /api/analyse-keyness/ HTTP/1.1" 200 4434
+INFO 2025-09-04 17:40:48,039 views 21316 2708 Keyness analysis requested: method=gensim, uploaded_text_words=83308
+INFO 2025-09-04 17:40:49,735 views 21316 2708 Keyness analysis completed: method=gensim, results_count=20, id=34
+INFO 2025-09-04 17:40:49,736 basehttp 21316 2708 "POST /api/analyse-keyness/ HTTP/1.1" 200 3291
+INFO 2025-09-04 17:40:51,291 basehttp 21316 2708 "GET /api/keyness-results/34/ HTTP/1.1" 200 3341
+INFO 2025-09-04 17:40:56,922 views 21316 2708 Keyness analysis requested: method=nltk, uploaded_text_words=83308
+INFO 2025-09-04 17:40:57,137 views 21316 2708 Keyness analysis completed: method=nltk, results_count=20, id=35
+INFO 2025-09-04 17:40:57,138 basehttp 21316 2708 "POST /api/analyse-keyness/ HTTP/1.1" 200 4434
+INFO 2025-09-04 17:40:59,048 views 21316 2708 Keyness analysis requested: method=sklearn, uploaded_text_words=83308
+INFO 2025-09-04 17:41:02,580 views 21316 2708 Keyness analysis completed: method=sklearn, results_count=20, id=36
+INFO 2025-09-04 17:41:02,581 basehttp 21316 2708 "POST /api/analyse-keyness/ HTTP/1.1" 200 2543

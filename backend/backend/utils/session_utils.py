@@ -1,10 +1,13 @@
 from django.contrib.sessions.models import Session
 from django.contrib.sessions.backends.db import SessionStore
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from api.models import UserSession, UserUploadedFile, UserAnalysisHistory
 import os
 import tempfile
+import shutil
+import time
+from celery import shared_task
 
 
 class SessionManager:
@@ -43,9 +46,15 @@ class SessionManager:
         return UserUploadedFile.objects.filter(session=user_session)
 
     @staticmethod
-    def save_user_file(request, filename, original_filename, file_size, file_type, text_content):
+    def save_user_file(request=None, session_key=None, filename="", original_filename="", file_size=0, file_type="",
+                       text_content=""):
         """Save a file for the current user's session"""
-        user_session = SessionManager.get_or_create_user_session(request)
+        if request:
+            user_session = SessionManager.get_or_create_user_session(request)
+        elif session_key:
+            user_session, _ = UserSession.objects.get_or_create(session_key=session_key, defaults={"is_active": True})
+        else:
+            raise ValueError("Either request or session_key must be provided.")
 
         user_file = UserUploadedFile.objects.create(
             session=user_session,
@@ -55,7 +64,7 @@ class SessionManager:
             file_type=file_type,
             text_content=text_content,
             word_count=len(text_content.split()),
-            char_count=len(text_content)
+            char_count=len(text_content),
         )
 
         return user_file
@@ -129,35 +138,53 @@ class SessionManager:
 
         return deleted_count
 
-def list_session_temp_folders(delete_stale=False):
-        """
-        List all session-based temp folders and optionally delete stale ones.
-        """
-        temp_root = tempfile.gettempdir()
-        prefix = "uploads_"
+def list_session_temp_folders(days_old=7, delete_stale=False):
+    """
+    List all session-based temp folders and optionally delete stale ones.
 
-        # active session keys in DB
-        active_sessions = set(Session.objects.values_list("session_key", flat=True))
+    A folder is considered stale if:
+    - It does not correspond to an active session, OR
+    - Its last modification time is older than `days_old`.
+    """
+    temp_root = tempfile.gettempdir()
+    prefix = "uploads_"
 
-        found_folders = []
+    # Active session keys in DB
+    active_sessions = set(Session.objects.values_list("session_key", flat=True))
 
-        for name in os.listdir(temp_root):
-            if not name.startswith(prefix):
-                continue
+    found_folders = []
+    cutoff_time = time.time() - (days_old * 24 * 60 * 60)
 
-            folder_path = os.path.join(temp_root, name)
-            session_id = name[len(prefix):]
+    for name in os.listdir(temp_root):
+        if not name.startswith(prefix):
+            continue
 
-            status = "active" if session_id in active_sessions else "stale"
-            found_folders.append((folder_path, status))
+        folder_path = os.path.join(temp_root, name)
+        if not os.path.isdir(folder_path):
+            continue
 
-            if status == "stale" and delete_stale:
-                try:
-                    for f in os.listdir(folder_path):
-                        os.remove(os.path.join(folder_path, f))
-                    os.rmdir(folder_path)
-                    print(f"✅ Deleted stale folder: {folder_path}")
-                except Exception as e:
-                    print(f"⚠️ Could not delete {folder_path}: {e}")
+        session_id = name[len(prefix):]
 
-        return found_folders
+        # Get last modified time
+        last_modified = os.path.getmtime(folder_path)
+        last_modified_dt = datetime.fromtimestamp(last_modified)
+
+        # Determine status
+        if session_id in active_sessions:
+            status = "active"
+        elif last_modified < cutoff_time:
+            status = f"stale (> {days_old} days old)"
+        else:
+            status = "stale (inactive session)"
+
+        found_folders.append((folder_path, status, last_modified_dt))
+
+        # Delete if stale and requested
+        if "stale" in status and delete_stale:
+            try:
+                shutil.rmtree(folder_path)
+                print(f"🗑 Deleted stale folder: {folder_path}")
+            except Exception as e:
+                print(f"⚠️ Could not delete {folder_path}: {e}")
+
+    return found_folders
