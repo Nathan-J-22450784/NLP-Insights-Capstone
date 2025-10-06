@@ -67,7 +67,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     FRONTEND_ORIGIN,
-    "https://*.vercel.app", 
     ]
 if RENDER_HOST:
     CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_HOST}")
