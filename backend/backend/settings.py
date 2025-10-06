@@ -30,6 +30,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Render: leave DJANGO_DEBUG unset (or set to 0) so DEBUG=False.
 DEBUG = os.environ.get("DJANGO_DEBUG", "") == "1"
 
+# NLTK_DATA=/opt/render/nltk_data ensures required corpora at startup (punkt, punkt_tab, averaged_perceptron_tagger_eng).
+os.environ.setdefault("NLTK_DATA", "/opt/render/nltk_data")
+os.makedirs(os.environ["NLTK_DATA"], exist_ok=True)
+
+def ensure(path, download_name):
+    try:
+        nltk.data.find(path)
+    except LookupError:
+        nltk.download(download_name, download_dir=os.environ["NLTK_DATA"], quiet=True)
+
+# Tokenizers (support old/new layouts)
+ensure("tokenizers/punkt", "punkt")
+ensure("tokenizers/punkt_tab", "punkt_tab")
+
+# Taggers (support old/new names)
+ensure("taggers/averaged_perceptron_tagger", "averaged_perceptron_tagger")
+ensure("taggers/averaged_perceptron_tagger_eng", "averaged_perceptron_tagger_eng")
+
 # --- Hosts (backend origin) ------------------------------------------------
 # Allow localhost for dev and the Render hostname in prod.
 # Render usually provides RENDER_EXTERNAL_HOSTNAME.
