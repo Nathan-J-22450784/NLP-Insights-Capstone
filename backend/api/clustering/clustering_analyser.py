@@ -221,6 +221,9 @@ def cluster_text(text, top_words_per_cluster=10):
     Chooses backend automatically based on EMBEDDING_BACKEND global variable.
     Each cluster point now includes a 'words' array for display in scatterplots.
     """
+
+    global EMBEDDING_BACKEND, model, nlp
+    
     # Use the global spaCy object if available (None is fine; the validator will handle it)
     check = validate_text_for_clustering(text, nlp=nlp)
     if not check["ok"]:
@@ -247,9 +250,6 @@ def cluster_text(text, top_words_per_cluster=10):
             "num_docs": 0,
             "num_clusters": 0,
         }
-
-    global EMBEDDING_BACKEND, model, nlp
-
 
     if not text.strip():
         return {"clusters": [], "top_terms": {}, "themes": {}, "num_clusters": 0, "num_docs": 0}
