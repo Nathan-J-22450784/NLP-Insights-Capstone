@@ -12,7 +12,7 @@ from gensim.models import KeyedVectors
 
 import nltk
 import spacy
-from nltk.corpus import stopwords
+
 from num2words import num2words
 from backend import download_embeddings
 
@@ -165,13 +165,91 @@ def suggest_theme(cluster_words, model, backend="conceptnet"):
     return max(theme_scores, key=theme_scores.get)
 
 # ------------------ Clustering ------------------ #
+
+# --- Minimal input validator for clustering ---
+# Keeps things simple: checks sentences, content tokens, unique content words, and verbs.
+# If text is too small/short, returns a dict describing what is missing.
+def validate_text_for_clustering(text, nlp=None):
+    # If you already have a spaCy nlp object in scope, pass it in; else import/construct here.
+    if nlp is None:
+        import spacy
+        try:
+            nlp = spacy.load("en_core_web_sm")
+        except Exception:
+            # Fall back to a super-fast blank pipeline if model missing
+            nlp = spacy.blank("en")
+            nlp.add_pipe("sentencizer")
+
+    doc = nlp(text)
+
+    # Count basic stats
+    sentences = sum(1 for _ in doc.sents)
+    # Content tokens: alpha, not stop, and with some minimum length
+    content_tokens = [t for t in doc if t.is_alpha and (not getattr(t, "is_stop", False)) and len(t) > 2]
+    unique_content = len({t.lemma_.lower() if hasattr(t, "lemma_") else t.text.lower() for t in content_tokens})
+    verbs = sum(1 for t in doc if getattr(t, "pos_", "") == "VERB")
+
+    # Suggested (conservative) minimums — adjust if you like
+    req = {
+        "min_sentences": 2,
+        "min_content_tokens": 30,
+        "min_unique_content": 10,
+        "min_verbs": 3,
+    }
+
+    ok = (
+        sentences >= req["min_sentences"] and
+        len(content_tokens) >= req["min_content_tokens"] and
+        unique_content >= req["min_unique_content"] and
+        verbs >= req["min_verbs"]
+    )
+
+    return {
+        "ok": ok,
+        "stats": {
+            "sentences": sentences,
+            "content_tokens": len(content_tokens),
+            "unique_content": unique_content,
+            "verbs": verbs,
+        },
+        "requirements": req,
+    }
+
 def cluster_text(text, top_words_per_cluster=10):
     """
     Cluster text into groups using either ConceptNet or spaCy embeddings.
     Chooses backend automatically based on EMBEDDING_BACKEND global variable.
     Each cluster point now includes a 'words' array for display in scatterplots.
     """
+    # Use the global spaCy object if available (None is fine; the validator will handle it)
+    check = validate_text_for_clustering(text, nlp=nlp)
+    if not check["ok"]:
+        # Soft warning; keep a consistent shape so callers/UI don't break.
+        return {
+            "clusters": [],
+            "points": [],
+            "top_terms": {},
+            "warning": (
+                "Input too small for reliable clustering. "
+                "Try adding more text. Requirements: "
+                f'{check["requirements"]["min_sentences"]}+ sentences, '
+                f'{check["requirements"]["min_content_tokens"]}+ content tokens, '
+                f'{check["requirements"]["min_unique_content"]}+ unique content words, '
+                f'{check["requirements"]["min_verbs"]}+ verbs. '
+                "Current: "
+                f'{check["stats"]["sentences"]} sentences, '
+                f'{check["stats"]["content_tokens"]} content tokens, '
+                f'{check["stats"]["unique_content"]} unique, '
+                f'{check["stats"]["verbs"]} verbs.'
+            ),
+            "input_stats": check["stats"],
+            "requirements": check["requirements"],
+            "num_docs": 0,
+            "num_clusters": 0,
+        }
+
     global EMBEDDING_BACKEND, model, nlp
+
 
     if not text.strip():
         return {"clusters": [], "top_terms": {}, "themes": {}, "num_clusters": 0, "num_docs": 0}
@@ -202,10 +280,21 @@ def cluster_text(text, top_words_per_cluster=10):
             chunk_words.append(cleaned)  # keep words for each chunk
 
     if not vectors:
-        return {"clusters": [], "top_terms": {}, "themes": {}, "num_clusters": 0, "num_docs": 0}
+        return {"clusters": [], "top_terms": {}, "themes": {}, "num_clusters": 0, "num_docs": 0, "warning": "Not enough content tokens with embeddings to form clusters."}
 
     vectors = np.array(vectors)
     n_docs = len(valid_chunks)
+
+    # If we couldn't produce at least 2 chunks with embeddings, bail early with a clear hint
+    if n_docs < 2:
+        return {
+            "clusters": [],
+            "top_terms": {},
+            "themes": {},
+            "num_clusters": 0,
+            "num_docs": n_docs,
+            "warning": "Not enough vectorizable text to form clusters (need at least 2 chunks). Try adding more content or reducing stopwords."
+        }
 
     # ------------------ Determine number of clusters ------------------ #
     if n_docs < 20: num_clusters = 2
@@ -214,8 +303,21 @@ def cluster_text(text, top_words_per_cluster=10):
     elif n_docs < 1000: num_clusters = 10
     else: num_clusters = min(20, n_docs // 200)
 
+    # Safety cap: never ask KMeans for more clusters than samples
+    num_clusters = min(num_clusters, n_docs)
+
     # ------------------ PCA for dimensionality reduction ------------------ #
-    reduced = PCA(n_components=min(50, vectors.shape[1])).fit_transform(vectors)
+    ## Deleted --- reduced = PCA(n_components=min(50, vectors.shape[1])).fit_transform(vectors) --- Deleted ###
+
+    ## Replaced with --- 
+    # vectors is (n_samples x n_features) array
+    n, d = vectors.shape
+    if n < 2:
+        reduced = vectors  # skip PCA if fewer than 2 samples
+    else:
+        k = min(50, d, n - 1)
+        reduced = PCA(n_components=k).fit_transform(vectors)
+    ## --- ##
 
     # ------------------ KMeans clustering ------------------ #
     labels = KMeans(n_clusters=num_clusters, random_state=42, n_init=10).fit_predict(reduced)
@@ -240,7 +342,10 @@ def cluster_text(text, top_words_per_cluster=10):
 
     # ------------------ Suggest themes ------------------ #
     embedding_ref = model or nlp
-    themes = {i: suggest_theme(words, embedding_ref) for i, words in top_terms.items()}
+    # Make sure we pass the correct backend to theme suggester
+    backend_flag = "conceptnet" if (model is not None and EMBEDDING_BACKEND == "conceptnet") else "spacy"
+    themes = {i: suggest_theme(words, embedding_ref, backend=backend_flag)
+            for i, words in top_terms.items()}
 
     return {
         "clusters": clusters,
@@ -323,6 +428,7 @@ def clustering_analysis(request):
             "suggested_themes": suggested,
             "num_clusters": result["num_clusters"],
             "num_docs": result["num_docs"],
+            **({"warning": result["warning"]} if "warning" in result else {}),
         })
 
     except Exception as e:
