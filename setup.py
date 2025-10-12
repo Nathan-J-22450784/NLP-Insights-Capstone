@@ -83,6 +83,107 @@ def find_manage_py(project_dir: Path) -> tuple[Path, Path] | None:
         return p, p.parent
     return None
 
+# --- Ollama helpers (cross-platform, conservative) ---------------------------
+def has_winget(): return which("winget") is not None
+def has_choco(): return which("choco") is not None  # not used by default (kept simple)
+
+def find_ollama_exe():
+    """
+    Return the full path to the ollama executable if we can find it.
+    Checks PATH first, then common install locations on Windows/macOS/Linux.
+    """
+    exe = which("ollama")
+    if exe:
+        return exe
+
+    # Common Windows locations
+    if is_windows():
+        candidates = [
+            Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Ollama" / "ollama.exe",
+            Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Ollama" / "ollama.exe",
+            Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe",
+        ]
+        for p in candidates:
+            if p.exists():
+                return str(p)
+
+    # macOS (brew) or standard paths
+    if sys.platform == "darwin":
+        candidates = [
+            "/usr/local/bin/ollama",
+            "/opt/homebrew/bin/ollama",
+            "/usr/bin/ollama",
+        ]
+        for p in candidates:
+            if Path(p).exists():
+                return p
+
+    # Linux – common locations
+    if sys.platform.startswith("linux"):
+        candidates = [
+            "/usr/local/bin/ollama",
+            "/usr/bin/ollama",
+            str(Path.home() / ".local" / "bin" / "ollama"),
+        ]
+        for p in candidates:
+            if Path(p).exists():
+                return p
+
+    return None
+
+def verify_ollama_up(url="http://localhost:11434/api/tags", tries=5, delay=1.0):
+    """
+    Return True if the Ollama HTTP endpoint responds with 200 within a few tries.
+    Uses PowerShell on Windows or curl elsewhere if available.
+    """
+    for _ in range(tries):
+        try:
+            if is_windows() and which("powershell"):
+                out = run_capture([
+                    "powershell", "-NoProfile", "-Command",
+                    f"try {{ (Invoke-WebRequest -UseBasicParsing {url}).StatusCode }} catch {{ 0 }}"
+                ])
+                if out.strip() == "200":
+                    return True
+            elif which("curl"):
+                out = run_capture(["curl", "-sS", "-o", "/dev/null", "-w", "%{http_code}", url])
+                if out.strip() == "200":
+                    return True
+        except Exception:
+            pass
+        import time; time.sleep(delay)
+    return False
+
+def try_install_ollama_interactive():
+    """
+    Best-effort install: on Windows, try winget quietly; otherwise open the download page.
+    Returns True if we believe install succeeded (i.e., we can find the exe afterward).
+    Keeps things conservative to avoid permission/AV issues.
+    """
+    if is_windows() and has_winget():
+        print("Attempting Ollama install via winget …")
+        try:
+            # -e exact id; --silent to avoid UI where possible, but it may still prompt elevation.
+            run(["winget", "install", "-e", "--id", "Ollama.Ollama"])
+        except subprocess.CalledProcessError:
+            print("⚠ winget installation did not complete.")
+    else:
+        # Open the official download page so the user can click through quickly.
+        url = "https://ollama.ai/download"
+        print(f"Opening Ollama download page: {url}")
+        try:
+            if is_windows():
+                run(["powershell", "-NoProfile", "-Command", f"Start-Process '{url}'"], check=False)
+            elif sys.platform == "darwin":
+                run(["open", url], check=False)
+            else:
+                run(["xdg-open", url], check=False)
+        except Exception:
+            print("⚠ Could not open browser. Please visit https://ollama.ai/download manually.")
+
+    # Re-check after our attempt
+    return find_ollama_exe() is not None
+
 # --- Environment setup -------------------------------------------------------
 def run_capture(cmd, cwd=None):
     """
@@ -227,39 +328,45 @@ def maybe_setup_ollama(skip, model):
     """
     Ensure Ollama is installed, pull the specified model, and start the service.
     - Skips entirely if --no-ollama is passed.
-    - Verifies the service is responding on localhost:11434 before continuing.
+    - Finds an existing install (even if not on PATH).
+    - On Windows, will try `winget` install; otherwise opens the download page.
+    - Verifies the local service (http://localhost:11434) responds before pulling the model.
     """
     if skip:
         print("Skipping Ollama setup (--no-ollama).")
         return
 
-    if not ensure_ollama_installed():
-        sys.exit("ERROR: Ollama is required but could not be installed. Install manually and re-run setup.py.")
+    ollama_exe = find_ollama_exe()
+    if not ollama_exe:
+        print("Ollama not found on PATH or standard locations.")
+        if not try_install_ollama_interactive():
+            sys.exit(
+                "ERROR: Ollama is required but not installed.\n"
+                "Install from https://ollama.ai/download, then re-run setup.py."
+            )
+        ollama_exe = find_ollama_exe()
 
     # Start/ensure service
     print("Starting Ollama service…")
     try:
-        # Launch in a separate console so logs are visible and it keeps running.
-        popen(["ollama", "serve"], new_console=True)
+        # Launch in a separate console so logs are visible and it keeps running
+        popen([ollama_exe, "serve"], new_console=is_windows())
     except Exception:
-        print("⚠ Could not spawn 'ollama serve' window. If it isn't running already, please start it manually.")
-    
-    # Give the service a moment to come up, then verify.
-    import time
-    time.sleep(2)
+        print("⚠ Could not spawn 'ollama serve'. If it isn't running already, start it manually.")
+
+    # Wait until the service responds
     if not verify_ollama_up():
         print("Waiting for Ollama to become ready…")
-        time.sleep(3)
+        if not verify_ollama_up(tries=10, delay=1.5):
+            sys.exit("ERROR: Ollama did not respond at http://localhost:11434. "
+                     "Start 'ollama serve' and re-run setup.py.")
 
-    if not verify_ollama_up():
-        sys.exit("ERROR: Ollama did not respond at http://localhost:11434. Please start 'ollama serve' and re-run.")
-
-    # Ensure the target model is available locally.
+    # Ensure the target model is available locally
     print(f"Ensuring Ollama model '{model}' …")
     try:
-        run(["ollama", "pull", model])
+        run([ollama_exe, "pull", model])
     except subprocess.CalledProcessError:
-        sys.exit(f"ERROR: Failed to pull Ollama model '{model}'. Try: ollama pull {model}")
+        sys.exit(f"ERROR: Failed to pull Ollama model '{model}'. Try: {ollama_exe} pull {model}")
 
 # --- Runtime (starting backend/frontend servers) -----------------------------
 def start_backend(py, project_dir, port):
