@@ -28,7 +28,7 @@ This will clone the repo into ./NLP-Insights-Capstone, create a venv, install de
 
 ### Use an existing clone (don’t clone again):
 
-    python setup.py --skip-clone --dir /path/to/NLP-Insights-Capstone
+    python setup.py --skip-clone --dir .
 
 ### Time Delay before showing frontend prompt
 
