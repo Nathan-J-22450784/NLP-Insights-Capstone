@@ -92,36 +92,89 @@ def has_choco():
     # Chocolatey package manager (Windows). Alternative path to install Ollama.
     return which("choco") is not None
 
+def _elevate_ps(cmd: str):
+    # run a PowerShell command as admin and wait
+    return run([
+        "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-Command",
+        f"Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command {cmd}' -Verb RunAs -Wait"
+    ])
+
+def _ensure_choco():
+    # install Chocolatey if missing (elevated)
+    if has_choco():
+        return True
+    print("Chocolatey not found. Installing (elevated)…")
+    _elevate_ps(
+        r"Set-ExecutionPolicy Bypass -Scope Process -Force; "
+        r"[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12; "
+        r"iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
+    )
+    return has_choco()
+
+def _cleanup_choco_ollama():
+    # clear stale choco state that can block installs
+    run(["powershell", "-NoProfile", "-Command",
+         "Get-Process choco* -ErrorAction SilentlyContinue | Stop-Process -Force"], check=False)
+    for p in [
+        r"C:\ProgramData\chocolatey\lib\658f6699c36e95d3ce1dc0c5599432789345d94a",
+        r"C:\ProgramData\chocolatey\lib\Ollama",
+        r"C:\ProgramData\chocolatey\lib-bad\Ollama"
+    ]:
+        _elevate_ps(f"if (Test-Path '{p}') {{ Remove-Item '{p}' -Recurse -Force -ErrorAction SilentlyContinue }}")
+
+def _maybe_add_ollama_to_path():
+    # in current process only (fixes 'installed but not on PATH' in this shell)
+    for p in map(os.path.expandvars, [
+        r"C:\Program Files\Ollama\bin",
+        r"%ProgramFiles%\Ollama\bin",
+        r"%LOCALAPPDATA%\Microsoft\WinGet\Links"
+    ]):
+        if os.path.isdir(p):
+            os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
+            if which("ollama"):
+                return True
+    return which("ollama") is not None
+
 def ensure_ollama_installed():
     """
-    Make sure 'ollama' CLI is available.
-    - On Windows, try to install via winget or choco if missing.
-    - On macOS/Linux, we just ask users to follow the README (keeps logic simple).
-    Returns True if ollama is present afterwards, else False.
+    Ensure 'ollama' is on PATH. Windows: winget (silent) → choco (elevated, non-interactive).
+    Also handles 'already installed' but not visible in current PATH.
     """
     if which("ollama"):
         return True
 
     print("Ollama not found on PATH. Attempting to install…")
-    try:
-        if is_windows():
-            if has_winget():
-                run(["winget", "install", "-e", "--id", "Ollama.Ollama"])
-            elif has_choco():
-                run(["choco", "install", "-y", "ollama"])
-            else:
-                print("⚠ Neither winget nor choco found. Please install Ollama manually: https://ollama.ai/download")
-                return False
-        else:
-            # Keep non-Windows flow simple to avoid overengineering.
-            print("⚠ Please install Ollama per README: https://ollama.ai/")
-            return False
-    except subprocess.CalledProcessError:
-        print("⚠ Ollama installation failed.")
-        return False
 
-    # Re-check after attempting installation.
-    return which("ollama") is not None
+    if is_windows():
+        # try winget first (quiet)
+        if has_winget():
+            run([
+                "winget", "install", "-e", "--id", "Ollama.Ollama",
+                "--silent", "--accept-package-agreements", "--accept-source-agreements"
+            ], check=False)
+            if which("ollama") or _maybe_add_ollama_to_path():
+                return True
+
+        # ensure Chocolatey is present
+        if not _ensure_choco():
+            print("⚠ Failed to install Chocolatey automatically.")
+            return False
+
+        # non-interactive choco flow (elevated)
+        _elevate_ps("choco feature enable -n allowGlobalConfirmation")
+        _cleanup_choco_ollama()
+        _elevate_ps("choco install ollama -y")
+
+        # handle case where choco reports 'already installed'
+        if not which("ollama"):
+            _maybe_add_ollama_to_path()
+
+        return which("ollama") is not None
+
+    # non-Windows: keep manual to avoid scope creep
+    print("⚠ Non-Windows host: install Ollama from https://ollama.ai/ and re-run.")
+    return False
 
 def verify_ollama_up(url="http://localhost:11434/api/tags"):
     """
