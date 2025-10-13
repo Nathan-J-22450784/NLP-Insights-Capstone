@@ -341,20 +341,19 @@ def cluster_text(text, top_words_per_cluster=10):
         top_terms[i] = [w for w, _ in counts.most_common(top_words_per_cluster)]
 
     # ------------------ Suggest themes ------------------ #
-    embedding_ref = model or nlp
-    # Make sure we pass the correct backend to theme suggester
-    backend_flag = "conceptnet" if (model is not None and EMBEDDING_BACKEND == "conceptnet") else "spacy"
-    themes = {i: suggest_theme(words, embedding_ref, backend=backend_flag)
-            for i, words in top_terms.items()}
+    # Make the backend flag and the model object agree so suggest_theme uses the right branch.
+    if EMBEDDING_BACKEND == "spacy" and nlp is not None:
+        backend_flag = "spacy"
+        embedding_ref = nlp
+    else:
+        backend_flag = "conceptnet"
+        embedding_ref = model
 
-    return {
-        "clusters": clusters,
-        "top_terms": top_terms,
-        "themes": themes,
-        "num_clusters": num_clusters,
-        "num_docs": n_docs,
+    themes = {
+        i: suggest_theme(words, embedding_ref, backend=backend_flag)
+        for i, words in top_terms.items()
     }
-
+    # fix for the TypeError: 'KeyedVectors' object is not callable. It ensures we don’t call model(kw) unless model is actually a spaCy pipeline.
 
 
 
