@@ -250,19 +250,6 @@ def pip_in_venv(venv):
     return venv / ("Scripts/pip.exe" if is_windows() else "bin/pip")
 
 # --- Setup steps -------------------------------------------------------------
-def create_or_use_repo(url, project_dir, skip_clone=False):
-    """
-    Lighter-weight variant used during the main flow:
-    - If folder exists, assume it's already the repo.
-    - Otherwise, clone it (unless --skip-clone says not to).
-    """
-    if project_dir.exists():
-        print(f"✓ Using existing repo at {project_dir}")
-    else:
-        if skip_clone:
-            sys.exit(f"ERROR: {project_dir} not found and --skip-clone provided.")
-        run(["git", "clone", url, str(project_dir)])
-
 def create_venv(project_dir):
     """
     Create a Python virtual environment in <repo>/venv if it doesn't exist,
@@ -277,19 +264,30 @@ def create_venv(project_dir):
     return venv, py_in_venv(venv)
 
 def install_backend(py, project_dir, use_lock):
+
     """
-    Install backend Python dependencies using either:
-    - requirements.txt (default), or
-    - requirements-lock.txt (when --use-lock is passed)
+    Install backend Python dependencies and ensure ConceptNet embeddings exist.
     """
+    import os
+    import subprocess
+
+    # Decide which requirements file to use
     req = project_dir / ("backend/backend/requirements-lock.txt" if use_lock else "backend/backend/requirements.txt")
     if not req.exists():
         sys.exit(f"ERROR: requirements file not found at {req}")
     print(f"Installing backend deps from {req.relative_to(project_dir)} …")
-    # Keep tooling up to date for smoother installs.
+
+    # Upgrade pip, wheel, setuptools first
     run([str(py), "-m", "pip", "install", "--upgrade", "pip", "wheel", "setuptools"])
-    # Install the pinned/flexible requirements.
+
+    # Install the requirements
     run([str(py), "-m", "pip", "install", "-r", str(req)])
+
+    # Ensure ConceptNet embeddings exist
+    embeddings_path = project_dir / "backend/backend/data/numberbatch-en.txt"
+    if not embeddings_path.exists():
+        print("Downloading ConceptNet embeddings…")
+        subprocess.run([str(py), str(project_dir / "backend/backend/download_embeddings.py")], check=True)
 
 def download_spacy_models(py, skip=False):
     """
