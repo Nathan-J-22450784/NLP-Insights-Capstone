@@ -7,6 +7,7 @@ Works on Windows, macOS, and Linux. No shell scripts needed.
 import argparse
 import os
 import platform
+import requests
 import shlex
 import shutil
 import subprocess
@@ -131,27 +132,44 @@ def find_ollama_exe():
 
     return None
 
-def verify_ollama_up(url="http://localhost:11434/api/tags", tries=5, delay=1.0):
+def ensure_requests_installed(py):
     """
-    Return True if the Ollama HTTP endpoint responds with 200 within a few tries.
-    Uses PowerShell on Windows or curl elsewhere if available.
+    Ensure `requests` is installed in the current Python environment.
+    This keeps the setup fully self-contained.
     """
-    for _ in range(tries):
+    try:
+        import requests  # noqa
+    except ImportError:
+        print("Installing 'requests' module …")
+        run([str(py), "-m", "pip", "install", "requests"])
+
+def verify_ollama_up(url="http://localhost:11434/api/tags", tries=5, delay=1.0, timeout=2.0):
+    """
+    Check if the Ollama HTTP endpoint responds with status code 200.
+    Pure Python implementation using `requests`.
+    
+    Args:
+        url (str): Ollama API endpoint to ping.
+        tries (int): Number of retry attempts.
+        delay (float): Seconds to wait between retries.
+        timeout (float): Timeout for each HTTP request in seconds.
+    
+    Returns:
+        bool: True if Ollama is ready, False otherwise.
+    """
+    for attempt in range(1, tries + 1):
         try:
-            if is_windows() and which("powershell"):
-                out = run_capture([
-                    "powershell", "-NoProfile", "-Command",
-                    f"try {{ (Invoke-WebRequest -UseBasicParsing {url}).StatusCode }} catch {{ 0 }}"
-                ])
-                if out.strip() == "200":
-                    return True
-            elif which("curl"):
-                out = run_capture(["curl", "-sS", "-o", "/dev/null", "-w", "%{http_code}", url])
-                if out.strip() == "200":
-                    return True
-        except Exception:
-            pass
-        import time; time.sleep(delay)
+            # Send GET request; timeout prevents hanging indefinitely
+            resp = requests.get(url, timeout=timeout)
+            if resp.status_code == 200:
+                print(f"✓ Ollama is up (status 200) on attempt {attempt}")
+                return True
+            else:
+                print(f"⚠ Ollama responded with {resp.status_code} (attempt {attempt})")
+        except requests.RequestException as e:
+            print(f"⚠ Attempt {attempt}: Ollama not reachable ({e})")
+        import time
+        time.sleep(delay)
     return False
 
 def try_install_ollama_interactive():
@@ -268,9 +286,6 @@ def install_backend(py, project_dir, use_lock):
     """
     Install backend Python dependencies and ensure ConceptNet embeddings exist.
     """
-    import os
-    import subprocess
-
     # Decide which requirements file to use
     req = project_dir / ("backend/backend/requirements-lock.txt" if use_lock else "backend/backend/requirements.txt")
     if not req.exists():
@@ -284,10 +299,12 @@ def install_backend(py, project_dir, use_lock):
     run([str(py), "-m", "pip", "install", "-r", str(req)])
 
     # Ensure ConceptNet embeddings exist
-    embeddings_path = project_dir / "backend/backend/data/numberbatch-en.txt"
+    embeddings_path = project_dir / "backend" / "backend" / "data" / "numberbatch-en.txt"
+    req = project_dir / "backend" / "backend" / ("requirements-lock.txt" if use_lock else "requirements.txt")
     if not embeddings_path.exists():
         print("Downloading ConceptNet embeddings…")
-        subprocess.run([str(py), str(project_dir / "backend/backend/download_embeddings.py")], check=True)
+        run([str(py), str(project_dir / "backend/backend/download_embeddings.py")])
+
 
 def download_spacy_models(py, skip=False):
     """
@@ -432,6 +449,7 @@ def main():
         # Full setup flow: repo, venv, backend deps, spaCy, migrations, frontend deps, ollama.
         create_or_use_repo(args.repo, target, args.skip_clone)
         venv, py = create_venv(target)
+        ensure_requests_installed(py)
         install_backend(py, target, args.use_lock)
         download_spacy_models(py, skip=args.skip_spacy)
         run_migrations(py, target)
