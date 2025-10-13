@@ -7,7 +7,6 @@ Works on Windows, macOS, and Linux. No shell scripts needed.
 import argparse
 import os
 import platform
-import requests
 import shlex
 import shutil
 import subprocess
@@ -157,6 +156,10 @@ def verify_ollama_up(url="http://localhost:11434/api/tags", tries=5, delay=1.0, 
     Returns:
         bool: True if Ollama is ready, False otherwise.
     """
+
+    import requests
+    import time
+    
     for attempt in range(1, tries + 1):
         try:
             # Send GET request; timeout prevents hanging indefinitely
