@@ -133,12 +133,14 @@ def find_ollama_exe():
 
 def ensure_requests_installed(py):
     """
-    Ensure `requests` is installed in the current Python environment.
-    This keeps the setup fully self-contained.
+    Ensure `requests` is installed in the given Python environment.
+    Avoid importing requests until after it's installed.
     """
     try:
-        import requests  # noqa
-    except ImportError:
+        # Try to import using subprocess inside the venv Python
+        subprocess.run([str(py), "-c", "import requests"], check=True)
+        print("✓ 'requests' already installed")
+    except subprocess.CalledProcessError:
         print("Installing 'requests' module …")
         run([str(py), "-m", "pip", "install", "requests"])
 
@@ -452,6 +454,7 @@ def main():
         # Full setup flow: repo, venv, backend deps, spaCy, migrations, frontend deps, ollama.
         create_or_use_repo(args.repo, target, args.skip_clone)
         venv, py = create_venv(target)
+        sys.executable = str(py)  # Force all further Python invocations to use the venv
         ensure_requests_installed(py)
         install_backend(py, target, args.use_lock)
         download_spacy_models(py, skip=args.skip_spacy)
