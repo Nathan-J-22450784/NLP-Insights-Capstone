@@ -131,49 +131,22 @@ def find_ollama_exe():
 
     return None
 
-def ensure_requests_installed(py):
-    """
-    Ensure `requests` is installed in the given Python environment.
-    Avoid importing requests until after it's installed.
-    """
-    try:
-        # Try to import using subprocess inside the venv Python
-        subprocess.run([str(py), "-c", "import requests"], check=True)
-        print("✓ 'requests' already installed")
-    except subprocess.CalledProcessError:
-        print("Installing 'requests' module …")
-        run([str(py), "-m", "pip", "install", "requests"])
-
 def verify_ollama_up(url="http://localhost:11434/api/tags", tries=5, delay=1.0, timeout=2.0):
     """
-    Check if the Ollama HTTP endpoint responds with status code 200.
-    Pure Python implementation using `requests`.
-    
-    Args:
-        url (str): Ollama API endpoint to ping.
-        tries (int): Number of retry attempts.
-        delay (float): Seconds to wait between retries.
-        timeout (float): Timeout for each HTTP request in seconds.
-    
-    Returns:
-        bool: True if Ollama is ready, False otherwise.
+    Check if the Ollama HTTP endpoint responds with status 200 using stdlib only.
+    Avoids needing 'requests' in the current interpreter.
     """
-
-    import requests
-    import time
-    
+    import urllib.request, time
     for attempt in range(1, tries + 1):
         try:
-            # Send GET request; timeout prevents hanging indefinitely
-            resp = requests.get(url, timeout=timeout)
-            if resp.status_code == 200:
-                print(f"✓ Ollama is up (status 200) on attempt {attempt}")
-                return True
-            else:
-                print(f"⚠ Ollama responded with {resp.status_code} (attempt {attempt})")
-        except requests.RequestException as e:
+            with urllib.request.urlopen(url, timeout=timeout) as resp:
+                if getattr(resp, "status", None) == 200:
+                    print(f"✓ Ollama is up (status 200) on attempt {attempt}")
+                    return True
+                else:
+                    print(f"⚠ Ollama responded with {getattr(resp, 'status', 'unknown')} (attempt {attempt})")
+        except Exception as e:
             print(f"⚠ Attempt {attempt}: Ollama not reachable ({e})")
-        import time
         time.sleep(delay)
     return False
 
@@ -287,7 +260,6 @@ def create_venv(project_dir):
     return venv, py_in_venv(venv)
 
 def install_backend(py, project_dir, use_lock):
-
     """
     Install backend Python dependencies and ensure ConceptNet embeddings exist.
     """
@@ -303,13 +275,8 @@ def install_backend(py, project_dir, use_lock):
     # Install the requirements
     run([str(py), "-m", "pip", "install", "-r", str(req)])
 
-    # Ensure ConceptNet embeddings exist
-    embeddings_path = project_dir / "backend" / "backend" / "data" / "numberbatch-en.txt"
-    req = project_dir / "backend" / "backend" / ("requirements-lock.txt" if use_lock else "requirements.txt")
-    if not embeddings_path.exists():
-        print("Downloading ConceptNet embeddings…")
-        run([str(py), str(project_dir / "backend/backend/download_embeddings.py")])
-
+    # Ensure ConceptNet embeddings exist (single source of truth)
+    ensure_conceptnet_embeddings(project_dir)
 
 def download_spacy_models(py, skip=False):
     """
@@ -332,6 +299,7 @@ def run_migrations(py, project_dir):
         return
     print(f"Applying Django migrations … ({manage_py.relative_to(project_dir)})")
     run([str(py), str(manage_py), "migrate"], cwd=str(project_dir / "backend"))
+    
 
 def install_frontend(project_dir):
     """
@@ -343,6 +311,55 @@ def install_frontend(project_dir):
     if not fe.exists(): return
     print("Installing frontend dependencies …")
     run([npm_cmd(), "install"], cwd=str(fe))
+
+import urllib.request, gzip, tempfile
+
+def ensure_conceptnet_embeddings(project_dir: Path):
+    """
+    Ensure ConceptNet Numberbatch (English) embeddings exist at:
+        backend/backend/data/numberbatch-en.txt
+    If missing, download the gz and decompress here.
+
+    Source: ConceptNet Numberbatch (2019-08 snapshot)
+    """
+    dest_dir = project_dir / "backend" / "backend" / "data"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / "numberbatch-en.txt"
+    if dest.exists():
+        print(f"✓ ConceptNet embeddings already present: {dest}")
+        return
+
+    url = "https://conceptnet.s3.amazonaws.com/downloads/2019/Numberbatch/numberbatch-en-19.08.txt.gz"
+    print(f"Downloading ConceptNet embeddings (~300MB gz) …\n→ {url}")
+
+    # Download to a temporary .gz file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".gz") as tmpf:
+        tmp_path = Path(tmpf.name)
+        with urllib.request.urlopen(url, timeout=60) as r:
+            CHUNK = 1024 * 1024
+            while True:
+                chunk = r.read(CHUNK)
+                if not chunk:
+                    break
+                tmpf.write(chunk)
+
+    # Decompress to final destination
+    print(f"Decompressing to {dest} …")
+    with gzip.open(tmp_path, "rb") as gz, open(dest, "wb") as out:
+        shutil.copyfileobj(gz, out)
+
+    try:
+        tmp_path.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    # Quick sanity check: first line should start with a comment header
+    with open(dest, "rt", encoding="utf-8", errors="ignore") as fh:
+        head = fh.readline(256)
+    if not head.startswith("#"):
+        raise RuntimeError("Downloaded ConceptNet file looks invalid (no header).")
+
+    print(f"✓ ConceptNet embeddings ready: {dest}")
 
 def maybe_setup_ollama(skip, model):
     """
@@ -455,7 +472,6 @@ def main():
         create_or_use_repo(args.repo, target, args.skip_clone)
         venv, py = create_venv(target)
         sys.executable = str(py)  # Force all further Python invocations to use the venv
-        ensure_requests_installed(py)
         install_backend(py, target, args.use_lock)
         download_spacy_models(py, skip=args.skip_spacy)
         run_migrations(py, target)
