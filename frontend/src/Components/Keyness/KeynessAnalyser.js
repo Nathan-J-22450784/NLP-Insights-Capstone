@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import ResultsSummary from "./ResultsSummary";
 import Charts from "./Charts";
 import ResultsTable from "./ResultsTable";
@@ -7,6 +7,32 @@ import '../ProgressBar.css';
 import './KeynessAnalyser.css';
 
 console.log("KeynessAnalyser file loaded");
+
+function useWhyDidYouUpdate(name, props) {
+    const previousProps = useRef();
+
+    useEffect(() => {
+        if (previousProps.current) {
+            const allKeys = Object.keys({ ...previousProps.current, ...props });
+            const changedProps = {};
+
+            allKeys.forEach(key => {
+                if (previousProps.current[key] !== props[key]) {
+                    changedProps[key] = {
+                        from: previousProps.current[key],
+                        to: props[key]
+                    };
+                }
+            });
+
+            if (Object.keys(changedProps).length > 0) {
+                console.log('[why-did-you-update]', name, changedProps);
+            }
+        }
+
+        previousProps.current = props;
+    });
+}
 
 /**
  * Progress Bar
@@ -48,6 +74,7 @@ const KeynessAnalyser = ({
     genre,
     onWordDetail,
     onResults
+
 }) => {
     const [comparisonResults, setComparisonResults] = useState([]);
     const [stats, setStats] = useState({ uploadedTotal: 0, corpusTotal: 0, totalSignificant: 0 });
@@ -59,14 +86,24 @@ const KeynessAnalyser = ({
     const [showLibraryOptions, setShowLibraryOptions] = useState(true);
     const [showResults, setShowResults] = useState(false);
 
-    const handleChangeMethod = () => {
+    const handleChangeMethod = useCallback(() => {
         console.log("handleChangeMethod called!");
         setAnalysisDone(false);
         setSelectedMethod("");
         setShowLibraryOptions(true);
         setComparisonResults([]);
         setShowResults(false);
-    };
+    }, []);
+
+    useWhyDidYouUpdate('KeynessAnalyser', {
+        comparisonResults,
+        selectedMethod,
+        analysisDone,
+        uploadedText,
+        genre,
+        stats,
+        loading
+    });
 
     console.log("KeynessAnalyser component rendered");
     console.log("handleChangeMethod exists:", typeof handleChangeMethod);
@@ -190,7 +227,6 @@ const KeynessAnalyser = ({
                         corpusTotal: json.corpus_total ?? 0,
                         totalSignificant: json.total_significant ?? (resultsArray ? resultsArray.length : 0)
                     }
-
                 });
             }
             console.log("Analysis completed successfully:", {

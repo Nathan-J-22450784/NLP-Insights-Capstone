@@ -18,6 +18,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
     if (!analysisType) return;
     if (analysisType === "keyness" && comparisonMode === "user_text") {
       setLoading(false);
+      setErr(""); 
       return;
     }
 
@@ -163,7 +164,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
                 </ul>
                 <em>
                   Note: Texts are not stored and will be lost when you close the
-                  page.
+                  page. Please refer to our Privacy Policy for more details.
                 </em>
               </div>
             )}

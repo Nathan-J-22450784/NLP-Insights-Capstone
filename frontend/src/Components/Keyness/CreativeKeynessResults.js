@@ -1,11 +1,10 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import Charts from "./Charts";
 import ResultsTable from "./ResultsTable";
 import ResultsSummary from "./ResultsSummary";
 import KeynessResultsGrid from "./KeynessResultsGrid";
 import "./CreativeKeynessResults.css";
 import { exportKeynessToXlsx } from "./ExportXlsx";
-import axios from "axios";
 
 const posColors = {
   NOUN: "noun",
@@ -102,20 +101,33 @@ const CreativeKeynessResults = ({ results, stats, method, uploadedText, genre, o
     }
   };
 
-  // ✅ Effect to fetch chart summaries when Charts tab becomes active
-  useEffect(() => {
-    if (activeView !== "charts" || chartData.primary.length === 0) return;
+  const hasFetchedSummaries = useRef(false);
 
-    // Fetch primary chart summary immediately
+  // Effect to fetch chart summaries when Charts tab becomes active
+  useEffect(() => {
+    if (activeView !== "charts" || chartData.primary.length === 0) {
+      return;
+    }
+    if (hasFetchedSummaries.current) {
+      return;
+    }
+
+    hasFetchedSummaries.current = true;
     fetchChartSummary("primary", chartData.primary);
 
-    // Pre-fetch secondary chart summary in background (optional)
+    // Pre-fetch secondary chart summary in background
     if (chartData.secondary.length > 0) {
       setTimeout(() => {
         fetchChartSummary("secondary", chartData.secondary);
-      }, 1000); // Delay to not overwhelm the API
+      }, 1000); 
     }
-  }, [activeView, chartData, method]);
+  }, [activeView]);
+
+  useEffect(() => {
+    if (chartData.primary.length > 0) {
+      hasFetchedSummaries.current = false;
+    }
+  }, [chartData.primary.length]);
 
   // Group by POS and filter to only words from uploaded text
   const uploadedWordsSet = useMemo(() => {
@@ -144,6 +156,15 @@ const CreativeKeynessResults = ({ results, stats, method, uploadedText, genre, o
   const fetchSummary = async () => {
     setSummaryLoading(true);
     try {
+      const filteredResults = results.filter(r => {
+        if (!uploadedWordsSet.has(r.word.toLowerCase())) return false;
+        if (r.pos === "PROPN") return false;
+        if (r.word.length <= 2 && r.word.includes("'")) return false;
+        return true;
+      });
+
+      console.log('📤 Sending filtered results:', filteredResults.slice(0, 5));
+
       const response = await fetch("http://localhost:8000/api/get-keyness-summary/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

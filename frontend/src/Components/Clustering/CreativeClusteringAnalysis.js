@@ -27,14 +27,47 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
         setIsLoadingChartSummary(true);
         setChartSummaryError(null);
 
+        // Helper function to prepare cluster summary
+const prepareClusterSummary = (clusters, selectedCluster) => {
+    if (!clusters || clusters.length === 0) return [];
+
+    if (selectedCluster === 'all') {
+        return clusters.map(c => ({
+            label: c.label ?? 'unknown',
+            doc: c.doc ?? '',
+            words: c.words ?? [],
+            x: c.x ?? 0,
+            y: c.y ?? 0
+        }));
+    }
+
+    // Filter for selected cluster
+    return clusters
+        .filter(c => c.label === selectedCluster)
+        .map(c => ({
+            label: c.label ?? 'unknown',
+            doc: c.doc ?? '',
+            words: c.words ?? [],
+            x: c.x ?? 0,
+            y: c.y ?? 0
+        }));
+};
+
         try {
+            const clusterSummary = prepareClusterSummary(clusters, selectedCluster);
+
+            // Debug logging
+        console.log('🔍 Cluster Summary:', clusterSummary);
+        console.log('🔍 Top Terms:', topTerms);
+        console.log('🔍 Themes:', themes);
+
             const response = await fetch("http://localhost:8000/api/summarise-clustering-chart/", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    clusters: clusters,
+                    cluster_summary: clusterSummary,
                     top_terms: topTerms,
                     themes: themes,
                     selected_cluster: selectedCluster,

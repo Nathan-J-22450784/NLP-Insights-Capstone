@@ -24,150 +24,127 @@ const TextInputSection = ({
   const [draggedFileName, setDraggedFileName] = useState("");
   const dropzoneRef = useRef(null);
 
+  const uploadUserTextFiles = async (files) => {
+  // Must be exactly two files
+  if (files.length !== 2) {
+    setUploadErrors(["Please select exactly two files."]);
+    return;
+  }
+
+  // Prevent duplicate uploads (same name + size)
+  const [file1, file2] = files;
+  if (file1.name === file2.name && file1.size === file2.size) {
+    setUploadErrors(["Please select two different files."]);
+    return;
+  }
+
+  setUploading(true);
+  setUploadErrors([]);
+  setUploadSuccess([]);
+  setUploadProgress(0);
+
+  const formData = new FormData();
+  formData.append("target_file", file1);
+  formData.append("reference_file", file2);
+  formData.append("comparison_mode", "user_text");
+
+  try {
+    const res = await fetch("http://localhost:8000/api/upload-files/", {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      setUploadErrors([data.error || "Upload failed"]);
+      return;
+    }
+
+    const updatedFiles = [
+      {
+        name: data.target_file.filename,
+        size: data.target_file.file_size,
+        wordCount: data.target_file.word_count,
+        textContent: data.target_file.text_content,
+        processed: true,
+      },
+      {
+        name: data.reference_file.filename,
+        size: data.reference_file.file_size,
+        wordCount: data.reference_file.word_count,
+        textContent: data.reference_file.text_content,
+        processed: true,
+      },
+    ];
+
+    setSelectedFiles(updatedFiles);
+    setUploadSuccess([
+      `✓ Target: ${updatedFiles[0].name} (${updatedFiles[0].wordCount} words)`,
+      `✓ Reference: ${updatedFiles[1].name} (${updatedFiles[1].wordCount} words)`,
+    ]);
+
+    onFilesUploaded &&
+      onFilesUploaded(
+        updatedFiles.map((f) => f.textContent).join("\n\n--- Next File ---\n\n"),
+        updatedFiles
+      );
+  } catch (err) {
+    setUploadErrors([err.message || "Network error"]);
+  } finally {
+    setUploading(false);
+    setUploadProgress(0);
+  }
+};
+
   // Handle files (user_text or corpus)
   const handleFiles = (files) => {
     const fileArray = Array.from(files);
 
-    // Detect duplicates by name
-    const existingNames = new Set(selectedFiles.map((f) => f.name));
-    const duplicateNames = fileArray.filter((f) => existingNames.has(f.name)).map(f => f.name);
-
-    if (duplicateNames.length > 0) {
-      setUploadErrors([
-        `File(s) not uploaded: ${duplicateNames.join(", ")}. A file with the same name has already been uploaded.`
-      ]);
-      setUploadSuccess([]); // Clear previous success messages
-      return;
-    }
-
-    // Filter out files that are already selected (by name and size)
-    const existing = new Set(selectedFiles.map((f) => `${f.name}-${f.size}`));
-    const newFiles = fileArray.filter((f) => !existing.has(`${f.name}-${f.size}`));
-
-    // Check file count limit
-    if (selectedFiles.length + newFiles.length > 5) {
-      setUploadErrors([
-        `You can upload a maximum of 5 files. You already have ${selectedFiles.length} selected and tried to add ${newFiles.length} more.`,
-      ]);
-      setUploadSuccess([]); // Clear previous success messages
-      return;
-    }
-
-    // Validate types for all new files
-    const invalidTypes = newFiles.filter(
-      (f) => !f.name.toLowerCase().match(/\.(txt|doc|docx)$/)
-    );
-    if (invalidTypes.length > 0) {
-      setUploadErrors([
-        `Invalid file types: ${invalidTypes.map((f) => f.name).join(", ")}. Only .txt, .doc, and .docx are allowed.`,
-      ]);
-      setUploadSuccess([]); // Clear previous success messages
-      return;
-    }
-
-    // Validate size for all new files
-    const oversized = newFiles.filter((f) => f.size > 5 * 1024 * 1024);
-    if (oversized.length > 0) {
-      setUploadErrors([
-        `Files too large (max 5MB): ${oversized.map((f) => f.name).join(", ")}`,
-      ]);
-      setUploadSuccess([]); // Clear previous success messages
-      return;
-    }
-
-    // For user_text mode, only allow exactly two files
     if (comparisonMode === "user_text") {
-      const combinedFiles = [...selectedFiles, ...newFiles];
-      if (combinedFiles.length > 2) {
+      const newFiles = [...selectedFiles, ...fileArray];
+
+      if (newFiles.length > 2) {
         setUploadErrors(["Please select exactly two files (target + reference)."]);
-        setUploadSuccess([]); // Clear previous success messages
         return;
       }
-      setUploadErrors([]); // Clear previous error messages
-      setUploadSuccess([]); // Clear previous success messages
-      if (combinedFiles.length === 2) {
-        uploadUserTextFiles(combinedFiles);
+
+      // Validate types & size
+      const oversized = newFiles.filter((f) => f.size > 5 * 1024 * 1024);
+      if (oversized.length > 0) {
+        setUploadErrors([
+          `Files too large (max 5MB): ${oversized.map((f) => f.name).join(", ")}`,
+        ]);
+        return;
+      }
+
+      const invalidTypes = newFiles.filter(
+        (f) => !f.name.toLowerCase().match(/\.(txt|doc|docx)$/)
+      );
+      if (invalidTypes.length > 0) {
+        setUploadErrors([
+          `Invalid file types: ${invalidTypes.map((f) => f.name).join(", ")}`,
+        ]);
+        return;
+      }
+
+      setSelectedFiles(newFiles);
+      setUploadErrors([]);
+      setUploadSuccess([]);
+
+      if (newFiles.length === 2) {
+        uploadUserTextFiles(newFiles);
       }
       return;
     }
 
-    // For corpus mode, append new files to selectedFiles
-    const updatedFiles = [...selectedFiles, ...newFiles];
-    setSelectedFiles(updatedFiles);
-    setUploadErrors([]); // Clear previous error messages
-    setUploadSuccess([]); // Clear previous success messages
-    if (newFiles.length > 0) {
-      uploadCorpusFiles(newFiles);
-    }
-  };
+    // Corpus mode
+    const existing = new Set(selectedFiles.map((f) => `${f.name}-${f.size}`));
+    const newCorpusFiles = fileArray.filter((f) => !existing.has(`${f.name}-${f.size}`));
+    if (newCorpusFiles.length === 0) return;
 
-  const uploadUserTextFiles = async (files) => {
-    if (files.length !== 2) {
-      setUploadErrors(["Please select exactly two files."]);
-      setUploadSuccess([]); // Clear previous success messages
-      return;
-    }
-
-    setUploading(true);
-    setUploadErrors([]);
-    setUploadSuccess([]);
-    setUploadProgress(0);
-
-    const formData = new FormData();
-    formData.append("target_file", files[0]);
-    formData.append("reference_file", files[1]);
-    formData.append("comparison_mode", "user_text");
-
-    try {
-      const res = await fetch("http://localhost:8000/api/upload-files/", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      const data = await res.json();
-
-      if (!data.success) {
-        setUploadErrors([data.error || "Upload failed"]);
-        setUploadSuccess([]); // Clear previous success messages
-        return;
-      }
-
-      const updatedFiles = [
-        {
-          name: data.target_file.filename,
-          size: data.target_file.file_size,
-          wordCount: data.target_file.word_count,
-          textContent: data.target_file.text_content,
-          processed: true,
-        },
-        {
-          name: data.reference_file.filename,
-          size: data.reference_file.file_size,
-          wordCount: data.reference_file.word_count,
-          textContent: data.reference_file.text_content,
-          processed: true,
-        },
-      ];
-
-      setSelectedFiles(updatedFiles);
-      setUploadSuccess([
-        `Target: ${updatedFiles[0].name} (${updatedFiles[0].wordCount} words)`,
-        `Reference: ${updatedFiles[1].name} (${updatedFiles[1].wordCount} words)`,
-      ]);
-      setUploadErrors([]); // Clear previous error messages
-
-      onFilesUploaded &&
-        onFilesUploaded(
-          updatedFiles.map((f) => f.textContent).join("\n\n--- Next File ---\n\n"),
-          updatedFiles
-        );
-    } catch (err) {
-      setUploadErrors([err.message || "Network error"]);
-      setUploadSuccess([]); // Clear previous success messages
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-    }
+    setSelectedFiles([...selectedFiles, ...newCorpusFiles]);
+    uploadCorpusFiles(newCorpusFiles);
   };
 
   const uploadCorpusFiles = async (files) => {
@@ -189,7 +166,6 @@ const TextInputSection = ({
 
       if (!data.success) {
         setUploadErrors([data.error || "Upload failed"]);
-        setUploadSuccess([]); // Clear previous success messages
         return;
       }
 
@@ -201,26 +177,12 @@ const TextInputSection = ({
         processed: true,
       }));
 
-      setSelectedFiles(prev => {
-        // Remove duplicates by name and size
-        const existing = new Set();
-        const allFiles = [...prev, ...uploadedFiles];
-        const uniqueFiles = [];
-        for (const f of allFiles) {
-          const key = `${f.name}-${f.size}`;
-          if (!existing.has(key)) {
-            existing.add(key);
-            uniqueFiles.push(f);
-          }
-        }
-        return uniqueFiles;
-      });
+      setSelectedFiles(uploadedFiles);
       setUploadSuccess(
         uploadedFiles.map(
-          (f, i) => `Successfully uploaded ${f.name} (${f.wordCount} words)`
+          (f, i) => `✓ ${i + 1}: ${f.name} (${f.wordCount} words)`
         )
       );
-      setUploadErrors([]); // Clear previous error messages
 
       onFilesUploaded &&
         onFilesUploaded(
@@ -229,7 +191,6 @@ const TextInputSection = ({
         );
     } catch (err) {
       setUploadErrors([err.message || "Network error"]);
-      setUploadSuccess([]); // Clear previous success messages
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -436,27 +397,23 @@ const TextInputSection = ({
       )}
 
       {/* Uploaded Text Preview */}
-      {comparisonMode === "user_text" && selectedFiles.length === 2 && (
+      {comparisonMode === "user_text" && selectedFiles.length > 1 && (
         <div className="preview-box">
           <h3 className="preview-title">Uploaded Text Preview:</h3>
           <div className="preview-content">
-            <div className="file-preview">
-              <strong>Target: {selectedFiles[0].name}</strong>
-              <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>
-                {selectedFiles[0].textContent
-                  ? selectedFiles[0].textContent.split("\n").slice(0, 4).join("\n")
-                  : "(No preview available)"}
-              </pre>
-            </div>
-            <hr />
-            <div className="file-preview">
-              <strong>Reference: {selectedFiles[1].name}</strong>
-              <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>
-                {selectedFiles[1].textContent
-                  ? selectedFiles[1].textContent.split("\n").slice(0, 4).join("\n")
-                  : "(No preview available)"}
-              </pre>
-            </div>
+            {selectedFiles.slice(1).map((file, index) => {
+              const previewText = file.textContent
+                ? file.textContent.split("\n").slice(0, 4).join("\n")
+                : "";
+              return (
+                <div key={index} className="file-preview">
+                  <strong>{file.name}</strong>
+                  {"\n"}
+                  {previewText}
+                  {index < selectedFiles.slice(1).length - 1 && "\n---\n"}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

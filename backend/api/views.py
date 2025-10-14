@@ -1,24 +1,31 @@
+import gc
+import json
+import os
+import re
+import requests
+import traceback
+import spacy
+import mimetypes
+import math
+import logging
+import numpy as np
+import pandas as pd
 from django.http import JsonResponse, HttpResponseNotFound
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.http import require_POST
 from django.views.decorators.http import require_GET
+from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from backend.utils.session_utils import ensure_session_exists, schedule_session_cleanup
-import json
-import os
-import re
-import requests
-from django.conf import settings
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+from pathlib import Path
+from openai import OpenAI
 from sklearn.feature_extraction.text import CountVectorizer
-import numpy as np
-import pandas as pd
-from scipy.stats import chi2_contingency, chi2  # <-- added chi2 for p-values
+from scipy.stats import chi2_contingency, chi2
 from gensim import corpora, models
-from collections import defaultdict, Counter      # <-- added Counter
+from collections import defaultdict, Counter
 from api.keyness.keyness_analyser import (
-    compute_keyness,
     keyness_gensim,
     keyness_spacy,
     keyness_sklearn,
@@ -27,23 +34,169 @@ from api.keyness.keyness_analyser import (
     extract_sentences,
     keyness_nltk,
 )
-import spacy
-import mimetypes
 from django.core.files.uploadedfile import UploadedFile
 from .models import KeynessResult
-import logging
-from pathlib import Path  # <-- ADDED (minimal import required)
-import math               # <-- used by compute_keyness_from_counts
+from backend.utils.session_utils import ensure_session_exists, schedule_session_cleanup
+from optimum.onnxruntime import ORTModelForSeq2SeqLM
 
+# File validation constants
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_FILES = 5
+ALLOWED_EXTENSIONS = {'.txt', '.doc', '.docx'}
+ALLOWED_MIME_TYPES = {
+    'text/plain',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+}
+
+MAX_TEXT_LENGTH = 100000
+logger = logging.getLogger(__name__)
+
+_HF_PIPELINE = None
 
 CORPUS_DIR = os.path.join(settings.BASE_DIR, "api", "corpus")
 SAMPLE_FILE = os.path.join(CORPUS_DIR, "sample1.txt")
-logger = logging.getLogger(__name__)
 
-# --- Genre Corpus Meta (helpers only; no other behavior changed) -----------
+# --- Genre Corpus Meta  -----------
 # Looks for metadata-only corpora in backend/api/corpus_meta/*.json
 META_DIR = Path("api/corpus_meta")
 KEYNESS_DIR = Path("api/corpus_meta_keyness")
+
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
+def log_memory_usage(label):
+    """Log current memory usage."""
+    if PSUTIL_AVAILABLE:
+        try:
+            process = psutil.Process(os.getpid())
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            logger.info(f"Memory at {label}: {memory_mb:.1f} MB")
+        except Exception as e:
+            logger.warning(f"Could not log memory: {e}")
+
+# ---- LLM generation helper (Ollama or Hugging Face) ----
+
+def generate_text_with_fallback(prompt: str, num_predict: int = 600, temperature: float = 0.7) -> str:
+    """
+    Generate text using Groq, HuggingFace, or Ollama.
+    """
+    log_memory_usage("LLM request start")
+
+    provider = (os.environ.get("LLM_PROVIDER") or "huggingface").strip().lower()
+    print(f"🔍 Using LLM provider: {provider}")
+
+    try:
+        if provider == "huggingface":
+            result = _generate_huggingface(prompt, num_predict, temperature)
+        else:
+            result = _generate_ollama(prompt, num_predict, temperature)
+
+        gc.collect()
+        log_memory_usage("LLM request end")
+        return result
+
+    except Exception as e:
+        logger.error(f"LLM generation failed with {provider}: {e}")
+        gc.collect()
+        raise
+
+
+def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: float = 0.7) -> str:
+    """
+    Generate text using Hugging Face Transformers locally.
+    Uses google/flan-t5-large by default (runs with ONNXRuntime via Optimum).
+    """
+    global _HF_PIPELINE
+    import time
+
+    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-large"
+
+    if _HF_PIPELINE is None:
+        print(f"📦 Loading lightweight Hugging Face model via ONNXRuntime: {model_name}")
+        start_load = time.time()
+
+        try:
+            # Use Optimum's ORTModelForSeq2SeqLM for proper ONNX support
+            from optimum.onnxruntime import ORTModelForSeq2SeqLM
+            from transformers import AutoTokenizer
+
+            model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+            _HF_PIPELINE = pipeline(
+                "text2text-generation",
+                model=model,
+                tokenizer=tokenizer
+            )
+            print(f"✅ Model loaded (ONNX) in {time.time() - start_load:.2f}s")
+        except Exception as e:
+            print(f"⚠️ ONNX failed, falling back to PyTorch: {e}")
+            _HF_PIPELINE = pipeline(
+                "text2text-generation",
+                model=model_name
+            )
+            print(f"✅ Model loaded (PyTorch) in {time.time() - start_load:.2f}s")
+
+    # Truncate extremely long prompts
+    max_input_length = 1024
+    if len(prompt) > max_input_length:
+        prompt = prompt[:max_input_length]
+
+    # Generate response with parameters to prevent repetition
+    start_gen = time.time()
+    result = _HF_PIPELINE(
+        prompt,
+        max_new_tokens=num_predict,
+        temperature=temperature,
+        do_sample=True,
+        top_p=0.9,  # Nucleus sampling
+        repetition_penalty=1.2,  # Penalize repetition
+        no_repeat_ngram_size=3,  # Prevent repeating 3-grams
+        early_stopping=True
+    )
+    print(f"⏱️ Generation took {time.time() - start_gen:.2f}s")
+
+    generated_text = result[0]["generated_text"]
+
+    # Trim to last complete sentence if cut off
+    if generated_text and not generated_text.endswith(('.', '!', '?')):
+        last_period = generated_text.rfind('.')
+        if last_period > 0:
+            generated_text = generated_text[:last_period + 1]
+
+    return generated_text.strip()
+
+
+def _generate_ollama(prompt: str, num_predict: int, temperature: float) -> str:
+    """Generate text using Ollama local API."""
+    base_url = os.environ.get("OLLAMA_URL") or "http://localhost:11434/api/generate"
+    model = os.environ.get("OLLAMA_MODEL") or "llama3"
+
+    max_prompt_length = 4000
+    if len(prompt) > max_prompt_length:
+        logger.warning(f"Prompt truncated from {len(prompt)} to {max_prompt_length} chars")
+        prompt = prompt[:max_prompt_length]
+
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": temperature,
+            "top_p": 0.9,
+            "num_predict": num_predict,
+        }
+    }
+
+    logger.info(f"Calling Ollama API: {model}")
+    response = requests.post(base_url, json=payload, timeout=180)
+    response.raise_for_status()
+
+    return (response.json() or {}).get("response", "")
 
 def list_corpus_files(analysis_type=None):
     if analysis_type == "keyness":
@@ -54,7 +207,7 @@ def list_corpus_files(analysis_type=None):
     if not folder.exists():
         return []
 
-    files = [f.stem for f in folder.glob("*.json")]  # <- use stem (no .json)
+    files = [f.stem for f in folder.glob("*.json")]
 
     if analysis_type == "keyness":
         # strip _keyness suffix
@@ -98,31 +251,15 @@ def list_corpora(request):
         analysis_type = request.GET.get("analysis")
         files = list_corpus_files(analysis_type)
 
-        # Log what was found
-        logger.info("list_corpora -> analysis_type=%s, files=%s", analysis_type, files)
-
         # If keyness, add the suffix back for the frontend
         if analysis_type == "keyness":
             files = [f"{f}_keyness" if f != "general_fiction" else f"{f}_keyness" for f in files]
-
-            # Log what was found
-            logger.info("list_corpora -> analysis_type=%s, files=%s", analysis_type, files)
 
         return JsonResponse({"corpora": files})
     except Exception as e:
         logger.exception("Error in list_corpora")
         return JsonResponse({"error": str(e)}, status=500)
 # ---------------------------------------------------------------------------
-
-# File validation constants
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-MAX_FILES = 5
-ALLOWED_EXTENSIONS = {'.txt', '.doc', '.docx'}
-ALLOWED_MIME_TYPES = {
-    'text/plain',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-}
 
 logger = logging.getLogger('api')
 
@@ -178,7 +315,6 @@ def process_text_file(uploaded_file: UploadedFile) -> tuple[str, str]:
                     continue
             else:
                 return "", "Unable to decode file with supported encodings"
-
 
         elif file_extension == 'docx':
 
@@ -446,13 +582,18 @@ def analyse_keyness(request):
             logger.warning("Analysis request with empty uploaded_text")
             return JsonResponse({"error": "No uploaded text provided"}, status=400)
 
+            # Limit text length to prevent memory issues
+        if len(uploaded_text) > MAX_TEXT_LENGTH:
+            logger.warning(f"Text truncated from {len(uploaded_text)} to {MAX_TEXT_LENGTH} chars")
+            uploaded_text = uploaded_text[:MAX_TEXT_LENGTH]
+
         method = data.get("method", "nltk").lower()
         filter_mode = data.get("filter_mode", "content")
 
         # Choose filtering function
         filter_fn = filter_all_words if filter_mode == "all" else filter_content_words
 
-        # Tokenize/filter uploaded text
+        # Process uploaded text once and clear from memory
         filtered_uploaded = filter_fn(uploaded_text)
         uploaded_total = len(filtered_uploaded)
 
@@ -467,6 +608,10 @@ def analyse_keyness(request):
                 logger.warning("User text comparison without reference_text")
                 return JsonResponse({"error": "No reference text provided"}, status=400)
 
+            # Limit reference text as well
+            if len(reference_text) > MAX_TEXT_LENGTH:
+                reference_text = reference_text[:MAX_TEXT_LENGTH]
+
             logger.info(
                 f"User text comparison: target={len(uploaded_text.split())} words, "
                 f"reference={len(reference_text.split())} words"
@@ -476,6 +621,10 @@ def analyse_keyness(request):
             filtered_reference = filter_fn(reference_text)
             reference_counts_map = Counter([w["word"] for w in filtered_reference])
             reference_total = sum(reference_counts_map.values())
+
+            # Clear filtered data from memory
+            del filtered_reference
+            gc.collect()
 
             # Call the selected method exactly as with corpus analysis
             if method == "nltk":
@@ -510,6 +659,10 @@ def analyse_keyness(request):
                 logger.warning(f"Unknown keyness method requested: {method}")
                 return JsonResponse({"error": f"Unknown method: {method}"}, status=400)
 
+            # Clear large objects after use
+            del reference_counts_map
+            gc.collect()
+
             # Extract results
             results_list = data_out.get("results", [])
             total_significant = data_out.get("total_significant", len(results_list))
@@ -522,7 +675,7 @@ def analyse_keyness(request):
             # Save to DB
             keyness_obj = KeynessResult.objects.create(
                 method=method,
-                uploaded_text=uploaded_text,
+                uploaded_text=uploaded_text[:10000],
                 results=results_list,
                 uploaded_total=uploaded_total,
                 corpus_total=corpus_total,
@@ -570,6 +723,10 @@ def analyse_keyness(request):
             corpus_counts_map = Counter(meta.get("counts", {}))
             corpus_total = sum(corpus_counts_map.values())
 
+            # Clear meta from memory
+            del meta
+            gc.collect()
+
             # Compute keyness using chosen method
             if method == "nltk":
                 data_out = keyness_nltk(
@@ -603,6 +760,10 @@ def analyse_keyness(request):
                 logger.warning(f"Unknown keyness method requested: {method}")
                 return JsonResponse({"error": f"Unknown method: {method}"}, status=400)
 
+            # Clear corpus map after use
+            del corpus_counts_map
+            gc.collect()
+
             results_list = data_out.get("results", [])
             total_significant = data_out.get("total_significant", len(results_list))
 
@@ -613,7 +774,7 @@ def analyse_keyness(request):
             # Save to DB
             keyness_obj = KeynessResult.objects.create(
                 method=method,
-                uploaded_text=uploaded_text,
+                uploaded_text=uploaded_text[:10000],
                 results=results_list,
                 uploaded_total=uploaded_total,
                 corpus_total=corpus_total,
@@ -625,6 +786,10 @@ def analyse_keyness(request):
                 f"uploaded_total={uploaded_total}, corpus_total={corpus_total}, id={keyness_obj.id}"
             )
 
+            # Final cleanup
+            del uploaded_text, filtered_uploaded, data_out
+            gc.collect()
+
             return JsonResponse({
                 "id": keyness_obj.id,
                 "method": method,
@@ -635,28 +800,12 @@ def analyse_keyness(request):
                 "corpus_total": corpus_total,
                 "total_significant": total_significant
             })
-        logger.info(
-            f"Keyness analysis completed: method={method}, "
-            f"filter_mode={filter_mode}, results_count={len(results_list)}, "
-            f"uploaded_total={uploaded_total}, corpus_total={corpus_total}, id={keyness_obj.id}"
-        )
-        schedule_session_cleanup(request, delay_minutes=15)
-        return JsonResponse({
-            "id": keyness_obj.id,
-            "method": method,
-            "filter_mode": filter_mode,
-            "results": results_list,
-            "uploaded_total": uploaded_total,
-            "corpus_total": corpus_total,
-            "total_significant": total_significant
-        })
 
     except Exception as e:
         logger.exception(f"Error during keyness analysis: {e}")
+        # Cleanup on error
+        gc.collect()
         return JsonResponse({"error": str(e)}, status=500)
-
-
-
 
 @require_http_methods(["GET"])
 def get_keyness_results(request, result_id):
@@ -693,10 +842,6 @@ def get_sentences(request):
     except Exception as e:
         logger.exception(f"Error extracting sentences: {e}")
         return JsonResponse({"error": str(e)}, status=500)
-
-
-
-
 
 
 # --- Sentiment (SentiArt lexicon) -------------------------------------------
@@ -749,7 +894,6 @@ def analyse_sentiment(request):
 
 @require_http_methods(["GET"])
 def corpus_preview_keyness(request):
-    # Get the genre from the query string
     genre = request.GET.get("name", "").strip()
     if not genre:
         return JsonResponse({"preview": ""})
@@ -786,31 +930,45 @@ def corpus_preview_keyness(request):
 @api_view(['POST'])
 def get_keyness_summary(request):
     keyness_results = request.data.get('keyness_results', [])
-    top_words = keyness_results[:50]
+
+    print(f"🔍 Received {len(keyness_results)} keyness results")
+
+    # Filter to match frontend logic
+    filtered_words = [
+        word for word in keyness_results
+        if word.get('pos') != 'PROPN'  # Skip proper nouns like frontend
+    ][:30]
+
+    print(f"🔍 Filtered to {len(filtered_words)} words")
+    print(f"🔍 Sample words: {[w.get('word') for w in filtered_words[:5]]}")
+
+    words_list = ", ".join([f"{word['word']}" for word in filtered_words])
+
+    print(f"🔍 Words list length: {len(words_list)} characters")
+    print(f"🔍 Words list preview: {words_list[:200]}")
+
     prompt = (
-        "You are an expert NLP analyst. Here are the top 50 key words in a text, along with their keyness scores and part-of-speech tags:\n"
-        f"{top_words}\n"
-        "Write a summary (2-3 paragraphs) about what these results reveal about the word choices in the text. "
-        "Do not explain statistical columns; instead, interpret the meaning and possible implications of these words in the context of the document."
+        f"These are the most distinctive words in a literary text: {words_list}. "
+        "Write a paragraph explaining what these word choices reveal about the text's themes, "
+        "style, and subject matter. Focus on interpretation, not statistics."
     )
-    ollama_url = "http://localhost:11434/api/generate"
-    payload = {
-        "model": "llama3",
-        "prompt": prompt
-    }
-    ollama_response = requests.post(ollama_url, json=payload, stream=True)
-    summary_parts = []
-    for line in ollama_response.iter_lines():
-        if line:
-            try:
-                data = line.decode("utf-8")
-                json_obj = json.loads(data)  # <-- fixed!
-                if "response" in json_obj:
-                    summary_parts.append(json_obj["response"])
-            except Exception as e:
-                continue
-    summary_text = "".join(summary_parts)
-    return Response({"summary": summary_text})
+
+    print(f"🔍 Full prompt: {prompt[:300]}")
+
+    # Updated generation parameters
+    analysis = generate_text_with_fallback(
+        prompt,
+        num_predict=300,
+        temperature=0.7,
+    )
+
+    if not analysis:
+        return Response({"error": "No response from model."}, status=500)
+
+    # Optional: trim to last complete sentence if still cut off
+    analysis = analysis.rsplit('.', 1)[0] + '.' if '.' in analysis else analysis
+
+    return Response({"summary": analysis})
 
 @require_http_methods(["GET"])
 def corpus_meta_keyness(request):
@@ -906,31 +1064,26 @@ Requirements:
 - Consider connotation, formality level, and context appropriateness"""
 
     try:
-        ollama_url = "http://localhost:11434/api/generate"
-        payload = {
-            "model": "llama3",
-            "prompt": prompt,
-            "stream": False
-        }
-
-        response = requests.post(ollama_url, json=payload, timeout=60)
-        response.raise_for_status()
-
-        analysis = response.json().get("response", "")
-
+        analysis = generate_text_with_fallback(prompt, num_predict=400, temperature=0.7)
         if not analysis:
             return Response({'error': 'No response from model.'}, status=500)
-
         return Response({
             "word": word,
             "analysis": analysis,
             "success": True
         })
 
-    except requests.exceptions.Timeout as e:
+    except requests.exceptions.Timeout:
         return Response({'error': 'Request timed out. The model is taking too long to respond.'}, status=504)
+    except requests.exceptions.HTTPError as e:
+        status_code = getattr(e.response, "status_code", 500)
+        if status_code == 404:
+            return Response(
+                {'error': 'Hugging Face model not found. Check HUGGINGFACE_MODEL name or repository visibility.'},
+                status=502)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except requests.exceptions.RequestException as e:
-        return Response({'error': f'Request to Ollama failed: {str(e)}'}, status=500)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except Exception as e:
         return Response({'error': f'An error occurred: {str(e)}'}, status=500)
 
@@ -984,18 +1137,7 @@ Summary:
 """
 
     try:
-        ollama_url = "http://localhost:11434/api/generate"
-        payload = {
-            "model": "llama3",
-            "prompt": prompt,
-            "stream": False
-        }
-
-        response = requests.post(ollama_url, json=payload, timeout=60)
-        response.raise_for_status()
-
-        analysis = response.json().get("response", "")
-
+        analysis = generate_text_with_fallback(prompt, num_predict=400, temperature=0.7)
         if not analysis:
             return Response({'error': 'No response from model.'}, status=500)
 
@@ -1008,33 +1150,52 @@ Summary:
 
     except requests.exceptions.Timeout:
         return Response({'error': 'Request timed out. The model is taking too long to respond.'}, status=504)
+    except requests.exceptions.HTTPError as e:
+        status_code = getattr(e.response, "status_code", 500)
+        if status_code == 404:
+            return Response(
+                {'error': 'Hugging Face model not found. Check HUGGINGFACE_MODEL name or repository visibility.'},
+                status=502)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except requests.exceptions.RequestException as e:
-        return Response({'error': f'Request to Ollama failed: {str(e)}'}, status=500)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except Exception as e:
         return Response({'error': f'An error occurred: {str(e)}'}, status=500)
 
 
 @api_view(['POST'])
 def summarise_keyness_chart(request):
-    chart_type = request.data.get('chart_type', 'bar')  # 'bar' or 'scatter'
+    log_memory_usage("summarise_keyness_chart start")
+
+    chart_type = request.data.get('chart_type', 'bar')
     chart_title = request.data.get('title', 'Chart')
     chart_data = request.data.get('chart_data', [])
 
     if not chart_data:
+        logger.warning("No chart data provided for summary")
         return Response({'error': 'No chart data provided.'}, status=400)
 
-    # Enhanced prompts with better context and structure
-    if chart_type == "bar":
-        # Extract chart data for bar chart (label: value pairs)
-        chart_text = "\n".join([f"- {item['label']}: {item['value']:.3f}" for item in chart_data[:15]])
+    logger.info(f"Generating summary for {chart_type} chart with {len(chart_data)} data points")
 
-        prompt = f"""You are an expert data analyst and computational linguist.
+    # Limit data points to reduce prompt size
+    max_data_points = 15
+    chart_data = chart_data[:max_data_points]
 
-Task: Analyze the bar chart titled "{chart_title}" showing keyness analysis results.
+    try:
+        # Generate prompts optimised for LLM understanding
+        if chart_type == "bar":
+            chart_text = "\n".join([
+                f"- {item['label']}: {item['value']:.3f}"
+                for item in chart_data
+            ])
 
-Context: This chart displays the most statistically significant words from a text analysis, where higher values indicate words that are more distinctive or characteristic of the analyzed text compared to a reference corpus.
+            prompt = f"""You are an expert data analyst and computational linguist.
 
-Chart Data (Top 15 keywords):
+Task: Analyse the bar chart titled "{chart_title}" showing keyness analysis results.
+
+Context: This chart displays the most statistically significant words from a text analysis, where higher values indicate words that are more distinctive or characteristic of the analysed text compared to a reference corpus.
+
+Chart Data (Top {len(chart_data)} keywords):
 {chart_text}
 
 Please provide a comprehensive analysis with the following structure:
@@ -1052,19 +1213,19 @@ Highlight 3-4 specific words that stand out and briefly explain why they're sign
 
 Keep the analysis concise but insightful, focusing on what these keywords reveal about the text's distinctive characteristics."""
 
-    else:  # scatter plot
-        # Extract chart data for scatter plot (label with x,y coordinates)
-        chart_text = "\n".join(
-            [f"- {item['label']}: Frequency={item.get('x', 0)}, Keyness={item.get('y', 0):.3f}" for item in
-             chart_data[:15]])
+        else:  # scatter plot
+            chart_text = "\n".join([
+                f"- {item['label']}: Frequency={item.get('x', 0)}, Keyness={item.get('y', 0):.3f}"
+                for item in chart_data
+            ])
 
-        prompt = f"""You are an expert data analyst and computational linguist.
+            prompt = f"""You are an expert data analyst and computational linguist.
 
-Task: Analyze the scatter plot titled "{chart_title}" showing the relationship between word frequency and keyness scores.
+Task: Analyse the scatter plot titled "{chart_title}" showing the relationship between word frequency and keyness scores.
 
 Context: This visualization plots words based on their frequency (how often they appear) versus their keyness score (how distinctive they are). The most interesting words are often those with moderate-to-high frequency but very high keyness scores.
 
-Chart Data (Top 15 keywords):
+Chart Data (Top {len(chart_data)} keywords):
 {chart_text}
 
 Please provide a comprehensive analysis with the following structure:
@@ -1082,182 +1243,162 @@ Highlight 3-4 specific words that occupy interesting positions in the frequency-
 
 Focus on what the frequency-keyness relationship reveals about the text's linguistic characteristics."""
 
-    try:
-        ollama_url = "http://localhost:11434/api/generate"
-        payload = {
-            "model": "llama3",
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.7,  # Slightly creative but focused
-                "top_p": 0.9,
-                "num_predict": 500,  # Limit response length
-            }
-        }
+        # Clear chart_data from memory
+        del chart_data
+        gc.collect()
 
-        response = requests.post(ollama_url, json=payload, timeout=90)  # Increased timeout
-        response.raise_for_status()
-
-        analysis = response.json().get("response", "")
+        # Generate analysis
+        analysis = generate_text_with_fallback(prompt, num_predict=500, temperature=0.7)
 
         if not analysis:
+            logger.error("No response from LLM model")
             return Response({'error': 'No response from model.'}, status=500)
 
-        # Clean up the response a bit
         analysis = analysis.strip()
+
+        # Clear prompt from memory
+        del prompt
+        gc.collect()
+
+        logger.info(f"Summary generated successfully ({len(analysis)} chars)")
+        log_memory_usage("summarise_keyness_chart end")
 
         return Response({
             "chart_title": chart_title,
             "chart_type": chart_type,
             "analysis": analysis,
             "success": True,
-            "data_points_analyzed": len(chart_data)
+            "data_points_analysed": min(len(request.data.get('chart_data', [])), max_data_points)
         })
 
     except requests.exceptions.Timeout:
-        return Response({'error': 'Request timed out. The model is taking too long to respond.'}, status=504)
+        logger.error("LLM request timed out")
+        gc.collect()
+        return Response({
+            'error': 'Request timed out. The model is taking too long to respond.'
+        }, status=504)
+
+    except requests.exceptions.HTTPError as e:
+        status_code = getattr(e.response, "status_code", 500)
+        logger.error(f"LLM HTTP error: {status_code} - {str(e)}")
+        gc.collect()
+
+        if status_code == 401:
+            return Response({
+                'error': 'Invalid API key. Please check your LLM provider API key in environment variables.'
+            }, status=502)
+        elif status_code == 429:
+            return Response({
+                'error': 'Rate limit exceeded. Please try again in a moment.'
+            }, status=429)
+        return Response({
+            'error': f'Request to language model failed: {str(e)}'
+        }, status=500)
+
+    except ValueError as e:
+        logger.error(f"LLM value error: {str(e)}")
+        gc.collect()
+        return Response({
+            'error': str(e)
+        }, status=500)
+
     except requests.exceptions.RequestException as e:
-        return Response({'error': f'Request to Ollama failed: {str(e)}'}, status=500)
+        logger.error(f"LLM request failed: {str(e)}")
+        gc.collect()
+        return Response({
+            'error': f'Request to language model failed: {str(e)}'
+        }, status=500)
+
     except Exception as e:
-        return Response({'error': f'An error occurred: {str(e)}'}, status=500)
+        logger.exception(f"Unexpected error in summarise_keyness_chart: {e}")
+        gc.collect()
+
+        # Check if it's a connection error to LLM service
+        if "Connection refused" in str(e) or "Max retries exceeded" in str(e):
+            return Response({
+                'error': 'LLM service is not available. Please configure LLM_PROVIDER and API key in environment variables.',
+                'summary_unavailable': True
+            }, status=503)
+
+        return Response({
+            'error': f'An error occurred: {str(e)}'
+        }, status=500)
 
 
 @api_view(['POST'])
 def summarise_clustering_chart(request):
-    clusters = request.data.get('clusters', [])
-    top_terms = request.data.get('top_terms', {})
-    themes = request.data.get('themes', {})
-    selected_cluster = request.data.get('selected_cluster', 'all')
-    chart_title = request.data.get('title', 'Clustering Analysis')
+    """Generate AI summary of clustering analysis from raw cluster points."""
+    try:
+        cluster_points = request.data.get('cluster_summary', [])
+        top_terms = request.data.get('top_terms', {})
+        themes = request.data.get('themes', {})
+        selected_cluster = request.data.get('selected_cluster', 'all')
+        chart_title = request.data.get('title', 'Clustering Analysis')
 
-    if not clusters:
-        return Response({'error': 'No clustering data provided.'}, status=400)
+        if not cluster_points or not isinstance(cluster_points, list):
+            return Response({'error': 'No clustering data provided.'}, status=400)
 
-    # Filter clusters if specific cluster is selected
-    if selected_cluster != 'all':
-        try:
-            cluster_num = int(selected_cluster)
-            filtered_clusters = [c for c in clusters if c.get('label') == cluster_num]
-        except (ValueError, TypeError):
-            filtered_clusters = clusters
-    else:
-        filtered_clusters = clusters
+        # Aggregate cluster statistics
+        cluster_stats = defaultdict(lambda: {"count": 0, "sum_x": 0, "sum_y": 0, "sample_docs": []})
+        for c in cluster_points:
+            label = c['label']
+            cluster_stats[label]["count"] += 1
+            cluster_stats[label]["sum_x"] += c['x']
+            cluster_stats[label]["sum_y"] += c['y']
+            if len(cluster_stats[label]["sample_docs"]) < 3:
+                cluster_stats[label]["sample_docs"].append(c.get("doc", ""))
 
-    # Prepare cluster statistics
-    cluster_stats = {}
-    for cluster in filtered_clusters:
-        label = cluster.get('label', 'Unknown')
-        if label not in cluster_stats:
-            cluster_stats[label] = {
-                'count': 0,
-                'sample_docs': [],
-                'x_coords': [],
-                'y_coords': []
-            }
+        # Finalise averages
+        for stats in cluster_stats.values():
+            stats["avg_x"] = stats["sum_x"] / stats["count"]
+            stats["avg_y"] = stats["sum_y"] / stats["count"]
 
-        cluster_stats[label]['count'] += 1
-        cluster_stats[label]['x_coords'].append(cluster.get('x', 0))
-        cluster_stats[label]['y_coords'].append(cluster.get('y', 0))
+        total_documents = len(cluster_points)
+        num_clusters = len(cluster_stats)
 
-        # Add sample document (truncated for brevity)
-        doc = cluster.get('doc', '')
-        if doc and len(cluster_stats[label]['sample_docs']) < 3:
-            cluster_stats[label]['sample_docs'].append(doc[:100] + '...' if len(doc) > 100 else doc)
+        # Build cluster summary text
+        cluster_summary_text = []
+        for label, stats in sorted(cluster_stats.items(), key=lambda x: x[1]['count'], reverse=True):
+            terms_text = ", ".join(top_terms.get(str(label), [])[:3]) or "No terms"
+            theme_text = themes.get(str(label), "No theme")
+            cluster_summary_text.append(
+                f"Cluster {label}: {stats['count']} docs, terms: {terms_text}, theme: {theme_text}"
+            )
 
-    # Generate cluster summary text
-    cluster_summary = []
-    total_documents = len(filtered_clusters)
-    num_clusters = len(cluster_stats)
+        cluster_text = "\n".join(cluster_summary_text)
+        scope_desc = f"all {num_clusters} clusters" if selected_cluster == 'all' else f"Cluster {selected_cluster}"
 
-    for label, stats in sorted(cluster_stats.items()):
-        # Calculate cluster position (centroid)
-        avg_x = sum(stats['x_coords']) / len(stats['x_coords']) if stats['x_coords'] else 0
-        avg_y = sum(stats['y_coords']) / len(stats['y_coords']) if stats['y_coords'] else 0
+        # Build LLM prompt
+        prompt = f"""Analyse this document clustering visualisation:
 
-        # Get top terms for this cluster
-        cluster_terms = top_terms.get(str(label), [])[:5]  # Top 5 terms
-        terms_text = ", ".join(cluster_terms) if cluster_terms else "No terms available"
+Title: {chart_title}
+Scope: {scope_desc}
+Total: {total_documents} documents in {num_clusters} clusters
 
-        # Get theme if available
-        theme = themes.get(str(label), "No theme identified")
-
-        cluster_info = (
-            f"- Cluster {label}: {stats['count']} documents "
-            f"(Position: x={avg_x:.2f}, y={avg_y:.2f})\n"
-            f"  Top terms: {terms_text}\n"
-            f"  Theme: {theme}"
-        )
-
-        if stats['sample_docs']:
-            cluster_info += f"\n  Sample documents: {' | '.join(stats['sample_docs'][:2])}"
-
-        cluster_summary.append(cluster_info)
-
-    cluster_text = "\n\n".join(cluster_summary)
-
-    # Build the analysis scope description
-    scope_desc = f"all {num_clusters} clusters" if selected_cluster == 'all' else f"Cluster {selected_cluster} only"
-
-    prompt = f"""You are an expert data scientist specializing in text clustering and unsupervised machine learning analysis.
-
-Task: Analyze the clustering visualization titled "{chart_title}" showing document clustering results using dimensionality reduction (PCA).
-
-Context: This scatter plot displays documents clustered using machine learning algorithms, where each point represents a document positioned in 2D space based on similarity. The x and y coordinates represent the first two principal components from PCA dimensionality reduction. Documents that are closer together are more similar in content.
-
-Analysis Scope: {scope_desc}
-Total Documents Analyzed: {total_documents}
-Number of Clusters: {num_clusters}
-
-Detailed Cluster Information:
+Top Clusters:
 {cluster_text}
 
-Please provide a comprehensive analysis with the following structure:
+Provide a brief analysis:
 
-**Executive Summary:**
-Provide a 3-4 sentence overview of the clustering results, including the main patterns and overall quality of the clustering.
+1. Summary (2-3 sentences): Overall clustering patterns and quality
+2. Key Insights (3-4 points):
+- Cluster distribution and separation
+- Thematic patterns from top terms
+- Notable findings
+3. Recommendations (1-2 sentences): Suggested next steps
 
-**Cluster Analysis:**
-- Describe the spatial distribution of clusters (are they well-separated, overlapping, or forming clear groups?)
-- Identify the largest and smallest clusters and what this might indicate
-- Comment on any clusters that appear to be outliers or have unusual positioning
-- Analyze the thematic coherence based on the top terms and identified themes
+Keep analysis concise and actionable."""
 
-**Key Insights:**
-- What do the cluster themes reveal about the underlying document collection?
-- Are there any interesting relationships or patterns between clusters?
-- Comment on the effectiveness of the clustering (clear separation vs. ambiguous boundaries)
-- Identify any potential subclusters or hierarchical relationships
-
-**Notable Findings:**
-Highlight 3-4 specific observations about individual clusters, their content, or positioning that provide meaningful insights about the document collection.
-
-**Recommendations:**
-Suggest potential next steps for analysis or ways to improve the clustering results.
-
-Focus on actionable insights about what these clusters reveal about the document collection's structure and content themes."""
-
-    try:
-        ollama_url = "http://localhost:11434/api/generate"
-        payload = {
-            "model": "llama3",
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.7,
-                "top_p": 0.9,
-                "num_predict": 600,  # Slightly longer for comprehensive analysis
-            }
-        }
-
-        response = requests.post(ollama_url, json=payload, timeout=120)  # Longer timeout for complex analysis
-        response.raise_for_status()
-
-        analysis = response.json().get("response", "")
-
+        # Generate AI analysis (replace with your LLM function)
+        analysis = generate_text_with_fallback(prompt, num_predict=400, temperature=0.7)
         if not analysis:
             return Response({'error': 'No response from model.'}, status=500)
 
         analysis = analysis.strip()
+
+        # Cleanup large objects
+        del cluster_points, cluster_stats, prompt
+        gc.collect()
 
         return Response({
             "chart_title": chart_title,
@@ -1265,16 +1406,13 @@ Focus on actionable insights about what these clusters reveal about the document
             "total_documents": total_documents,
             "num_clusters": num_clusters,
             "analysis": analysis,
-            "success": True,
-            "cluster_summary": cluster_stats
+            "success": True
         })
 
-    except requests.exceptions.Timeout:
-        return Response({'error': 'Request timed out. The clustering analysis is taking too long to process.'},
-                        status=504)
-    except requests.exceptions.RequestException as e:
-        return Response({'error': f'Request to Ollama failed: {str(e)}'}, status=500)
     except Exception as e:
+        logger.exception(f"Error in summarise_clustering_chart: {e}")
+        traceback.print_exc()
+        gc.collect()
         return Response({'error': f'An error occurred: {str(e)}'}, status=500)
 
 
@@ -1343,14 +1481,14 @@ Additional Context from Clustering Analysis:
 
     Data Source: {data_source}
     Total Documents: {total_docs}
-    Sample Analyzed: {sample_size} documents
+    Sample Analysed: {sample_size} documents
 
     Document Sample:
     {documents_text}
     {clustering_context}
 
     Instructions:
-    Analyze the provided text to identify dominant themes, recurring ideas, and key topics. Look for both explicit topics (directly stated) and implicit themes (underlying patterns, sentiments, or conceptual frameworks).
+    Analyse the provided text to identify dominant themes, recurring ideas, and key topics. Look for both explicit topics (directly stated) and implicit themes (underlying patterns, sentiments, or conceptual frameworks).
 
     Please provide your analysis in the following structured format:
 
@@ -1373,7 +1511,7 @@ Additional Context from Clustering Analysis:
     - What underlying assumptions or frameworks are present?
 
     **Key Terms and Phrases:**
-    List the most significant terms, phrases, or concepts that characterize this collection:
+    List the most significant terms, phrases, or concepts that characterise this collection:
     - High-frequency meaningful terms
     - Distinctive vocabulary or jargon
     - Emotionally charged or significant phrases
@@ -1381,26 +1519,10 @@ Additional Context from Clustering Analysis:
     **Summary Insight:**
     Provide a 2-3 sentence synthesis of what this collection is fundamentally about - its core purpose, perspective, or focus.
 
-    Focus on actionable insights that reveal the essential character and intellectual content of this document collection. Prioritize themes that appear across multiple documents rather than isolated topics."""
+    Focus on actionable insights that reveal the essential character and intellectual content of this document collection. Prioritise themes that appear across multiple documents rather than isolated topics."""
 
     try:
-        ollama_url = "http://localhost:11434/api/generate"
-        payload = {
-            "model": "llama3",
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.6,  # Balanced creativity for theme identification
-                "top_p": 0.9,
-                "num_predict": 700,  # Longer response for comprehensive analysis
-            }
-        }
-
-        response = requests.post(ollama_url, json=payload, timeout=150)  # Longer timeout for complex analysis
-        response.raise_for_status()
-
-        analysis = response.json().get("response", "")
-
+        analysis = generate_text_with_fallback(prompt, num_predict=700, temperature=0.6)
         if not analysis:
             return Response({'error': 'No response from model.'}, status=500)
 
@@ -1411,7 +1533,7 @@ Additional Context from Clustering Analysis:
             "analysis_title": analysis_title,
             "data_source": data_source,
             "total_documents": total_docs,
-            "documents_analyzed": sample_size,
+            "documents_analysed": sample_size,
             "analysis": analysis,
             "success": True,
             "has_clustering_context": bool(clustering_context)
@@ -1419,8 +1541,13 @@ Additional Context from Clustering Analysis:
 
     except requests.exceptions.Timeout:
         return Response({'error': 'Request timed out. Theme analysis is taking too long to process.'}, status=504)
+    except requests.exceptions.HTTPError as e:
+        status_code = getattr(e.response, "status_code", 500)
+        if status_code == 404:
+            return Response({'error': 'Hugging Face model not found. Check HUGGINGFACE_MODEL name or repository visibility.'}, status=502)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except requests.exceptions.RequestException as e:
-        return Response({'error': f'Request to Ollama failed: {str(e)}'}, status=500)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except Exception as e:
         return Response({'error': f'An error occurred: {str(e)}'}, status=500)
 
@@ -1478,11 +1605,11 @@ Additional Context from Clustering Analysis:
 
     prompt = f"""You are an expert in discourse analysis and thematic development, specializing in understanding how themes evolve, interconnect, and flow throughout text collections.
 
-Task: Analyze the thematic flow and relationships in the document collection titled "{analysis_title}".
+Task: Analyse the thematic flow and relationships in the document collection titled "{analysis_title}".
 
 Data Source: {data_source}
 Total Documents: {total_docs}
-Sample Analyzed: {sample_size} documents
+Sample Analysed: {sample_size} documents
 
 Document Sample:
 {documents_text}
@@ -1532,23 +1659,7 @@ Please provide your analysis in the following structured format:
 Provide insights that reveal the dynamic, interconnected nature of themes and how they create meaning through their relationships and flow."""
 
     try:
-        ollama_url = "http://localhost:11434/api/generate"
-        payload = {
-            "model": "llama3",
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.6,
-                "top_p": 0.9,
-                "num_predict": 700,
-            }
-        }
-
-        response = requests.post(ollama_url, json=payload, timeout=150)
-        response.raise_for_status()
-
-        analysis = response.json().get("response", "")
-
+        analysis = generate_text_with_fallback(prompt, num_predict=700, temperature=0.6)
         if not analysis:
             return Response({'error': 'No response from model.'}, status=500)
 
@@ -1559,7 +1670,7 @@ Provide insights that reveal the dynamic, interconnected nature of themes and ho
             "analysis_title": analysis_title,
             "data_source": data_source,
             "total_documents": total_docs,
-            "documents_analyzed": sample_size,
+            "documents_analsed": sample_size,
             "analysis": analysis,
             "success": True,
             "has_clustering_context": bool(clustering_context)
@@ -1567,8 +1678,13 @@ Provide insights that reveal the dynamic, interconnected nature of themes and ho
 
     except requests.exceptions.Timeout:
         return Response({'error': 'Request timed out.'}, status=504)
+    except requests.exceptions.HTTPError as e:
+        status_code = getattr(e.response, "status_code", 500)
+        if status_code == 404:
+            return Response({'error': 'Hugging Face model not found. Check HUGGINGFACE_MODEL name or repository visibility.'}, status=502)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except requests.exceptions.RequestException as e:
-        return Response({'error': f'Request to Ollama failed: {str(e)}'}, status=500)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except Exception as e:
         return Response({'error': f'An error occurred: {str(e)}'}, status=500)
 
@@ -1626,11 +1742,11 @@ Additional Context from Clustering Analysis:
 
     prompt = f"""You are an expert writing analyst and style critic specializing in identifying patterns of overuse, repetition, and stylistic habits in text collections.
 
-Task: Analyze patterns of overuse and underuse in the document collection titled "{analysis_title}".
+Task: Analyse patterns of overuse and underuse in the document collection titled "{analysis_title}".
 
 Data Source: {data_source}
 Total Documents: {total_docs}
-Sample Analyzed: {sample_size} documents
+Sample Analysed: {sample_size} documents
 
 Document Sample:
 {documents_text}
@@ -1688,34 +1804,18 @@ Provide 3-5 concrete suggestions for reducing overuse and improving stylistic ba
 Be specific with examples and constructive in your critique. Focus on patterns that meaningfully impact the text's quality and reader experience."""
 
     try:
-        ollama_url = "http://localhost:11434/api/generate"
-        payload = {
-            "model": "llama3",
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.6,
-                "top_p": 0.9,
-                "num_predict": 800,  # Longer for detailed recommendations
-            }
-        }
-
-        response = requests.post(ollama_url, json=payload, timeout=150)
-        response.raise_for_status()
-
-        analysis = response.json().get("response", "")
-
+        analysis = generate_text_with_fallback(prompt, num_predict=800, temperature=0.6)
         if not analysis:
             return Response({'error': 'No response from model.'}, status=500)
 
         analysis = analysis.strip()
-        
+
         schedule_session_cleanup(request, delay_minutes=15)
         return Response({
             "analysis_title": analysis_title,
             "data_source": data_source,
             "total_documents": total_docs,
-            "documents_analyzed": sample_size,
+            "documents_analysed": sample_size,
             "analysis": analysis,
             "success": True,
             "has_clustering_context": bool(clustering_context)
@@ -1723,8 +1823,13 @@ Be specific with examples and constructive in your critique. Focus on patterns t
 
     except requests.exceptions.Timeout:
         return Response({'error': 'Request timed out.'}, status=504)
+    except requests.exceptions.HTTPError as e:
+        status_code = getattr(e.response, "status_code", 500)
+        if status_code == 404:
+            return Response({'error': 'Hugging Face model not found. Check HUGGINGFACE_MODEL name or repository visibility.'}, status=502)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except requests.exceptions.RequestException as e:
-        return Response({'error': f'Request to Ollama failed: {str(e)}'}, status=500)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except Exception as e:
         return Response({'error': f'An error occurred: {str(e)}'}, status=500)
 
