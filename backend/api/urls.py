@@ -1,6 +1,7 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 from .clustering.clustering_analyser import clustering_analysis
+from django.http import HttpResponse, JsonResponse
 
 urlpatterns = [
     path("corpora/", views.list_corpora, name="list_corpora"),

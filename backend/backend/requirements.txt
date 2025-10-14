@@ -14,7 +14,14 @@ mammoth
 pandas
 gunicorn
 whitenoise
+python-dotenv
 roman
-# spaCy models
+psutil==5.9.8
+openAI
+transformers>=4.44.0,<5.0.0
+optimum[onnxruntime]>=1.21.0,<2.0.0
+onnxruntime>=1.18.0,<2.0.0
+sentencepiece
+
+# spaCy model
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz#egg=en_core_web_sm
-https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0.tar.gz#egg=en_core_web_md

@@ -105,15 +105,11 @@ const KeynessLanding = ({
                         (refFile.textContent || "").split("\n").slice(0, 4).join("\n")
                     );
                 }
-
-                // Clear error if we have exactly 2 files
                 setError(updatedFiles.length === 2 ? "" : "Please upload both reference and target texts.");
-
                 return updatedFiles;
             });
 
         } else {
-            // CORPUS MODE
             setSelectedFiles(files || []);
             setUploadedText(text);
             setUploadedPreview(text.split("\n").slice(0, 4).join("\n"));
