@@ -33,17 +33,15 @@ load_dotenv()
 # Render: leave DJANGO_DEBUG unset (or set to 0) so DEBUG=False.
 DEBUG = os.environ.get("DJANGO_DEBUG", "") == "1"
 
-# Prefer an env var (e.g., Render sets NLTK_DATA=/opt/render/nltk_data).
-# Otherwise, keep NLTK data inside the project for local dev.
-NLTK_DATA_DIR = os.environ.get("NLTK_DATA") or str(BASE_DIR / "nltk_data")
-os.environ["NLTK_DATA"] = NLTK_DATA_DIR
-os.makedirs(NLTK_DATA_DIR, exist_ok=True)
+# NLTK_DATA=/opt/render/nltk_data ensures required corpora at startup (punkt, punkt_tab, averaged_perceptron_tagger_eng).
+os.environ.setdefault("NLTK_DATA", "/opt/render/nltk_data")
+os.makedirs(os.environ["NLTK_DATA"], exist_ok=True)
 
 def ensure(path, download_name):
     try:
         nltk.data.find(path)
     except LookupError:
-        nltk.download(download_name, download_dir=NLTK_DATA_DIR, quiet=True)
+        nltk.download(download_name, download_dir=os.environ["NLTK_DATA"], quiet=True)
 
 # Tokenizers (support old/new layouts)
 ensure("tokenizers/punkt", "punkt")
@@ -60,6 +58,7 @@ RENDER_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".onrender.com"]
 if RENDER_HOST:
     ALLOWED_HOSTS.append(RENDER_HOST)
+ALLOWED_HOSTS += ["nlp-insights-capstone-ljvw.onrender.com"]
 
 # Frontend origin (Vercel) for CORS/CSRF
 FRONTEND_ORIGIN = os.environ.get(
@@ -89,10 +88,10 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     FRONTEND_ORIGIN,
-    "https://*.vercel.app", 
     ]
 if RENDER_HOST:
     CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_HOST}")
+CSRF_TRUSTED_ORIGINS += ["https://*.vercel.app"]
 
 CORS_ALLOW_ALL_ORIGINS = False
 
