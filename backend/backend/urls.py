@@ -1,9 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.http import JsonResponse
-
-def health(_):
-    return JsonResponse({"status": "ok"})
+from api.views import health 
 
 urlpatterns = [
     path("admin/", admin.site.urls),
