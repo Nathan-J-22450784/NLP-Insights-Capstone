@@ -20,7 +20,6 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from pathlib import Path
-from openai import OpenAI
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy.stats import chi2_contingency, chi2
 from gensim import corpora, models
