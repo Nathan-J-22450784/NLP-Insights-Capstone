@@ -20,7 +20,6 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from pathlib import Path
-from openai import OpenAI
 from sklearn.feature_extraction.text import CountVectorizer
 from scipy.stats import chi2_contingency, chi2
 from gensim import corpora, models
@@ -60,7 +59,7 @@ SAMPLE_FILE = os.path.join(CORPUS_DIR, "sample1.txt")
 # --- Genre Corpus Meta  -----------
 # Looks for metadata-only corpora in backend/api/corpus_meta/*.json
 META_DIR = Path("api/corpus_meta")
-KEYNESS_DIR = Path("api/corpus_meta_keyness")
+KEYNESS_DIR = META_DIR
 
 try:
     import psutil
@@ -199,25 +198,16 @@ def _generate_ollama(prompt: str, num_predict: int, temperature: float) -> str:
     return (response.json() or {}).get("response", "")
 
 def list_corpus_files(analysis_type=None):
-    if analysis_type == "keyness":
-        folder = KEYNESS_DIR
-    else:
-        folder = META_DIR
+    folder = META_DIR
 
     if not folder.exists():
         return []
 
+    # Basenames like "fantasy", "horror", etc.
     files = [f.stem for f in folder.glob("*.json")]
 
-    if analysis_type == "keyness":
-        # strip _keyness suffix
-        files = [f.replace("_keyness", "") for f in files]
-        files.sort(key=lambda x: (0 if x == "general_fiction" else 1, x))
-    else:
-        files.sort()
-
+    files.sort(key=lambda x: (0 if x == "general_fiction" else 1, x))
     return files
-
 
 
 def load_corpus_meta(corpus_name: str) -> dict:
@@ -250,11 +240,6 @@ def list_corpora(request):
     try:
         analysis_type = request.GET.get("analysis")
         files = list_corpus_files(analysis_type)
-
-        # If keyness, add the suffix back for the frontend
-        if analysis_type == "keyness":
-            files = [f"{f}_keyness" if f != "general_fiction" else f"{f}_keyness" for f in files]
-
         return JsonResponse({"corpora": files})
     except Exception as e:
         logger.exception("Error in list_corpora")
@@ -463,24 +448,39 @@ def read_corpus():
 
 @csrf_exempt
 @require_GET
+@csrf_exempt
+@require_GET
 def get_corpus_preview(request):
     """
     Optional query param: ?name=<genre>
-    Returns 4 preview lines. Prefer meta.preview if present.
+    Returns a short preview.
+    Prefers unified meta `previews[].snippet`; falls back to legacy `preview` or synthesized top-freq words.
     """
     try:
         corpus_name = request.GET.get("name")
         if corpus_name:
             meta = load_corpus_meta(corpus_name)
-            # Prefer curated preview if available
+
+            # 1) Unified format (ex-Keyness): previews[].snippet
+            snippets = [
+                (item.get("snippet") or "").strip()
+                for item in meta.get("previews", [])
+                if (item.get("snippet") or "").strip()
+            ]
+            if snippets:
+                return JsonResponse({"preview": "\n\n".join(snippets[:4])})
+
+            # 2) Legacy format: meta["preview"] is a list of lines
             preview_lines = meta.get("preview")
-            if not preview_lines:
-                # Fallback: synthesize from top frequent words
-                freq = meta.get("freq", {})
-                words = sorted(freq.items(), key=lambda kv: kv[1], reverse=True)[:20]
-                preview_text = " ".join([w for w, _ in words])
-                preview_lines = [preview_text[i:i+80] for i in range(0, len(preview_text), 80)][:4]
-            return JsonResponse({"preview": "\n".join(preview_lines[:4])})
+            if preview_lines:
+                return JsonResponse({"preview": "\n".join(preview_lines[:4])})
+
+            # 3) Last resort: synthesize from top frequent words
+            freq = meta.get("freq", {})
+            words = sorted(freq.items(), key=lambda kv: kv[1], reverse=True)[:20]
+            preview_text = " ".join([w for w, _ in words])
+            preview_lines = [preview_text[i:i+80] for i in range(0, len(preview_text), 80)][:4]
+            return JsonResponse({"preview": "\n".join(preview_lines)})
 
         # Backward compatibility (no genre provided): use legacy sample file
         try:
@@ -494,6 +494,7 @@ def get_corpus_preview(request):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
 
 # -----------------------------------------------------------------------------
 # Local helper: counts-based keyness (no other files changed)
@@ -701,16 +702,10 @@ def analyse_keyness(request):
             if not corpus_name:
                 return JsonResponse({"error": "No corpus_name provided"}, status=400)
 
-            # Remove .json if already included
             corpus_name = re.sub(r'\.json$', '', corpus_name)
-
-            # Append _keyness.json only if not already present
-            if not corpus_name.endswith("_keyness"):
-                filename = f"{corpus_name}_keyness.json"
-            else:
-                filename = f"{corpus_name}.json"
-
+            filename = f"{corpus_name}.json"
             corpus_path = KEYNESS_DIR / filename
+
             if not corpus_path.exists():
                 return JsonResponse({"error": f"Unknown corpus_name: {filename}"}, status=400)
 
@@ -900,13 +895,7 @@ def corpus_preview_keyness(request):
 
     # Remove any trailing '.json' first
     genre = re.sub(r'\.json$', '', genre)
-
-    # Ensure filename ends with '_keyness.json'
-    if not genre.endswith("_keyness"):
-        filename = f"{genre}_keyness.json"
-    else:
-        filename = f"{genre}.json"
-
+    filename = f"{genre}.json"
     file_path = KEYNESS_DIR / filename
 
     if not file_path.exists():
@@ -983,13 +972,7 @@ def corpus_meta_keyness(request):
 
     # Remove any trailing '.json' first
     genre = re.sub(r'\.json$', '', genre)
-
-    # Ensure filename ends with '_keyness.json'
-    if not genre.endswith("_keyness"):
-        filename = f"{genre}_keyness.json"
-    else:
-        filename = f"{genre}.json"
-
+    filename = f"{genre}.json"
     file_path = KEYNESS_DIR / filename
 
     if not file_path.exists():
@@ -1907,9 +1890,9 @@ def create_temp_corpus(request):
             "counts": freq,
         }
 
-        # Save as temp JSON in KEYNESS_DIR
+        # Save as temp JSON 
         KEYNESS_DIR.mkdir(parents=True, exist_ok=True)
-        temp_file = KEYNESS_DIR / "temp_user_upload_keyness.json"
+        temp_file = KEYNESS_DIR / "temp_user_upload.json"
         with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(out_data, f, ensure_ascii=False, indent=2)
 
