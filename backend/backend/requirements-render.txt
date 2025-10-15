@@ -1,0 +1,41 @@
+# --- core web ---
+Django==5.2.6
+djangorestframework==3.16.1
+django-cors-headers==4.8.0
+gunicorn==23.0.0
+whitenoise==6.11.0
+python-dotenv==1.0.1
+
+# --- numeric / data (NumPy 1.x lane compatible with gensim) ---
+numpy==1.26.4
+scipy==1.12.0
+pandas==2.3.2
+scikit-learn==1.7.2
+
+# --- NLP ---
+nltk==3.9.1
+spacy==3.7.4
+thinc==8.2.5
+# spaCy model (3.7.x)
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+
+gensim==4.3.2
+textacy==0.13.0
+smart_open==6.4.0        # <7 to satisfy spaCy 3.7.x
+num2words==0.5.14
+roman==5.1
+requests==2.32.5
+plotly==6.3.0
+psutil==5.9.8
+typing_extensions==4.15.0
+sqlparse==0.5.3
+
+# --- HF libs (OSS, small; no torch/onnx) ---
+huggingface-hub==0.35.3
+transformers==4.53.3
+tokenizers==0.21.4
+sentencepiece==0.2.1
+safetensors==0.6.2
+
+# --- optional ---
+ollama==0.5.4

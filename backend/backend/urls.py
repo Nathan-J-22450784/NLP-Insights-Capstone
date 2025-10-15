@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from api.healthcheck import health  
 
 urlpatterns = [
     path("admin/", admin.site.urls),
