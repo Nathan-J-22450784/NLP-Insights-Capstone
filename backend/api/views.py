@@ -69,7 +69,7 @@ except ImportError:
     PSUTIL_AVAILABLE = False
 
 @csrf_exempt
-def health(request):
+def health(_request):
     return JsonResponse({"status": "ok"})
 
 def log_memory_usage(label):
