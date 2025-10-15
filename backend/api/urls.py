@@ -1,9 +1,11 @@
 from django.urls import path, include
 from . import views
+from .views import health
 from .clustering.clustering_analyser import clustering_analysis
 from django.http import HttpResponse, JsonResponse
 
 urlpatterns = [
+    path("health/", health, name="health"),
     path("corpora/", views.list_corpora, name="list_corpora"),
     path("corpus-preview/", views.get_corpus_preview, name="corpus_preview"),
     path("analyse-keyness/", views.analyse_keyness, name="keyness_view"),
