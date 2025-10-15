@@ -68,6 +68,10 @@ try:
 except ImportError:
     PSUTIL_AVAILABLE = False
 
+@csrf_exempt
+def health(request):
+    return JsonResponse({"status": "ok"})
+
 def log_memory_usage(label):
     """Log current memory usage."""
     if PSUTIL_AVAILABLE:
