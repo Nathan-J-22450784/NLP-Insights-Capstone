@@ -1,6 +1,5 @@
 import React from "react";
 import { formatNumber } from "../../Utils";
-import "./ResultsTable.css";
 
 const ResultsTable = ({ results = [], method = "nltk" }) => {
   if (!Array.isArray(results) || results.length === 0) return null;

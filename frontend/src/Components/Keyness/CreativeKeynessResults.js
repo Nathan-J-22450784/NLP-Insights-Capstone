@@ -3,7 +3,6 @@ import Charts from "./Charts";
 import ResultsTable from "./ResultsTable";
 import ResultsSummary from "./ResultsSummary";
 import KeynessResultsGrid from "./KeynessResultsGrid";
-import "./CreativeKeynessResults.css";
 import { exportKeynessToXlsx } from "./ExportXlsx";
 
 const posColors = {

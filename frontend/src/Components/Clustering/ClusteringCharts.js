@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Plot from "react-plotly.js";
-import "./ClusteringCharts.css";
+
 
 const ClusteringCharts = ({ clusters, selectedCluster = "all" }) => {
   const [maxWords, setMaxWords] = useState(5);
