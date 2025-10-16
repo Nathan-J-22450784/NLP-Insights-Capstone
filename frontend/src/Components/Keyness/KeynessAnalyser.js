@@ -3,8 +3,7 @@ import ResultsSummary from "./ResultsSummary";
 import Charts from "./Charts";
 import ResultsTable from "./ResultsTable";
 import CreativeKeynessResults from "./CreativeKeynessResults";
-import '../ProgressBar.css';
-import './KeynessAnalyser.css';
+
 
 console.log("KeynessAnalyser file loaded");
 

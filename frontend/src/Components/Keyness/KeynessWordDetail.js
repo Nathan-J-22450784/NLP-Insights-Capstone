@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from "react";
-import "./KeynessWordDetail.css";
-import "../ProgressBar.css";
 
 const ProgressBar = ({ loading }) => {
     const [progress, setProgress] = useState(0);

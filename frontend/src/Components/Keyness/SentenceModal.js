@@ -1,5 +1,4 @@
 import React from "react";
-import "./SentenceModal.css";
 
 const SentenceModal = ({ word, sentences, onClose }) => {
   if (!word) return null;

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import CreativeKeynessResults from "./Keyness/CreativeKeynessResults";
 import GenreCorpusSelector from "./GenreCorpusSelector";
-import "./HomePage.css";
+
 
 const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
   const [corpora, setCorpora] = useState([]);

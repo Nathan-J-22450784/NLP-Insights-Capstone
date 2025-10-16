@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { BarChart3, BookOpen, X, Info } from "lucide-react";
-import "./ResultsSummary.css";
 
 const ResultsSummary = ({ stats, selectedMethod, comparisonResults, genre }) => {
   const [showCorpusModal, setShowCorpusModal] = useState(false);

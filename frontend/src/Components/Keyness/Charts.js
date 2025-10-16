@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Plot from "react-plotly.js";
 import { TrendingUp, BarChart3, ScatterChart, ToggleLeft, ToggleRight, Info } from "lucide-react";
-import "./Charts.css";
+
 
 const Charts = ({ results, method = "nltk", onChartTypeChange }) => {
   const [chartType, setChartType] = useState("primary");

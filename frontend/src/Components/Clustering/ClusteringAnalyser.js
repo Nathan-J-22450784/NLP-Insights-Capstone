@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import ClusteringCharts from "./ClusteringCharts";
 import CreativeClusteringAnalysis from "./CreativeClusteringAnalysis";
-import '../ProgressBar.css';
-import './ClusteringAnalyser.css';
 
 /**
  * Lightweight progress bar for clustering analysis.
