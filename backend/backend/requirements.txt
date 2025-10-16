@@ -17,6 +17,7 @@ whitenoise
 python-dotenv
 roman
 psutil==5.9.8
+torch==2.2.2 #pinning for Render deployment
 transformers>=4.44.0,<5.0.0
 optimum[onnxruntime]>=1.21.0,<2.0.0
 onnxruntime>=1.18.0,<2.0.0
