@@ -8,7 +8,7 @@ import SensorimotorLanding from "./Components/Sensorimotor/SensorimotorLanding";
 import useUnloadCleanup from "./Hooks/useUnloadCleanup";
 import KeynessWordDetail from "./Components/Keyness/KeynessWordDetail";
 import CreativeKeynessResults from "./Components/Keyness/CreativeKeynessResults";
-import "./ttc.css";
+import "./styles/ttc.css";
 
 function App() {
     const [activePage, setActivePage] = useState("home");
