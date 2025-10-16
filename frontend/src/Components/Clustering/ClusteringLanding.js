@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import TextInputSection from "../TextInputSection";
 import ClusteringAnalyser from "./ClusteringAnalyser";
-import "./ClusteringLanding.css";
+
 
 const ClusteringLanding = ({ onBack }) => {
   const [pastedText, setPastedText] = useState("");

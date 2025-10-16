@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import ClusteringCharts from "./ClusteringCharts";
-import "./CreativeClusteringAnalysis.css";
 
 const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments = [] }) => {
     const [showChart, setShowChart] = useState(true);
