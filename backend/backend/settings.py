@@ -55,16 +55,14 @@ ensure("taggers/averaged_perceptron_tagger_eng", "averaged_perceptron_tagger_eng
 # Allow localhost for dev and the Render hostname in prod.
 # Render usually provides RENDER_EXTERNAL_HOSTNAME.
 RENDER_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".onrender.com"]
-if RENDER_HOST:
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".onrender.com", "nlp-insights-capstone-ljvw.onrender.com"]
+if RENDER_HOST and RENDER_HOST not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RENDER_HOST)
-ALLOWED_HOSTS += ["nlp-insights-capstone-ljvw.onrender.com"]
 
 # Frontend origin (Vercel) for CORS/CSRF
 FRONTEND_ORIGIN = os.environ.get(
     "FRONTEND_ORIGIN",
-    "https://nlp-insights-capstone.vercel.app",
-)
+    "https://nlp-insights-capstone.vercel.app").rstrip("/")
 
 # HTTPS and cookies
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -88,6 +86,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     FRONTEND_ORIGIN,
+    "https://nlp-insights-capstone-ljvw.onrender.com",
     ]
 if RENDER_HOST:
     CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_HOST}")
