@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { CheckCircle, AlertCircle, Upload, X } from "lucide-react";
-import "./Keyness/KeynessLanding.css";
 
 const TextInputSection = ({
   pastedText,
