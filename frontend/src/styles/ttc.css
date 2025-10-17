@@ -6,20 +6,20 @@
    ========================================================================== */
 :root {
     /* Brand */
-    --ttc-primary: #492c79;
+    --ttc-primary: #6d28d9;      /* dark purple */
     --ttc-primary-foreground: #fff;
     /* Surface */
     --ttc-bg: #fff;
     --ttc-border: #e5e7eb;
-    --ttc-accent: #e9ebef;
-    --ttc-accent-foreground: #030213;
+    --ttc-accent: #f5f3ff;      /* lavender-50 */
+    --ttc-accent-foreground: #1f1147;
     /* Gradients */
-    --ttc-grad-start: #2563eb; /* blue */
-    --ttc-grad-end: #06b6d4; /* cyan */
+    --ttc-grad-start: #7c3aed;    /* violet-600 */
+    --ttc-grad-end: #9333ea;       /* violet-500 */
     /* States */
-    --ttc-ring: rgba(59,130,246,.6);
-    --ttc-ring-soft: rgba(59,130,246,.15);
-    --ttc-glow: rgba(37, 99, 235, .55);
+    --ttc-ring: rgba(124, 58, 237, 0.55);
+    --ttc-ring-soft: rgba(124, 58, 237, 0.18);
+    --ttc-glow: rgba(124, 58, 237, 0.45);
     /* Charts */
     --ttc-chart-start: #3b82f6; /* blue-500  */
     --ttc-chart-end: #8b5cf6; /* violet-500*/
@@ -56,137 +56,207 @@ html, body {
     border: 0 !important;
 }
 
+/* === Brand Callout === */
+.ttc-callout {
+  position: relative;
+  padding: 1.25rem 1.25rem 1.25rem 1.25rem;
+  border-radius: .75rem;
+  border: 1px solid var(--ttc-border);
+  background: linear-gradient(135deg, rgba(124,58,237,.08), rgba(147,51,234,.12));
+  color: #1f1147;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+
+/* the vertical gradient stripe */
+.ttc-callout::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 6px;
+  border-top-left-radius: .75rem;
+  border-bottom-left-radius: .75rem;
+  background: linear-gradient(180deg, var(--ttc-grad-start), var(--ttc-grad-end));
+}
+
+/* optional title style inside the callout */
+.ttc-callout .ttc-callout-title {
+  margin: 0 0 .25rem 0;
+  font-weight: 800;
+  color: var(--ttc-primary);
+}
 /* ==========================================================================
    2) BUTTONS (unified base + variants)
-   - Keeps all existing button classnames working via grouped selectors
+   - Base layout + brand gradient for every button class already in use
    ========================================================================== */
 
-/* Base layout & interaction (no colors here so variants can override) */
-:is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .Clustering-continue-button, .select-files-button, .btn, .clustering-btn) {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    white-space: nowrap;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: .2px;
-    line-height: 1;
-    height: 36px;
-    padding: 10px 18px;
-    border: 0;
-    cursor: pointer;
-    user-select: none;
-    overflow: hidden;
-    will-change: transform;
-    transition: transform .15s ease, box-shadow .25s ease, filter .25s ease;
-    /* prevent auto-stretch in flex layouts */
-    flex: 0 0 auto;
-    align-self: flex-start;
-    width: auto;
+/* Base layout & interaction */
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .Clustering-continue-button,
+  .select-files-button,
+  .btn,
+  .clustering-btn
+) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  line-height: 1;
+  height: 36px;
+  padding: 10px 18px;
+  border: 0;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  will-change: transform;
+  transition: transform .15s ease, box-shadow .25s ease, filter .25s ease;
+
+  /* brand look */
+  color: #fff;
+  background-image: linear-gradient(135deg, var(--ttc-grad-start) 0%, var(--ttc-grad-end) 100%);
+  box-shadow: var(--ttc-shadow-soft), inset 0 1px 0 rgba(255,255,255,.18);
+
+  /* prevent auto-stretch */
+  flex: 0 0 auto;
+  align-self: flex-start;
+  width: auto;
 }
 
-/* Primary gradient buttons (existing classes that already used the brand gradient) */
-:is(.ttc-button, .ttc-btn, .homepage-button) {
-    color: #fff;
-    background-image: linear-gradient(135deg, var(--ttc-grad-start) 0%, var(--ttc-grad-end) 100%);
-    box-shadow: var(--ttc-shadow-soft), inset 0 1px 0 rgba(255,255,255,.18);
+/* Hover lift + subtle glow for all of them */
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .Clustering-continue-button,
+  .select-files-button,
+  .btn,
+  .clustering-btn
+):hover {
+  transform: translateY(-2px);
+  filter: saturate(1.05);
+  box-shadow: 0 14px 32px -12px var(--ttc-glow), inset 0 1px 0 rgba(255,255,255,.22);
 }
 
-/* Hover lift + subtle glow (applies to all button-like classes) */
-:is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .Clustering-continue-button, .select-files-button, .btn, .clustering-btn):hover {
-    transform: translateY(-2px);
-    filter: saturate(1.05);
-}
-
-/* Stronger shadow only for gradient/brand buttons */
-:is(.ttc-button, .ttc-btn, .homepage-button):hover {
-    box-shadow: 0 14px 32px -12px var(--ttc-glow), inset 0 1px 0 rgba(255,255,255,.22);
-}
-
-/* Focus ring for keyboard users */
-:is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .Clustering-continue-button, .select-files-button, .btn, .clustering-btn):focus-visible {
-    outline: 2px solid var(--ttc-ring);
-    outline-offset: 2px;
-    box-shadow: 0 0 0 6px var(--ttc-ring-soft), 0 10px 28px -12px var(--ttc-glow);
+/* Focus ring */
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .Clustering-continue-button,
+  .select-files-button,
+  .btn,
+  .clustering-btn
+):focus-visible {
+  outline: 2px solid var(--ttc-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--ttc-ring-soft), 0 10px 28px -12px var(--ttc-glow);
 }
 
 /* Disabled */
-:is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .Clustering-continue-button, .select-files-button, .btn, .clustering-btn):disabled {
-    opacity: .55;
-    transform: none;
-    cursor: not-allowed;
-    filter: none;
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .Clustering-continue-button,
+  .select-files-button,
+  .btn,
+  .clustering-btn
+):disabled {
+  opacity: .55;
+  transform: none;
+  cursor: not-allowed;
+  filter: none;
 }
 
-/* Glowing sweep effect — only for glossy gradient buttons */
-:is(.ttc-button, .ttc-btn, .homepage-button)::before {
-    content: "";
-    position: absolute;
-    top: -60%;
-    left: -40%;
-    width: 45%;
-    height: 220%;
-    transform: translateX(-160%) rotate(20deg);
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.75) 50%, transparent 100%);
-    opacity: 0;
-    pointer-events: none;
+/* Glowing sweep (applies to all button classes) */
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .Clustering-continue-button,
+  .select-files-button,
+  .btn,
+  .clustering-btn
+)::before {
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: -40%;
+  width: 45%;
+  height: 220%;
+  transform: translateX(-160%) rotate(20deg);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.75) 50%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
 }
 
-:is(.ttc-button, .ttc-btn, .homepage-button)::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(120% 80% at 10% 20%, rgba(255,255,255,.20), transparent 60%), radial-gradient(120% 80% at 90% 90%, rgba(255,255,255,.15), transparent 60%);
-    mix-blend-mode: screen;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .35s ease;
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .Clustering-continue-button,
+  .select-files-button,
+  .btn,
+  .clustering-btn
+)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 10% 20%, rgba(255,255,255,.20), transparent 60%),
+    radial-gradient(120% 80% at 90% 90%, rgba(255,255,255,.15), transparent 60%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
 }
 
-:is(.ttc-button, .ttc-btn, .homepage-button):hover::before {
-    opacity: .35;
-    transform: translateX(420%) rotate(20deg);
-    transition: transform .85s cubic-bezier(.22,.61,.36,1), opacity .25s ease;
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .Clustering-continue-button,
+  .select-files-button,
+  .btn,
+  .clustering-btn
+):hover::before {
+  opacity: .35;
+  transform: translateX(420%) rotate(20deg);
+  transition: transform .85s cubic-bezier(.22,.61,.36,1), opacity .25s ease;
 }
 
-:is(.ttc-button, .ttc-btn, .homepage-button):hover::after {
-    opacity: .45;
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .Clustering-continue-button,
+  .select-files-button,
+  .btn,
+  .clustering-btn
+):hover::after {
+  opacity: .45;
 }
 
-/* Outline buttons (legacy + modern) */
-:is(.ttc-button-outline, .ttc-btn--outline) {
-    background: var(--ttc-bg);
-    color: #0f172a;
-    border: 1px solid rgba(15,23,42,.12);
-    box-shadow: 0 6px 18px -12px rgba(15,23,42,.35);
-}
-
-    :is(.ttc-button-outline, .ttc-btn--outline):hover {
-        background: var(--ttc-accent);
-        color: var(--ttc-accent-foreground);
-    }
-
-/* Sizes */
-:is(.ttc-button-sm, .ttc-btn--sm) {
-    height: 32px;
-    padding: 6px 12px;
-    font-size: 13px;
-}
-
-:is(.ttc-button-lg, .ttc-btn--lg) {
-    height: 44px;
-    padding: 10px 22px;
-    font-size: 15.5px;
-}
-
-/* Full-width helper */
-:is(.ttc-button-wide, .ttc-btn--wide) {
-    align-self: stretch;
-    width: 100%;
-}
+/* Sizes & helpers still apply */
+:is(.ttc-button-sm, .ttc-btn--sm){height:32px;padding:6px 12px;font-size:13px;}
+:is(.ttc-button-lg, .ttc-btn--lg){height:44px;padding:10px 22px;font-size:15.5px;}
+:is(.ttc-button-wide, .ttc-btn--wide){align-self:stretch;width:100%;}
 
 /* Motion-sensitive users */
 @media (prefers-reduced-motion: reduce) {
@@ -952,12 +1022,19 @@ html, body {
 }
 
 .analysis-description {
-    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-    border-left: 4px solid #059669;
-    border-radius: .5rem;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 1px 3px 0 rgba(0,0,0,.05);
+  /* reset any previous greens first */
+  background: none;
+  border: none;
+  color: inherit;
+
+  /* apply callout style */
+  position: relative;
+  padding: 1.25rem;
+  border-radius: .75rem;
+  border: 1px solid var(--ttc-border);
+  background: linear-gradient(135deg, rgba(124,58,237,.08), rgba(147,51,234,.12));
+  color: #1f1147;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
 }
 
 .description-text {
