@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import TextInputSection from "../TextInputSection";
 import ClusteringAnalyser from "./ClusteringAnalyser";
 
-
 const ClusteringLanding = ({ onBack }) => {
   const [pastedText, setPastedText] = useState("");
   const [uploadedText, setUploadedText] = useState("");
@@ -49,23 +48,22 @@ const ClusteringLanding = ({ onBack }) => {
   }
 
   return (
-    <div className="Clustering-landing-wrapper">
-      <button
-        onClick={onBack}
-        className="Clustering-back-button"
-      >
-        ← Back
-      </button>
+    <div className="ttc-page">
+      <div className="ttc-container">
+        <button onClick={onBack} className="ttc-button ttc-button-sm">
+          ← Back
+        </button>
+      </div>
 
-      <div className="Clustering-header">
-        <h1 className="Clustering-title">Clustering Analysis</h1>
-        <p className="Clustering-subtitle">
+      <div className="ttc-container ttc-stack-md">
+        <h1>Clustering Analysis</h1>
+        <p className="ttc-subtitle">
           See how your words naturally group together into clusters, highlighting the themes, styles, and repeated ideas that shape your writing.
         </p>
       </div>
 
-      <div className="Clustering-container">
-        <div className="Clustering-content-card">
+      <div className="ttc-container">
+        <div className="ttc-card">
           <TextInputSection
             pastedText={pastedText}
             handleTextPaste={handleTextPaste}
@@ -76,15 +74,15 @@ const ClusteringLanding = ({ onBack }) => {
           />
 
           {error && (
-            <div className="Clustering-error-message">
+            <div className="ttc-banner ttc-banner--error">
               {error}
             </div>
           )}
 
-          <div className="Clustering-continue-section">
+          <div className="ttc-btnrow" style={{ justifyContent: "flex-end" }}>
             <button
               onClick={handleContinue}
-              className="Clustering-continue-button"
+              className="ttc-button ttc-button-lg"
               disabled={!uploadedText.trim()}
             >
               Continue to Analysis →
@@ -97,5 +95,3 @@ const ClusteringLanding = ({ onBack }) => {
 };
 
 export default ClusteringLanding;
-
-
