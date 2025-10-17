@@ -6,20 +6,20 @@
    ========================================================================== */
 :root {
     /* Brand */
-    --ttc-primary: #492c79;
+    --ttc-primary: #6d28d9;      /* dark purple */
     --ttc-primary-foreground: #fff;
     /* Surface */
     --ttc-bg: #fff;
     --ttc-border: #e5e7eb;
-    --ttc-accent: #e9ebef;
-    --ttc-accent-foreground: #030213;
+    --ttc-accent: #f5f3ff;      /* lavender-50 */
+    --ttc-accent-foreground: #1f1147;
     /* Gradients */
-    --ttc-grad-start: #2563eb; /* blue */
-    --ttc-grad-end: #06b6d4; /* cyan */
+    --ttc-grad-start: #7c3aed;    /* violet-600 */
+    --ttc-grad-end: #9333ea;       /* violet-500 */
     /* States */
-    --ttc-ring: rgba(59,130,246,.6);
-    --ttc-ring-soft: rgba(59,130,246,.15);
-    --ttc-glow: rgba(37, 99, 235, .55);
+    --ttc-ring: rgba(124, 58, 237, 0.55);
+    --ttc-ring-soft: rgba(124, 58, 237, 0.18);
+    --ttc-glow: rgba(124, 58, 237, 0.45);
     /* Charts */
     --ttc-chart-start: #3b82f6; /* blue-500  */
     --ttc-chart-end: #8b5cf6; /* violet-500*/
@@ -56,141 +56,272 @@ html, body {
     border: 0 !important;
 }
 
+/* === Brand Callout === */
+.ttc-callout {
+  position: relative;
+  padding: 1.25rem 1.25rem 1.25rem 1.25rem;
+  border-radius: .75rem;
+  border: 1px solid var(--ttc-border);
+  background: linear-gradient(135deg, rgba(124,58,237,.08), rgba(147,51,234,.12));
+  color: #1f1147;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+
+/* the vertical gradient stripe */
+.ttc-callout::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 6px;
+  border-top-left-radius: .75rem;
+  border-bottom-left-radius: .75rem;
+  background: linear-gradient(180deg, var(--ttc-grad-start), var(--ttc-grad-end));
+}
+
+/* optional title style inside the callout */
+.ttc-callout .ttc-callout-title {
+  margin: 0 0 .25rem 0;
+  font-weight: 800;
+  color: var(--ttc-primary);
+}
+
+/* Section headings + subtitle, brand purple */
+h1, .ttc-title-xl,
+.analysis-title {
+  color: var(--ttc-primary);
+  font-size: clamp(1.8rem, 2.1vw + 1rem, 2.6rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 .35rem;
+}
+.ttc-subtitle {
+  color: #4b5563;
+  font-size: clamp(.95rem, .3vw + .9rem, 1.05rem);
+  margin: 0 0 1.25rem;
+}
+
+/* Uniform card/panel */
+.ttc-panel {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--ttc-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px -14px rgba(2,6,23,.15);
+  padding: 20px;
+}
+.ttc-panel--stripe::before {
+  content:""; position:absolute; inset:0 auto 0 0; width:6px;
+  border-radius:16px 0 0 16px;
+  background: linear-gradient(180deg, var(--ttc-grad-start), var(--ttc-grad-end));
+}
+
+
+/* === Global page/container utilities ================================== */
+/* Wrapping page content (target existing containers in section 2) */
+.ttc-page {
+  /* soft, brand-tinted background; global */
+  background:
+    radial-gradient(1200px 400px at 70% -80px, rgba(124,58,237,.06), transparent 60%),
+    linear-gradient(180deg, #faf7ff, #ffffff);
+  min-height: 100vh;
+  padding: 28px 0 40px;
+}
+
+/* Shared centered container */
+.ttc-container {
+  width: min(1100px, 92%);
+  margin-inline: auto;    /* centers horizontally */
+}
+
+/* Simple vertical stack with consistent rhythm */
+.ttc-stack-md { display:flex; flex-direction:column; gap:16px; }
+.ttc-stack-lg { display:flex; flex-direction:column; gap:24px; }
+
+/* Responsive 2-col grid utility (collapses on mobile) */
+.ttc-grid-2 {
+  display: grid; gap: 16px;
+}
+@media (min-width: 900px) {
+  .ttc-grid-2 { grid-template-columns: 1.1fr .9fr; align-items: start; }
+}
+
+/* Center known containers used across pages */
+.homepage-container,
+.analysis-container,
+.ttc-content,
+.app-hero {
+  width: min(1100px, 92%);
+  margin-inline: auto;
+}
+
+/* Remove left-glue from cards/sections sitting alone */
+.homepage-card,
+.ttc-card,
+.ca-panel {
+  margin-inline: auto;
+}
+
 /* ==========================================================================
    2) BUTTONS (unified base + variants)
-   - Keeps all existing button classnames working via grouped selectors
+   - Base layout + brand gradient for every button class already in use
    ========================================================================== */
 
-/* Base layout & interaction (no colors here so variants can override) */
-:is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .Clustering-continue-button, .select-files-button, .btn, .clustering-btn) {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    white-space: nowrap;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: .2px;
-    line-height: 1;
-    height: 36px;
-    padding: 10px 18px;
-    border: 0;
-    cursor: pointer;
-    user-select: none;
-    overflow: hidden;
-    will-change: transform;
-    transition: transform .15s ease, box-shadow .25s ease, filter .25s ease;
-    /* prevent auto-stretch in flex layouts */
-    flex: 0 0 auto;
-    align-self: flex-start;
-    width: auto;
+/* Base layout & interaction */
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .select-files-button,
+  .btn,
+) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  line-height: 1;
+  height: 36px;
+  padding: 10px 18px;
+  border: 0;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  will-change: transform;
+  transition: transform .15s ease, box-shadow .25s ease, filter .25s ease;
+
+  /* brand look */
+  color: #fff;
+  background-image: linear-gradient(135deg, var(--ttc-grad-start) 0%, var(--ttc-grad-end) 100%);
+  box-shadow: var(--ttc-shadow-soft), inset 0 1px 0 rgba(255,255,255,.18);
+
+  /* prevent auto-stretch */
+  flex: 0 0 auto;
+  align-self: flex-start;
+  width: auto;
 }
 
-/* Primary gradient buttons (existing classes that already used the brand gradient) */
-:is(.ttc-button, .ttc-btn, .homepage-button) {
-    color: #fff;
-    background-image: linear-gradient(135deg, var(--ttc-grad-start) 0%, var(--ttc-grad-end) 100%);
-    box-shadow: var(--ttc-shadow-soft), inset 0 1px 0 rgba(255,255,255,.18);
+/* Hover lift + subtle glow for all of them */
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .select-files-button,
+  .btn,
+):hover {
+  transform: translateY(-2px);
+  filter: saturate(1.05);
+  box-shadow: 0 14px 32px -12px var(--ttc-glow), inset 0 1px 0 rgba(255,255,255,.22);
 }
 
-/* Hover lift + subtle glow (applies to all button-like classes) */
-:is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .Clustering-continue-button, .select-files-button, .btn, .clustering-btn):hover {
-    transform: translateY(-2px);
-    filter: saturate(1.05);
-}
-
-/* Stronger shadow only for gradient/brand buttons */
-:is(.ttc-button, .ttc-btn, .homepage-button):hover {
-    box-shadow: 0 14px 32px -12px var(--ttc-glow), inset 0 1px 0 rgba(255,255,255,.22);
-}
-
-/* Focus ring for keyboard users */
-:is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .Clustering-continue-button, .select-files-button, .btn, .clustering-btn):focus-visible {
-    outline: 2px solid var(--ttc-ring);
-    outline-offset: 2px;
-    box-shadow: 0 0 0 6px var(--ttc-ring-soft), 0 10px 28px -12px var(--ttc-glow);
+/* Focus ring */
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .select-files-button,
+  .btn,
+):focus-visible {
+  outline: 2px solid var(--ttc-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--ttc-ring-soft), 0 10px 28px -12px var(--ttc-glow);
 }
 
 /* Disabled */
-:is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .Clustering-continue-button, .select-files-button, .btn, .clustering-btn):disabled {
-    opacity: .55;
-    transform: none;
-    cursor: not-allowed;
-    filter: none;
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .select-files-button,
+  .btn,
+):disabled {
+  opacity: .55;
+  transform: none;
+  cursor: not-allowed;
+  filter: none;
 }
 
-/* Glowing sweep effect — only for glossy gradient buttons */
-:is(.ttc-button, .ttc-btn, .homepage-button)::before {
-    content: "";
-    position: absolute;
-    top: -60%;
-    left: -40%;
-    width: 45%;
-    height: 220%;
-    transform: translateX(-160%) rotate(20deg);
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.75) 50%, transparent 100%);
-    opacity: 0;
-    pointer-events: none;
+/* Glowing sweep (applies to all button classes) */
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .select-files-button,
+  .btn,
+)::before {
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: -40%;
+  width: 45%;
+  height: 220%;
+  transform: translateX(-160%) rotate(20deg);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.75) 50%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
 }
 
-:is(.ttc-button, .ttc-btn, .homepage-button)::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(120% 80% at 10% 20%, rgba(255,255,255,.20), transparent 60%), radial-gradient(120% 80% at 90% 90%, rgba(255,255,255,.15), transparent 60%);
-    mix-blend-mode: screen;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .35s ease;
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .select-files-button,
+  .btn,
+)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 10% 20%, rgba(255,255,255,.20), transparent 60%),
+    radial-gradient(120% 80% at 90% 90%, rgba(255,255,255,.15), transparent 60%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
 }
 
-:is(.ttc-button, .ttc-btn, .homepage-button):hover::before {
-    opacity: .35;
-    transform: translateX(420%) rotate(20deg);
-    transition: transform .85s cubic-bezier(.22,.61,.36,1), opacity .25s ease;
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .select-files-button,
+  .btn,
+):hover::before {
+  opacity: .35;
+  transform: translateX(420%) rotate(20deg);
+  transition: transform .85s cubic-bezier(.22,.61,.36,1), opacity .25s ease;
 }
 
-:is(.ttc-button, .ttc-btn, .homepage-button):hover::after {
-    opacity: .45;
+:is(
+  .ttc-button,
+  .ttc-btn,
+  .homepage-button,
+  .analysis-button,
+  .select-files-button,
+  .btn,
+):hover::after {
+  opacity: .45;
 }
 
-/* Outline buttons (legacy + modern) */
-:is(.ttc-button-outline, .ttc-btn--outline) {
-    background: var(--ttc-bg);
-    color: #0f172a;
-    border: 1px solid rgba(15,23,42,.12);
-    box-shadow: 0 6px 18px -12px rgba(15,23,42,.35);
-}
-
-    :is(.ttc-button-outline, .ttc-btn--outline):hover {
-        background: var(--ttc-accent);
-        color: var(--ttc-accent-foreground);
-    }
-
-/* Sizes */
-:is(.ttc-button-sm, .ttc-btn--sm) {
-    height: 32px;
-    padding: 6px 12px;
-    font-size: 13px;
-}
-
-:is(.ttc-button-lg, .ttc-btn--lg) {
-    height: 44px;
-    padding: 10px 22px;
-    font-size: 15.5px;
-}
-
-/* Full-width helper */
-:is(.ttc-button-wide, .ttc-btn--wide) {
-    align-self: stretch;
-    width: 100%;
-}
+/* Sizes & helpers still apply */
+:is(.ttc-button-sm, .ttc-btn--sm){height:32px;padding:6px 12px;font-size:13px;}
+:is(.ttc-button-lg, .ttc-btn--lg){height:44px;padding:10px 22px;font-size:15.5px;}
+:is(.ttc-button-wide, .ttc-btn--wide){align-self:stretch;width:100%;}
 
 /* Motion-sensitive users */
 @media (prefers-reduced-motion: reduce) {
-    :is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .Clustering-continue-button, .select-files-button, .btn, .clustering-btn) {
+    :is(.ttc-button, .ttc-btn, .homepage-button, .analysis-button, .select-files-button, .btn) {
         transition: none;
     }
 
@@ -207,71 +338,61 @@ html, body {
 /* ==========================================================================
    3) CARDS / PANELS / CONTAINERS (unified)
    ========================================================================== */
-:is(.tcc-card, .homepage-card, .Clustering-content-card) {
-    width: min(640px, 100%);
-    background: rgba(255,255,255,.98);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--ttc-border);
-    border-radius: 20px;
-    box-shadow: var(--ttc-shadow-card);
-    padding: 28px;
+:is(.ttc-card, .homepage-card) {
+  width: min(640px, 100%);
+  background: rgba(255,255,255,.98);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--ttc-border);
+  border-radius: 20px;
+  box-shadow: var(--ttc-shadow-card);
+  padding: 28px;
 }
 
-.tcc-panel {
-    background: #fff;
-    border: 1px solid var(--ttc-border);
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: var(--ttc-shadow-panel);
+:is(.ttc-content, .homepage-container) {
+  width: min(1000px, 92%);
+  margin: 0 auto;
+  padding: 24px;
 }
 
-:is(.tcc-content, .homepage-container) {
-    width: min(1000px, 92%);
-    margin: 0 auto;
-    padding: 24px;
+.ttc-title {
+  margin: 0 0 12px;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
 }
 
-.tcc-title {
-    margin: 0 0 12px;
-    font-size: 2rem;
-    font-weight: 800;
-    color: #0f172a;
+.ttc-title--sm {
+  margin: 0 0 12px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.tcc-title--sm {
-    margin: 0 0 12px;
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: #0f172a;
-}
-
-.tcc-sub {
-    margin: 0 0 18px;
-    color: #475569;
+.ttc-sub {
+  margin: 0 0 18px;
+  color: #475569;
 }
 
 .app-hero {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    padding: 48px 24px 24px;
-    gap: 16px;
-    background: #fff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 48px 24px 24px;
+  gap: 16px;
+  background: #fff;
 }
 
 @media (max-width:1024px) {
-    .tcc-card--pad-md {
-        margin: 0 1rem;
-    }
+  .ttc-card--pad-md { margin: 0 1rem; }
 }
 
 /* ==========================================================================
    4) FORMS / INPUTS (unified)
    ========================================================================== */
-:is(.tcc-select, .tcc-input, .tcc-textarea, .homepage-select) {
+:is(.ttc-select, .ttc-input, .ttc-textarea, .homepage-select) {
     width: 100%;
     border-radius: 10px;
     border: 1px solid var(--ttc-border);
@@ -282,67 +403,82 @@ html, body {
     transition: box-shadow .15s ease, border-color .15s ease;
 }
 
-.tcc-textarea {
-    min-height: 10rem;
+.ttc-textarea, textarea {
+    min-height: 180px;
     resize: vertical;
 }
 
-:is(.tcc-select, .tcc-input, .tcc-textarea, .homepage-select):focus {
-    border-color: rgba(59,130,246,.45);
-    box-shadow: 0 0 0 4px var(--ttc-ring-soft);
+.ttc-input:focus, .ttc-select:focus, .ttc-textarea:focus, textarea:focus {
+  border-color: color-mix(in srgb, var(--ttc-grad-start) 45%, #ffffff);
+  box-shadow: 0 0 0 4px var(--ttc-ring-soft);
+  outline: 0;
 }
 
-.tcc-stack-md {
+.ttc-dropzone {
+  border: 2px dashed rgba(124,58,237,.35);
+  border-radius: 12px;
+  background: #fbfaff;
+  padding: 1.25rem;
+  text-align: center;
+  transition: border-color .2s, background .2s, color .2s;
+}
+.ttc-dropzone:hover, .ttc-dropzone.is-dragover {
+  border-color: var(--ttc-grad-start);
+  background: #f6f1ff;
+  color: var(--ttc-primary);
+}
+
+.ttc-stack-md {
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
 
-.tcc-stack-lg {
+.ttc-stack-lg {
     display: flex;
     flex-direction: column;
     gap: 24px;
 }
 
-.tcc-radios {
+.ttc-radios {
     display: flex;
     gap: 18px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
-.tcc-radio {
+.ttc-radio {
     display: flex;
     align-items: center;
     gap: 8px;
     color: #1f2937;
 }
 
-.tcc-btnrow {
+.ttc-btnrow {
     display: flex;
     gap: 12px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
-.tcc-error {
+.ttc-error {
     color: #dc2626;
     font-weight: 600;
 }
 
-.tcc-grid {
+.ttc-grid {
     display: grid;
     gap: 16px;
 }
 
 @media (min-width:768px) {
-    .tcc-grid-2-md {
+    .ttc-grid-2-md {
         grid-template-columns: repeat(2, minmax(0,1fr));
     }
 }
 
 @media (min-width:1024px) {
-    .tcc-grid-3-lg {
+    .ttc-grid-3-lg {
         grid-template-columns: repeat(3, minmax(0,1fr));
     }
 }
@@ -350,7 +486,7 @@ html, body {
 /* ==========================================================================
    5) PRE / PREVIEW
    ========================================================================== */
-.tcc-pre,
+.ttc-pre,
 .preview-content {
     white-space: pre-wrap;
     background: #fff;
@@ -408,7 +544,7 @@ html, body {
 /* ==========================================================================
    7) BANNERS / TABLES
    ========================================================================== */
-.tcc-banner {
+.ttc-banner {
     display: flex;
     align-items: flex-start;
     gap: .5rem;
@@ -419,34 +555,34 @@ html, body {
     color: #374151;
 }
 
-.tcc-banner--info {
+.ttc-banner--info {
     background: #e8f4fd;
     border-color: #90caf9;
 }
 
-.tcc-banner--error {
+.ttc-banner--error {
     background: #fef2f2;
     border-color: #fecaca;
     color: #991b1b;
 }
 
-.tcc-banner--success {
+.ttc-banner--success {
     background: #ecfdf5;
     border-color: #a7f3d0;
     color: #065f46;
 }
 
-.tcc-table {
+.ttc-table {
     width: 100%;
     border-collapse: collapse;
     font-size: .875rem;
 }
 
-    .tcc-table thead tr {
+    .ttc-table thead tr {
         background: linear-gradient(135deg,#f8fafc 0%, #e2e8f0 100%);
     }
 
-    .tcc-table th {
+    .ttc-table th {
         padding: 1rem .75rem;
         text-align: left;
         font-weight: 600;
@@ -457,27 +593,27 @@ html, body {
         letter-spacing: .05em;
     }
 
-    .tcc-table td {
+    .ttc-table td {
         padding: .875rem .75rem;
         border-bottom: 1px solid var(--ttc-border);
     }
 
-.tcc-row-even {
+.ttc-row-even {
     background: #ffffff;
 }
 
-.tcc-row-odd {
+.ttc-row-odd {
     background: #f9fafb;
 }
 
-.tcc-table tr:hover {
+.ttc-table tr:hover {
     background: #f3f4f6 !important;
     transform: scale(1.01);
     transition: all .2s ease-in-out;
     box-shadow: 0 2px 8px rgba(0,0,0,.1);
 }
 
-.tcc-cell--freq {
+.ttc-cell--freq {
     text-align: center;
     font-weight: 500;
     color: #4b5563;
@@ -485,18 +621,18 @@ html, body {
     font-family: "Courier New",monospace;
 }
 
-.tcc-cell--stat {
+.ttc-cell--stat {
     text-align: center;
     font-weight: 500;
     color: #374151;
     font-family: "Courier New",monospace;
 }
 
-.tcc-cell--pval {
+.ttc-cell--pval {
     background: linear-gradient(135deg,#fef3c7,#fde68a);
 }
 
-.tcc-cell--key {
+.ttc-cell--key {
     background: linear-gradient(135deg,#d1fae5,#a7f3d0);
     font-weight: 600;
 }
@@ -504,7 +640,7 @@ html, body {
 /* ==========================================================================
    8) DROPZONE (unified)
    ========================================================================== */
-:is(.tcc-dropzone, .Clustering-dropzone) {
+:is(.ttc-dropzone) {
     border: 2px dashed var(--ttc-border);
     border-radius: 12px;
     padding: 2rem;
@@ -517,14 +653,13 @@ html, body {
     justify-content: center;
 }
 
-    :is(.tcc-dropzone, .Clustering-dropzone):hover,
-    :is(.Clustering-dropzone).hover {
+    :is(.ttc-dropzone):hover {
         border-color: #7c3aed;
         background: #faf5ff;
         color: #7c3aed;
     }
 
-:is(.Clustering-dropzone).uploading {
+:is(.uploading) {
     border-color: #3b82f6;
     background: #f0f8ff;
     opacity: .8;
@@ -534,27 +669,27 @@ html, body {
     display: none;
 }
 
-:is(.tcc-files-section, .selected-files-section) {
+:is(.ttc-files-section, .selected-files-section) {
     background: #f9fafb;
     border: 1px solid var(--ttc-border);
     border-radius: 8px;
     padding: 1rem;
 }
 
-:is(.tcc-files-header, .files-header) {
+:is(.ttc-files-header, .files-header) {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: .75rem;
 }
 
-:is(.tcc-files-list, .files-list) {
+:is(.ttc-files-list, .files-list) {
     display: flex;
     flex-direction: column;
     gap: .5rem;
 }
 
-:is(.tcc-file-item, .file-item) {
+:is(.ttc-file-item, .file-item) {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -562,11 +697,11 @@ html, body {
     border-bottom: 1px solid var(--ttc-border);
 }
 
-    :is(.tcc-file-item, .file-item):last-child {
+    :is(.ttc-file-item, .file-item):last-child {
         border-bottom: none;
     }
 
-.tcc-filemeta, .file-details {
+.ttc-filemeta, .file-details {
     display: flex;
     align-items: center;
     gap: .5rem;
@@ -574,7 +709,7 @@ html, body {
     font-size: .875rem;
 }
 
-.tcc-remove, .remove-file-button {
+.ttc-remove, .remove-file-button {
     background: none;
     border: none;
     color: #dc2626;
@@ -583,7 +718,7 @@ html, body {
     border-radius: .25rem;
 }
 
-    .tcc-remove:hover, .remove-file-button:hover {
+    .ttc-remove:hover, .remove-file-button:hover {
         background: #fee2e2;
     }
 
@@ -643,9 +778,9 @@ html, body {
     }
 
 /* ==========================================================================
-   10) CHARTS / CLUSTERING WRAPPERS (kept minimal; page-specific can extend)
+   10) CHARTS  WRAPPERS (kept minimal; page-specific can extend)
    ========================================================================== */
-:is(.clustering-charts-container, .charts-container) {
+:is(.charts-container) {
     position: relative;
     background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     padding: 2rem;
@@ -679,14 +814,29 @@ html, body {
 /* ==========================================================================
    11) LOADING / SPINNERS (unified)
    ========================================================================== */
+/* Brand spinner (purple track + soft glow) */
 :is(.loading-spinner, .synonym-spinner) {
-    width: 3rem;
-    height: 3rem;
-    border: 3px solid #e2e8f0;
-    border-top: 3px solid #3b82f6;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+  width: 2.75rem;                /* was 3rem – tweak as you like */
+  height: 2.75rem;
+  border-radius: 50%;
+  border: 3px solid #ede9fe;     /* light lavender track */
+  border-top-color: var(--ttc-grad-start);   /* brand purple */
+  animation: spin 0.9s linear infinite;
+  box-shadow: 0 0 0 2px rgba(124,58,237,.06) inset;
 }
+
+/* Size variants */
+.loading-spinner--sm { width: 2rem; height: 2rem; border-width: 2.5px; }
+.loading-spinner--lg { width: 3.5rem; height: 3.5rem; border-width: 4px; }
+
+/* Easy centering wrappers */
+.ttc-center      { display: grid; place-items: center; }
+.ttc-center-row  { display: flex; align-items: center; justify-content: center; }
+
+/* Inline alignment when spinner sits with text */
+.loading-inline { display: inline-flex; gap: .5rem; align-items: center; }
+.loading-inline .loading-spinner { width: 1.25rem; height: 1.25rem; border-width: 2px; }
+
 
 .chart-loading {
     position: relative;
@@ -707,7 +857,7 @@ html, body {
    12) ACCESSIBILITY & PRINT
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
-    .clustering-btn, .cluster-term-card, .document-item,
+    .document-item,
     .btn, .keyword-pill {
         transition: none;
     }
@@ -727,7 +877,7 @@ html, body {
 }
 
 @media (prefers-contrast: high) {
-    .charts-container, .clustering-charts-container {
+    .charts-container, {
         border-color: #000;
     }
 
@@ -750,7 +900,7 @@ html, body {
 }
 
 @media print {
-    .charts-container, .clustering-charts-container {
+    .charts-container, {
         box-shadow: none;
         border: 1px solid #ccc;
     }
@@ -870,8 +1020,8 @@ html, body {
 
 /* Analysis layout hooks */
 .analysis-container {
-    width: 80%;
-    margin: 0 auto;
+    width: min(1100px, 92%);
+    margin-inline: auto;
     padding: 24px;
     display: flex;
     flex-direction: column;
@@ -904,60 +1054,20 @@ html, body {
     padding: 8px 0;
 }
 
-/* Clustering landing + analyser */
-.Clustering-back-button,
-.clustering-back-button {
-    background-color: #e5e7eb;
-    color: #374151;
-    padding: .5rem 1rem;
-    border-radius: .375rem;
-    border: none;
-    cursor: pointer;
-    transition: background-color .2s ease, transform .2s ease;
-    box-shadow: 0 1px 2px 0 rgba(0,0,0,.05);
-    font-size: .875rem;
-}
-
-    .Clustering-back-button:hover,
-    .clustering-back-button:hover {
-        background-color: #d1d5db;
-        transform: translateY(-1px);
-    }
-
-.clustering-container {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-    padding: 2rem;
-}
-
-.clustering-card {
-    background: #fff;
-    border-radius: 1rem;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
-    padding: 3rem;
-    max-width: 80rem;
-    width: 100%;
-}
-
-.clustering-title {
-    font-size: 2.25rem;
-    font-weight: 700;
-    color: #059669;
-    margin-bottom: 1rem;
-    text-align: center;
-}
-
 .analysis-description {
-    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-    border-left: 4px solid #059669;
-    border-radius: .5rem;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 1px 3px 0 rgba(0,0,0,.05);
+  /* reset any previous greens first */
+  background: none;
+  border: none;
+  color: inherit;
+
+  /* apply callout style */
+  position: relative;
+  padding: 1.25rem;
+  border-radius: .75rem;
+  border: 1px solid var(--ttc-border);
+  background: linear-gradient(135deg, rgba(124,58,237,.08), rgba(147,51,234,.12));
+  color: #1f1147;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
 }
 
 .description-text {
@@ -984,15 +1094,6 @@ html, body {
         box-shadow: 0 6px 10px -1px rgba(37,99,235,.4);
     }
 
-.Clustering-continue-button {
-    background: linear-gradient(135deg, #7c3aed, #3b82f6);
-    color: #fff;
-}
-
-    .Clustering-continue-button:hover:not(:disabled) {
-        background: linear-gradient(135deg, #9333ea, #2563eb);
-    }
-
 /* Responsive tweaks */
 @media (max-width:1024px) {
     .clustering-card {
@@ -1005,18 +1106,6 @@ html, body {
 }
 
 @media (max-width:768px) {
-    .clustering-container {
-        padding: 1rem;
-    }
-
-    .clustering-card {
-        padding: 1.5rem;
-    }
-
-    .clustering-title {
-        font-size: 1.75rem;
-    }
-
     .analysis-description {
         padding: 1rem;
     }
@@ -1032,20 +1121,6 @@ html, body {
 }
 
 @media (max-width:640px) {
-    .clustering-container {
-        padding: .75rem;
-    }
-
-    .clustering-card {
-        padding: 1rem;
-        border-radius: .75rem;
-    }
-
-    .clustering-title {
-        font-size: 1.5rem;
-        margin-bottom: .75rem;
-    }
-
     .analysis-description {
         padding: .875rem;
         margin-bottom: 1.5rem;
@@ -1064,11 +1139,6 @@ html, body {
 
     .progress-text {
         line-height: 1.75rem;
-    }
-
-    .clustering-back-button {
-        font-size: .8125rem;
-        padding: .5rem 1rem;
     }
 }
 

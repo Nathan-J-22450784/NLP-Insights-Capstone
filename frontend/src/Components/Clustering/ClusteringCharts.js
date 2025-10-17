@@ -164,7 +164,7 @@ const ClusteringCharts = ({ clusters, selectedCluster = "all" }) => {
   };
 
   return (
-    <div className="clustering-charts-container">
+    <div className="charts-container">
       {/* Controls */}
       <div className="controls-section">
         <div className="control-group">
