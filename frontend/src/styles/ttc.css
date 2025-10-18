@@ -6,23 +6,23 @@
    ========================================================================== */
 :root {
     /* Brand */
-    --ttc-primary: #6d28d9;      /* dark purple */
+    --ttc-primary: #492c79;      /* ttc purple */
     --ttc-primary-foreground: #fff;
     /* Surface */
     --ttc-bg: #fff;
     --ttc-border: #e5e7eb;
-    --ttc-accent: #f5f3ff;      /* lavender-50 */
-    --ttc-accent-foreground: #1f1147;
+    --ttc-accent: #edeaf2;      /* lavender-50 */
+    --ttc-accent-foreground: #24163c;
     /* Gradients */
-    --ttc-grad-start: #7c3aed;    /* violet-600 */
-    --ttc-grad-end: #9333ea;       /* violet-500 */
+    --ttc-grad-start: #5b4186;    /* violet-600 */
+    --ttc-grad-end: #806ba1;       /* violet-500 */
     /* States */
-    --ttc-ring: rgba(124, 58, 237, 0.55);
-    --ttc-ring-soft: rgba(124, 58, 237, 0.18);
-    --ttc-glow: rgba(124, 58, 237, 0.45);
+    --ttc-ring: rgba(73, 44, 121, 0.55);
+    --ttc-ring-soft: rgba(73, 44, 121, 0.18);
+    --ttc-glow: rgba(73, 44, 121, 0.45);
     /* Charts */
     --ttc-chart-start: #3b82f6; /* blue-500  */
-    --ttc-chart-end: #8b5cf6; /* violet-500*/
+    --ttc-chart-end: #806ba1; /* violet-500*/
     /* Elevations */
     --ttc-shadow-card: 0 10px 24px -12px rgba(15,23,42,.25);
     --ttc-shadow-panel: 0 6px 18px -12px rgba(15,23,42,.25);
@@ -62,8 +62,12 @@ html, body {
   padding: 1.25rem 1.25rem 1.25rem 1.25rem;
   border-radius: .75rem;
   border: 1px solid var(--ttc-border);
-  background: linear-gradient(135deg, rgba(124,58,237,.08), rgba(147,51,234,.12));
-  color: #1f1147;
+  background: linear-gradient(
+    135deg,
+    rgba(73, 44, 121, .08),   /* brand base */
+    rgba(128, 107, 161, .12)  /* grad-end */
+  );
+  color: var(--ttc-accent-foreground);
   box-shadow: 0 1px 3px rgba(0,0,0,.05);
 }
 
@@ -121,8 +125,8 @@ h1, .ttc-title-xl,
 .ttc-page {
   /* soft, brand-tinted background; global */
   background:
-    radial-gradient(1200px 400px at 70% -80px, rgba(124,58,237,.06), transparent 60%),
-    linear-gradient(180deg, #faf7ff, #ffffff);
+    radial-gradient(1200px 400px at 70% -80px, rgba(73,44,121,.06), transparent 60%),
+    linear-gradient(180deg, #edeaf2, #ffffff);
   min-height: 100vh;
   padding: 28px 0 40px;
 }
@@ -414,20 +418,6 @@ h1, .ttc-title-xl,
   outline: 0;
 }
 
-.ttc-dropzone {
-  border: 2px dashed rgba(124,58,237,.35);
-  border-radius: 12px;
-  background: #fbfaff;
-  padding: 1.25rem;
-  text-align: center;
-  transition: border-color .2s, background .2s, color .2s;
-}
-.ttc-dropzone:hover, .ttc-dropzone.is-dragover {
-  border-color: var(--ttc-grad-start);
-  background: #f6f1ff;
-  color: var(--ttc-primary);
-}
-
 .ttc-stack-md {
     display: flex;
     flex-direction: column;
@@ -503,11 +493,11 @@ h1, .ttc-title-xl,
    6) PROGRESS BARS (unified + aliases)
    ========================================================================== */
 :is(.ttc-progress, .progress-container) {
-    height: 8px;
-    background: #eef2ff;
-    border-radius: 9999px;
-    overflow: hidden;
-    position: relative;
+  height: 12px;
+  background: #edeaf2; 
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
 }
 
 :is(.ttc-progress__fill, .progress-fill) {
@@ -533,7 +523,11 @@ h1, .ttc-title-xl,
 .shimmer-bar {
     height: 100%;
     width: 50%;
-    background: linear-gradient(90deg, rgba(59,130,246,0) 0%, rgba(59,130,246,0.6) 50%, rgba(59,130,246,0) 100%);
+    background: linear-gradient(
+       90deg,
+       rgba(73, 44, 121, 0) 0%,
+       rgba(73, 44, 121, 0.6) 50%,
+       rgba(73, 44, 121, 0) 100%);
     position: absolute;
     top: 0;
     left: -50%;
@@ -556,8 +550,9 @@ h1, .ttc-title-xl,
 }
 
 .ttc-banner--info {
-    background: #e8f4fd;
-    border-color: #90caf9;
+   background: #edeaf2;      
+   border-color: #c8c0d7;    
+   color: #24163c; 
 }
 
 .ttc-banner--error {
@@ -654,9 +649,9 @@ h1, .ttc-title-xl,
 }
 
     :is(.ttc-dropzone):hover {
-        border-color: #7c3aed;
-        background: #faf5ff;
-        color: #7c3aed;
+        border-color: var(--ttc-grad-start);
+        background: #edeaf2;
+        color: var(--ttc-primary);
     }
 
 :is(.uploading) {
@@ -816,13 +811,13 @@ h1, .ttc-title-xl,
    ========================================================================== */
 /* Brand spinner (purple track + soft glow) */
 :is(.loading-spinner, .synonym-spinner) {
-  width: 2.75rem;                /* was 3rem – tweak as you like */
+  width: 2.75rem;
   height: 2.75rem;
   border-radius: 50%;
-  border: 3px solid #ede9fe;     /* light lavender track */
-  border-top-color: var(--ttc-grad-start);   /* brand purple */
+  border: 3px solid #edeaf2;          
+  border-top-color: var(--ttc-grad-start);
   animation: spin 0.9s linear infinite;
-  box-shadow: 0 0 0 2px rgba(124,58,237,.06) inset;
+  box-shadow: 0 0 0 2px rgba(73, 44, 121, .06) inset;
 }
 
 /* Size variants */
@@ -1055,18 +1050,20 @@ h1, .ttc-title-xl,
 }
 
 .analysis-description {
-  /* reset any previous greens first */
   background: none;
   border: none;
   color: inherit;
 
-  /* apply callout style */
   position: relative;
   padding: 1.25rem;
   border-radius: .75rem;
   border: 1px solid var(--ttc-border);
-  background: linear-gradient(135deg, rgba(124,58,237,.08), rgba(147,51,234,.12));
-  color: #1f1147;
+  background: linear-gradient(
+    135deg,
+    rgba(73, 44, 121, .08),
+    rgba(128, 107, 161, .12)
+  );
+  color: var(--ttc-accent-foreground);
   box-shadow: 0 1px 3px rgba(0,0,0,.05);
 }
 
@@ -1084,14 +1081,14 @@ h1, .ttc-title-xl,
 
 /* Specific colored button variants preserved */
 .analysis-button {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, var(--ttc-grad-start) 0%, var(--ttc-grad-end) 100%);
     color: #fff;
     min-width: 12rem;
 }
 
     .analysis-button:hover:not(:disabled) {
-        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-        box-shadow: 0 6px 10px -1px rgba(37,99,235,.4);
+        background: linear-gradient(135deg, #5b4186 0%, #6d5694 100%); /* slightly darker sweep */
+        box-shadow: 0 6px 10px -1px rgba(73,44,121,.40);
     }
 
 /* Responsive tweaks */
@@ -1179,7 +1176,7 @@ h1, .ttc-title-xl,
     }
 
 .sm-radar .area {
-    fill: rgba(37,99,235,.16);
+    fill: rgba(73, 44, 121, .16);
     stroke: var(--ttc-grad-start);
     stroke-width: 2;
 }
