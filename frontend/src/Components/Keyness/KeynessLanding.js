@@ -31,7 +31,7 @@ const KeynessLanding = ({
                 if (comparisonMode === "corpus") {
                     if (!genre) return;
 
-                    const url = `http://localhost:8000/api/corpus-preview-keyness/?name=${encodeURIComponent(genre)}`;
+                    const url = `http://localhost:8000/api/corpus-preview/?name=${encodeURIComponent(genre)}`;
                     const response = await fetch(url, { credentials: "include" });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const data = await response.json();
