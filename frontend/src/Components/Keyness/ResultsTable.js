@@ -135,7 +135,6 @@ const ResultsTable = ({ results = [], method = "nltk" }) => {
               })}
             </tbody>
           </table>
-        </div>
       </div>
     </div>
   );
