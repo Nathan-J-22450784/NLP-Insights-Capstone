@@ -127,7 +127,7 @@ const ResultsTable = ({ results = [], method = "nltk" }) => {
                       <>
                         <td className="stat-cell">{formatNumber(row.effect_size)}</td>
                         <td className="stat-cell">{formatNumber(row.log_likelihood)}</td>
-                        <td className="stat-cell keyness-cell">{row.keyness_score ?? "-"}</td>
+                        <td className="stat-cell cell--key">{row.keyness_score ?? "-"}</td>
                       </>
                     )}
                   </tr>
