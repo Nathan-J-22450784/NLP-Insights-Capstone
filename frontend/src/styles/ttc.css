@@ -125,6 +125,11 @@ h1, .ttc-title-xl,
   background: linear-gradient(180deg, var(--ttc-grad-start), var(--ttc-grad-end));
 }
 
+.ttc-flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
 /* === Global page/container utilities ================================== */
 /* Wrapping page content (target existing containers in section 2) */
@@ -248,6 +253,12 @@ h1, .ttc-title-xl,
   outline: 2px solid var(--ttc-ring);
   outline-offset: 2px;
   box-shadow: 0 0 0 6px var(--ttc-ring-soft), 0 10px 28px -12px var(--ttc-glow);
+}
+
+/* ===== active state for view-toggle buttons ===== */
+.view-toggle.is-active {
+  box-shadow: 0 0 0 4px var(--ttc-ring-soft), inset 0 1px 0 rgba(255,255,255,.22);
+  filter: saturate(1.05);
 }
 
 /* Disabled */
@@ -424,18 +435,6 @@ h1, .ttc-title-xl,
   outline: 0;
 }
 
-.ttc-stack-md {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.ttc-stack-lg {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
 .ttc-radios {
     display: flex;
     gap: 18px;
@@ -499,11 +498,12 @@ h1, .ttc-title-xl,
    6) PROGRESS BARS (unified + aliases)
    ========================================================================== */
 :is(.ttc-progress, .progress-container) {
-  height: 12px;
+  height: 18px;
   background: #edeaf2; 
   border-radius: 9999px;
   overflow: hidden;
   position: relative;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .06);
 }
 
 :is(.ttc-progress__fill, .progress-fill) {
@@ -521,24 +521,34 @@ h1, .ttc-title-xl,
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-weight: 500;
+    font-weight: 700;
+    font-size: .95rem;
+    letter-spacing: .2px;
+    text-shadow: 0 1px 2px rgba(0,0,0,.35);
     pointer-events: none;
-    font-size: .875rem;
 }
 
 .shimmer-bar {
-    height: 100%;
-    width: 50%;
-    background: linear-gradient(
-       90deg,
-       rgba(73, 44, 121, 0) 0%,
-       rgba(73, 44, 121, 0.6) 50%,
-       rgba(73, 44, 121, 0) 100%);
-    position: absolute;
-    top: 0;
-    left: -50%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 9999px;
+     height: 100%;
+     width: 50%;
+     background: linear-gradient(90deg, rgba(73,44,121,0) 0%, rgba(73,44,121,.6) 50%, rgba(73,44,121,0) 100%);
+     position: absolute;
+     top: 0;
+     left: -50%;
+     animation: shimmer 1.5s infinite;
+     border-radius: 9999px;
+}
+
+.ttc-progress--lg { height: 24px; }
+.ttc-progress--xl { height: 32px; }
+
+.ttc-progress--annotated { position: relative; }
+.ttc-progress--annotated .progress-percent {
+  position: absolute;
+  top: -1.35rem;
+  right: 0;
+  font-size: .85rem;
+  color: var(--ttc-accent-foreground);
 }
 
 /* ==========================================================================
@@ -812,6 +822,79 @@ h1, .ttc-title-xl,
         height: 100% !important;
     }
 
+.chart-summary-panel {
+  border: 1px solid var(--ttc-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--ttc-shadow-panel);
+  background: linear-gradient(135deg, #f8fafc 0%, #edeaf2 100%);
+  margin-top: 1.5rem;
+}
+
+.chart-summary-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+
+.chart-summary-badge {
+  display: inline-block;
+  width: 8px;
+  height: 24px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, var(--ttc-grad-start), var(--ttc-grad-end));
+}
+
+.chart-summary-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937; /* slate-800-ish */
+}
+
+.chart-summary-body {
+  display: block;
+}
+
+.chart-summary-text {
+  color: #374151; /* slate-700-ish */
+  line-height: 1.6;
+  white-space: pre-wrap; /* preserve line breaks from API */
+}
+
+.chart-summary-empty {
+  color: #6b7280; /* slate-500-ish */
+  font-style: italic;
+  margin: 0;
+}
+
+/* Loading row (icon + text) */
+.chart-summary-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  color: var(--ttc-grad-start);
+}
+
+/* Error well */
+.chart-summary-error {
+  border: 1px solid #fecaca;   /* red-200 */
+  background: #fef2f2;         /* red-50 */
+  color: #991b1b;              /* red-800 */
+  border-radius: 8px;
+  padding: .75rem;
+  display: grid;
+  gap: .5rem;
+}
+
+/* Refresh area separator */
+.chart-summary-refresh {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dbeafe; /* blue-200-ish */
+}
+
 /* ==========================================================================
    11) LOADING / SPINNERS (unified)
    ========================================================================== */
@@ -878,7 +961,7 @@ h1, .ttc-title-xl,
 }
 
 @media (prefers-contrast: high) {
-    .charts-container, {
+    .charts-container {
         border-color: #000;
     }
 
@@ -901,7 +984,7 @@ h1, .ttc-title-xl,
 }
 
 @media print {
-    .charts-container, {
+    .charts-container {
         box-shadow: none;
         border: 1px solid #ccc;
     }
