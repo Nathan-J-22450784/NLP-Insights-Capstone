@@ -93,11 +93,17 @@ html, body {
 h1, .ttc-title-xl,
 .analysis-title {
   color: var(--ttc-primary);
-  font-size: clamp(1.8rem, 2.1vw + 1rem, 2.6rem);
+  font-size: clamp(1.75rem, 2.2vw + 1rem, 2.5rem); /* Fallback for older browsers (viewport-based) */
+  font-size: clamp(1.75rem, 6cqw, 2.5rem);   /* Container-based sizing when supported */ 
   line-height: 1.15;
   letter-spacing: -0.02em;
   margin: 0 0 .35rem;
+  /* Better wrapping inside narrow cards */
+  text-wrap: balance;
+  overflow-wrap: anywhere;   /* prevents overflow on long words */
+  max-width: 100%;
 }
+
 .ttc-subtitle {
   color: #4b5563;
   font-size: clamp(.95rem, .3vw + .9rem, 1.05rem);
@@ -154,7 +160,7 @@ h1, .ttc-title-xl,
 .analysis-container,
 .ttc-content,
 .app-hero {
-  width: min(1100px, 92%);
+  width: min(860px, 92%);
   margin-inline: auto;
 }
 
@@ -165,6 +171,12 @@ h1, .ttc-title-xl,
   margin-inline: auto;
 }
 
+/* enable container queries on your common wrappers */
+.ttc-content,
+.analysis-container,
+.ttc-card {
+  container-type: inline-size;
+}
 /* ==========================================================================
    2) BUTTONS (unified base + variants)
    - Base layout + brand gradient for every button class already in use
@@ -351,12 +363,6 @@ h1, .ttc-title-xl,
   border-radius: 20px;
   box-shadow: var(--ttc-shadow-card);
   padding: 28px;
-}
-
-:is(.ttc-content, .homepage-container) {
-  width: min(1000px, 92%);
-  margin: 0 auto;
-  padding: 24px;
 }
 
 .ttc-title {
@@ -593,11 +599,11 @@ h1, .ttc-title-xl,
         border-bottom: 1px solid var(--ttc-border);
     }
 
-.ttc-row-even {
+.ttc-row-even, .row-even {
     background: #ffffff;
 }
 
-.ttc-row-odd {
+.ttc-row-odd, .row-odd {
     background: #f9fafb;
 }
 
@@ -608,7 +614,7 @@ h1, .ttc-title-xl,
     box-shadow: 0 2px 8px rgba(0,0,0,.1);
 }
 
-.ttc-cell--freq {
+.ttc-cell--freq, .freq-cell {
     text-align: center;
     font-weight: 500;
     color: #4b5563;
@@ -616,18 +622,18 @@ h1, .ttc-title-xl,
     font-family: "Courier New",monospace;
 }
 
-.ttc-cell--stat {
+.ttc-cell--stat, .stat-cell {
     text-align: center;
     font-weight: 500;
     color: #374151;
     font-family: "Courier New",monospace;
 }
 
-.ttc-cell--pval {
+.ttc-cell--pval, .p-value-cell {
     background: linear-gradient(135deg,#fef3c7,#fde68a);
 }
 
-.ttc-cell--key {
+.ttc-cell--key, .cell--key {
     background: linear-gradient(135deg,#d1fae5,#a7f3d0);
     font-weight: 600;
 }
@@ -1013,10 +1019,7 @@ h1, .ttc-title-xl,
         color: #64748b;
     }
 
-/* Analysis layout hooks */
 .analysis-container {
-    width: min(1100px, 92%);
-    margin-inline: auto;
     padding: 24px;
     display: flex;
     flex-direction: column;

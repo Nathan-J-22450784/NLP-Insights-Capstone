@@ -243,7 +243,7 @@ const KeynessAnalyser = ({
         <div className="mb-6">
             <button
                 onClick={onBack}
-                className="keyness-back-button"
+                className="ttc-button"
             >
                 ← Back
             </button>

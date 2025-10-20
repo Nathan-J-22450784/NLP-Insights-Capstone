@@ -31,7 +31,7 @@ const KeynessLanding = ({
                 if (comparisonMode === "corpus") {
                     if (!genre) return;
 
-                    const url = `http://localhost:8000/api/corpus-preview-keyness/?name=${encodeURIComponent(genre)}`;
+                    const url = `http://localhost:8000/api/corpus-preview/?name=${encodeURIComponent(genre)}`;
                     const response = await fetch(url, { credentials: "include" });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const data = await response.json();
@@ -155,26 +155,25 @@ const KeynessLanding = ({
     }
 
     return (
-        <div className="keyness-landing-wrapper">
-            <button
-                onClick={onBack}
-                className="keyness-back-button"
-            >
+        <main className="ttc-page">
+            <div className="ttc-container ttc-stack-lg">
+            <div className="ttc-btnrow" style={{justifyContent: "flex-start"}}>
+                <button onClick={onBack} className="ttc-button back-button">
                 ← Back
             </button>
+            </div>
 
-            <div className="keyness-header">
-                <h1 className="keyness-title">Keyness Analysis</h1>
-                <p className="keyness-subtitle">
+            <section className="ttc-panel ttc-stack-md">
+                <h1 className="analysis-title">Keyness Analysis</h1>
+                <p className="ttc-subtitle">
                     {comparisonMode === "user_text"
                         ? "Compare two texts to find distinctive words and phrases."
                         : "Find the words that stand out most in your writing, showing what makes your voice and style different from other texts."
                     }
                 </p>
-            </div>
+            </section>
 
-            <div className="keyness-container">
-                <div className="keyness-content-card">
+            <section className="ttc-panel ttc-stack-md">
                     <TextInputSection
                         pastedText={pastedText}
                         handleTextPaste={handleTextPaste}
@@ -187,15 +186,15 @@ const KeynessLanding = ({
                     />
 
                     {error && (
-                        <div className="keyness-error-message">
+                        <div className="ttc-banner ttc-banner--error">
                             {error}
                         </div>
                     )}
 
-                    <div className="keyness-continue-section">
+                    <div className="ttc-btnrow" style={{ justifyContent: "flex-end" }}>
                         <button
                             onClick={handleContinue}
-                            className="keyness-continue-button"
+                            className="analysis-button"
                             disabled={
                                 comparisonMode === "user_text"
                                     ? selectedFiles.length !== 2
@@ -204,11 +203,10 @@ const KeynessLanding = ({
                         >
                             Continue to Analysis →
                         </button>
-
-                    </div>
-                </div>
-            </div>
-        </div>
+                      </div>
+            </section>
+          </div>
+        </main>
     );
 };
 
