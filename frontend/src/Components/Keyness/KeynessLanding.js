@@ -156,24 +156,24 @@ const KeynessLanding = ({
 
     return (
         <main className="ttc-page">
-            <div className="ttc-container ttc-stack-lg">
-            <div className="ttc-btnrow" style={{justifyContent: "flex-start"}}>
-                <button onClick={onBack} className="ttc-button back-button">
-                ← Back
-            </button>
-            </div>
+      <div className="ttc-container ttc-stack-lg">
+        {/* Back */}
+        <button onClick={onBack} className="ttc-button">
+          ← Back
+        </button>
 
-            <section className="ttc-panel ttc-stack-md">
-                <h1 className="analysis-title">Keyness Analysis</h1>
-                <p className="ttc-subtitle">
-                    {comparisonMode === "user_text"
-                        ? "Compare two texts to find distinctive words and phrases."
-                        : "Find the words that stand out most in your writing, showing what makes your voice and style different from other texts."
-                    }
-                </p>
-            </section>
+            {/* Title + intro */}
+        <section className="ttc-panel ttc-stack-md">
+          <h1 className="analysis-title">Keyness Analysis</h1>
+          <p className="ttc-subtitle">
+            {comparisonMode === "user_text"
+              ? "Compare two texts to find distinctive words and phrases."
+              : "Find the words that stand out most in your writing, showing what makes your voice and style different from other texts."}
+          </p>
+        </section>
 
-            <section className="ttc-panel ttc-stack-md">
+            {/* Input section */}
+        <section className="ttc-panel ttc-stack-md">
                     <TextInputSection
                         pastedText={pastedText}
                         handleTextPaste={handleTextPaste}
@@ -186,28 +186,30 @@ const KeynessLanding = ({
                     />
 
                     {error && (
-                        <div className="ttc-banner ttc-banner--error">
-                            {error}
-                        </div>
-                    )}
+                            <div className="ttc-banner ttc-banner--error">
+                        {error}
+                            </div>
+                            )}
 
-                    <div className="ttc-btnrow" style={{ justifyContent: "flex-end" }}>
-                        <button
-                            onClick={handleContinue}
-                            className="analysis-button"
-                            disabled={
-                                comparisonMode === "user_text"
-                                    ? selectedFiles.length !== 2
-                                    : !uploadedText.trim()
-                            }
-                        >
-                            Continue to Analysis →
-                        </button>
-                      </div>
-            </section>
-          </div>
-        </main>
-    );
+          {/* Actions */}
+
+                    <div className="analysis-actions">
+            <button
+              onClick={handleContinue}
+              className="analysis-button"
+              disabled={
+                comparisonMode === "user_text"
+                  ? selectedFiles.length !== 2
+                  : !uploadedText.trim()
+              }
+            >
+              Continue to Analysis →
+            </button>
+            </div>
+        </section>
+      </div>
+    </main>
+  );
 };
 
 export default KeynessLanding;
