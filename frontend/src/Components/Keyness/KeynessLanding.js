@@ -185,7 +185,11 @@ const KeynessLanding = ({
                         comparisonMode={comparisonMode}
                     />
 
-                    {error && <div className="ttc-banner ttc-banner--error">{error}</div>}
+                    {error && (
+                            <div className="ttc-banner ttc-banner--error">
+                        {error}
+                            </div>
+                            )}
 
           {/* Actions */}
 
