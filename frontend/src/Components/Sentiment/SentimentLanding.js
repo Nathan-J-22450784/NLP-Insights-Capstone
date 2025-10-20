@@ -12,22 +12,36 @@ const SentimentLanding = ({ onBack, genre }) => {
     const [corpusPreview, setCorpusPreview] = useState("");
     const [pastedWordCount, setPastedWordCount] = useState(0);
 
+    // Fetch corpus preview OR user text preview based on comparison mode
     useEffect(() => {
-        const fetchCorpusPreview = async () => {
+        let cancelled = false;
+
+        async function fetchPreview() {
             try {
-                const url = genre
-                    ? `http://localhost:8000/api/corpus-preview/?name=${encodeURIComponent(genre)}`
-                    : "http://localhost:8000/api/corpus-preview/";
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                setCorpusPreview((data.preview || "").split("\n").slice(0, 4).join("\n"));
+                if (comparisonMode === "corpus") {
+                    if (!genre) return;
+
+                    const url = `http://localhost:8000/api/corpus-preview/?name=${encodeURIComponent(genre)}`;
+                    const response = await fetch(url, { credentials: "include" });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    if (!cancelled) {
+                        setCorpusPreview(data.preview || "");
+                    }
+                } else if (comparisonMode === "user_text") {
+                    setCorpusPreview("");
+                }
             } catch (err) {
-                console.error(err);
+                if (!cancelled) {
+                    console.error("Error fetching preview:", err);
+                    setCorpusPreview("");
+                }
             }
-        };
-        fetchCorpusPreview();
-    }, [genre]);
+        }
+
+        fetchPreview();
+        return () => { cancelled = true; };
+    }, [genre, comparisonMode]);
 
     const handleTextPaste = (e) => {
         const text = e.target.value;

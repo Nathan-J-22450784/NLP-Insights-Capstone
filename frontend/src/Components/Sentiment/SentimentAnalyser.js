@@ -76,6 +76,9 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, corpu
                                 ))}
                             </div>
                         )}
+                        <p className="text-xs text-gray-500 mb-4">
+                            All statistics below are computed from <strong>your text</strong> only; the corpus preview is reference-only.
+                        </p>
                         <SentimentResults data={data} />
                     </>
                 )}

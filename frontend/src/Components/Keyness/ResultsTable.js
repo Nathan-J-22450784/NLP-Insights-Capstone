@@ -47,59 +47,59 @@ const ResultsTable = ({ results = [], method = "nltk" }) => {
   const statisticsDescriptions = getStatisticsDescription();
 
   return (
-    <div className="results-table-container">
+    <div className="ttc-panel ttc-stack-md">
       {/* Statistics Explanation Section */}
-      <div className="statistics-explanation">
-        <h3 className="explanation-title">Understanding Your Results</h3>
-        <p className="explanation-intro">
+      <div className="ttc-callout">
+        <h3 className="ttc-title--sm">Understanding Your Results</h3>
+        <p className="ttc-subtitle" style={{ marginTop: 0 }}>
           This table shows words that are statistically distinctive in your text compared to a reference sample.
           Here's what each column means:
         </p>
-        <div className="statistics-grid">
+        <div className="ttc-grid" style={{ gridTemplateColumns: "1fr", gap: "8px" }}>
           {Object.entries(statisticsDescriptions).map(([stat, description]) => (
-            <div key={stat} className="statistic-item">
-              <strong className="statistic-name">{stat}:</strong>
-              <span className="statistic-description">{description}</span>
+            <div key={stat}>
+              <strong>{stat}:</strong>
+              <span>{description}</span>
             </div>
           ))}
         </div>
-        <div className="interpretation-note">
+        <p className="ttc-subtitle" style={{ marginTop: "12px" }}>
           <strong>💡 Interpretation Tip:</strong> Words with higher statistical values are more characteristic of your text and may represent key themes or distinctive language patterns.
         </div>
       </div>
 
       {/* Results Table */}
-      <div className="table-section">
-        <h3 className="table-title">Detailed Keyword Analysis Results</h3>
-        <div className="table-wrapper">
-          <table className="results-table">
+      <h3 className="ttc-title--sm" style={{ marginTop: 0 }}>Detailed Keyword Analysis Results</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table className="ttc-table">
             <thead>
               <tr>
-                <th className="word-column">Word</th>
-                <th className="freq-column">Your Text Freq</th>
-                <th className="freq-column">Sample Freq</th>
+                <th>Word</th>
+                <th>Your Text Freq</th>
+                <th>Sample Freq</th>
 
                 {/* Sklearn and Spacy show Chi² and p-value */}
                 {(isSklearn || isSpacy) && (
                   <>
-                    <th className="stat-column">Chi²</th>
-                    <th className="stat-column">p-value</th>
+                    <th scope="col">Chi²</th>
+                    <th scope="col">p-value</th>
                   </>
                 )}
 
                 {/* Gensim */}
-                {isGensim && <th className="stat-column">TF-IDF Score</th>}
+                {isGensim && <th scope="col">TF-IDF Score</th>}
 
                 {/* Nltk and Spacy show Effect Size / Log-Likelihood / Keyness */}
                 {(isNltk || isSpacy) && (
                   <>
-                    <th className="stat-column">Effect Size</th>
-                    <th className="stat-column">Log-Likelihood</th>
-                    <th className="stat-column">Keyness</th>
+                    <th scope="col">Effect Size</th>
+                    <th scope="col">Log-Likelihood</th>
+                    <th scope="col">Keyness</th>
                   </>
                 )}
               </tr>
             </thead>
+                
             <tbody>
               {results.map((row, index) => {
                 const word = row.word ?? "-";
@@ -108,7 +108,7 @@ const ResultsTable = ({ results = [], method = "nltk" }) => {
 
                 return (
                   <tr key={index} className={index % 2 === 0 ? "row-even" : "row-odd"}>
-                    <td className="word-cell">{word}</td>
+                    <td>{word}</td>
                     <td className="freq-cell">{uploaded}</td>
                     <td className="freq-cell">{sample}</td>
 
@@ -127,7 +127,7 @@ const ResultsTable = ({ results = [], method = "nltk" }) => {
                       <>
                         <td className="stat-cell">{formatNumber(row.effect_size)}</td>
                         <td className="stat-cell">{formatNumber(row.log_likelihood)}</td>
-                        <td className="stat-cell keyness-cell">{row.keyness_score ?? "-"}</td>
+                        <td className="stat-cell cell--key">{row.keyness_score ?? "-"}</td>
                       </>
                     )}
                   </tr>
@@ -135,7 +135,6 @@ const ResultsTable = ({ results = [], method = "nltk" }) => {
               })}
             </tbody>
           </table>
-        </div>
       </div>
     </div>
   );

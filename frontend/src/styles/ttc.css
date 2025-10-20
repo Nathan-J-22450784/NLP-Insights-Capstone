@@ -599,11 +599,11 @@ h1, .ttc-title-xl,
         border-bottom: 1px solid var(--ttc-border);
     }
 
-.ttc-row-even {
+.ttc-row-even, .row-even {
     background: #ffffff;
 }
 
-.ttc-row-odd {
+.ttc-row-odd, .row-odd {
     background: #f9fafb;
 }
 
@@ -614,7 +614,7 @@ h1, .ttc-title-xl,
     box-shadow: 0 2px 8px rgba(0,0,0,.1);
 }
 
-.ttc-cell--freq {
+.ttc-cell--freq, .freq-cell {
     text-align: center;
     font-weight: 500;
     color: #4b5563;
@@ -622,18 +622,18 @@ h1, .ttc-title-xl,
     font-family: "Courier New",monospace;
 }
 
-.ttc-cell--stat {
+.ttc-cell--stat, .stat-cell {
     text-align: center;
     font-weight: 500;
     color: #374151;
     font-family: "Courier New",monospace;
 }
 
-.ttc-cell--pval {
+.ttc-cell--pval, .p-value-cell {
     background: linear-gradient(135deg,#fef3c7,#fde68a);
 }
 
-.ttc-cell--key {
+.ttc-cell--key, .cell--key {
     background: linear-gradient(135deg,#d1fae5,#a7f3d0);
     font-weight: 600;
 }

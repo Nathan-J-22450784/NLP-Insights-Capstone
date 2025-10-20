@@ -21,6 +21,9 @@ export default function SentimentSummary({ summary }) {
     return (
         <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-indigo-700">
+                     Scope: Your text only
+                </span>
                 <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100">
                     Polarity: {polarityLabel(polarity)}
                 </span>
