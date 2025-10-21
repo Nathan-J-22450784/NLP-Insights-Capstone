@@ -93,11 +93,11 @@ html, body {
 h1, .ttc-title-xl,
 .analysis-title {
   color: var(--ttc-primary);
-  font-size: clamp(1.75rem, 2.2vw + 1rem, 2.5rem); /* Fallback for older browsers (viewport-based) */
+  font-size: clamp(1.125rem, 2.2vw + 1rem, 2.5rem); /* Fallback for older browsers (viewport-based) */
   font-size: clamp(1.75rem, 6cqw, 2.5rem);   /* Container-based sizing when supported */ 
-  line-height: 1.15;
+  line-height: 1.35;
   letter-spacing: -0.02em;
-  margin: 0 0 .35rem;
+  margin: 0 0 8px;
   /* Better wrapping inside narrow cards */
   text-wrap: balance;
   overflow-wrap: anywhere;   /* prevents overflow on long words */
@@ -1213,7 +1213,8 @@ h1, .ttc-title-xl,
 
 /* spacing for radios, current-analysis row, and progress bar */
 .filter-section { 
-  margin-bottom: 16px;               /* space below the radio group */
+  max-width: 720px;
+  margin-bottom: 0 auto 16px;               /* space below the radio group */
 }
 .filter-section .filter-options {
   display: flex;
@@ -1228,6 +1229,7 @@ h1, .ttc-title-xl,
 }
 
 .collapsed-library-selection {
+   max-width: 720px;
   margin: 12px 0 6px;                /* space around "Analysing with …" row */
 }
 .current-analysis-info {
@@ -1239,6 +1241,7 @@ h1, .ttc-title-xl,
 
 /* space before the progress bar */
 .progress-container-wrapper {
+   max-width: 720px;
   margin-top: 16px;
 }
 
