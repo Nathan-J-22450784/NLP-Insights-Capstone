@@ -240,7 +240,7 @@ const KeynessAnalyser = ({
     };
 
     return (
-        <div className="mb-6">
+        <div className="ttc-container">
             <button
                 onClick={onBack}
                 className="ttc-button"
@@ -277,54 +277,49 @@ const KeynessAnalyser = ({
                 </div>
             </div>
 
-            {/* Library Selection Section */}
             {showLibraryOptions ? (
-                <div className="library-selection">
-                    <h2 className="library-selection-title">Choose Your Analysis Method</h2>
-                    <div className="library-container">
-                        {libraries.map((library) => (
-                            <div key={library.id} className="library-card">
-                                <div className="library-card-content">
-                                    {/* Left side - Description */}
-                                    <div className="library-description">
-                                        <h3 className="library-title">
-                                            {library.name}: {library.title}
-                                        </h3>
-                                        <p className="library-text">
-                                            {library.description}
-                                        </p>
-                                    </div>
-
-                                    {/* Right side - Button */}
-                                    <div className="library-button-container">
-                                        <button
-                                            onClick={() => performAnalysis(library.id)}
-                                            disabled={loading || !uploadedText}
-                                            className="analysis-button"
-                                        >
-                                            Analyse with {library.name}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ) : (
-                <div className="collapsed-library-selection">
-                    <div className="current-analysis-info">
-                        <span className="current-analysis-text">
-                            Analysing with <strong>{libraries.find(lib => lib.id === selectedMethod)?.name || selectedMethod.toUpperCase()}</strong>
-                        </span>
+              <div className="library-selection">
+                <h2 className="analysis-title">Choose Your Analysis Method</h2>
+            
+                <div className="analysis-tiles">
+                  {libraries.map((library) => (
+                    <div key={library.id} className="ttc-panel analysis-tile">
+                      <div>
+                        <h3>{library.name}: {library.title}</h3>
+                        <p>{library.description}</p>
+                      </div>
+                      <div>
                         <button
-                            onClick={handleChangeMethod}
-                            className="change-method-button"
-                            disabled={loading}
+                          onClick={() => performAnalysis(library.id)}
+                          disabled={loading || !uploadedText}
+                          className="ttc-button ttc-button-wide"
                         >
-                            Change Method
+                          Analyse with {library.name}
                         </button>
+                      </div>
                     </div>
+                  ))}
                 </div>
+              </div>
+            ) : (
+              <div className="collapsed-library-selection">
+                <div className="current-analysis-info">
+                  <span className="current-analysis-text">
+                    Analysing with{" "}
+                    <strong>
+                      {libraries.find((lib) => lib.id === selectedMethod)?.name ||
+                        selectedMethod.toUpperCase()}
+                    </strong>
+                  </span>
+                  <button
+                    onClick={handleChangeMethod}
+                    className="ttc-button"
+                    disabled={loading}
+                  >
+                    Change Method
+                  </button>
+                </div>
+              </div>
             )}
 
             {loading && (
