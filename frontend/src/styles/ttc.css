@@ -520,7 +520,7 @@ h1, .ttc-title-xl,
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: #0f172a;
     font-weight: 700;
     font-size: .95rem;
     letter-spacing: .2px;
@@ -1211,6 +1211,36 @@ h1, .ttc-title-xl,
 
 .analysis-tile p { margin: 10px 0 0; }
 
+/* spacing for radios, current-analysis row, and progress bar */
+.filter-section { 
+  margin-bottom: 16px;               /* space below the radio group */
+}
+.filter-section .filter-options {
+  display: flex;
+  gap: 14px;                         /* space between the two radios */
+  flex-wrap: wrap;
+}
+
+/* Put subsequent radio buttons on their own line */
+.filter-section .filter-options .filter-option + .filter-option {
+  flex-basis: 100%;   /* forces a line break */
+  margin-top: 6px;    /* a little breathing room */
+}
+
+.collapsed-library-selection {
+  margin: 12px 0 6px;                /* space around "Analysing with …" row */
+}
+.current-analysis-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;                         /* spacing between text and button */
+  padding: 4px 0;
+}
+
+/* space before the progress bar */
+.progress-container-wrapper {
+  margin-top: 16px;
+}
 
 /* Responsive tweaks */
 @media (max-width:1024px) {
