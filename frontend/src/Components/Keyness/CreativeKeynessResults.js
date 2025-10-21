@@ -272,7 +272,7 @@ const CreativeKeynessResults = ({
             </button>
           ))}
           <button
-            className="ttc-button ttc-button-sm"
+            className="ttc-button"
             onClick={() =>
               exportKeynessToXlsx(
                 safeResults,
