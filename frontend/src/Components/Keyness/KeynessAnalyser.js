@@ -250,9 +250,7 @@ const KeynessAnalyser = ({
 
             {/* Word Filtering Options */}
             <div className="filter-section">
-                <p className="analysis-title">
-                    What words in your text would you like analysed:
-                </p>
+                <h2>What words in your text would you like analysed:</h2>
                 <div className="filter-options">
                     <label className="filter-option">
                         <input
@@ -279,7 +277,7 @@ const KeynessAnalyser = ({
 
             {showLibraryOptions ? (
               <div className="library-selection">
-                <h2 className="analysis-title">Choose Your Analysis Method</h2>
+                <h2>Choose Your Analysis Method</h2>
             
                 <div className="analysis-tiles">
                   {libraries.map((library) => (
