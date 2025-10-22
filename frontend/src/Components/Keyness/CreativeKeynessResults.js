@@ -251,19 +251,21 @@ const CreativeKeynessResults = ({
           </button>
         </div>
 
+      <div className="results-summary--compact">
         <ResultsSummary
           stats={stats}
           selectedMethod={method}
           comparisonResults={safeResults}
           genre={genre}
         />
+      </div> 
 
         {/* view toggles + download */}
-        <div className="ttc-btnrow">
+        <div className="ttc-tabs">
           {Object.keys(viewLabels).map((view) => (
             <button
               key={view}
-              className={`ttc-button view-toggle ${
+              className={`ttc-tab ${
                 activeView === view ? "is-active" : ""
               }`}
               onClick={() => setActiveView(view)}
@@ -272,7 +274,7 @@ const CreativeKeynessResults = ({
             </button>
           ))}
           <button
-            className="ttc-button"
+            className="ttc-tab"
             onClick={() =>
               exportKeynessToXlsx(
                 safeResults,
