@@ -1230,12 +1230,12 @@ h1, .ttc-title-xl,
 
 .collapsed-library-selection {
    max-width: 720px;
-  margin: 12px 0 6px;                /* space around "Analysing with …" row */
+  margin: 12px 0 6px;                
 }
 .current-analysis-info {
   display: flex;
   align-items: center;
-  gap: 12px;                         /* spacing between text and button */
+  gap: 12px;                        
   padding: 4px 0;
 }
 
@@ -1367,3 +1367,185 @@ h1, .ttc-title-xl,
         padding: 1rem;
     }
 }
+
+/* =========================
+   RESULTS – COMPACT KPI STRIP
+   ========================= */
+.results-summary--compact {
+  padding: 0.25rem 0 0.5rem;
+}
+
+.results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"]) {
+  min-height: 120px;            /* smaller tiles */
+  padding: 14px 16px;
+  border-radius: 14px;
+}
+
+/* Downsize big numbers and captions */
+.results-summary--compact :is(.stat-number, .value, .count, .kpi-value, h2, h3) {
+  line-height: 1.15;
+}
+.results-summary--compact :is(.stat-number, .value, .count, .kpi-value) {
+  font-size: clamp(1.35rem, 1.2vw + 1rem, 2rem);
+  font-weight: 800;
+  color: var(--ttc-primary);
+}
+.results-summary--compact :is(.stat-label, .caption, .kpi-label, small) {
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: .72rem;
+  color: #475569;
+  font-weight: 700;
+}
+
+/* Optional: slightly punchier top borders to echo purple brand */
+.results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"]) {
+  box-shadow: var(--ttc-shadow-card);
+  border: 1px solid var(--ttc-border);
+}
+.results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"])::before {
+  content:"";
+  display:block;
+  height:4px;
+  margin:-14px -16px 10px;
+  border-radius:14px 14px 0 0;
+  background: linear-gradient(90deg, var(--ttc-grad-start), var(--ttc-grad-end));
+  opacity:.35;
+}
+
+/* =========================
+   TABS (Keywords / Charts / Table / Summary / Download)
+   ========================= */
+.ttc-tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tcc-tabs,
+.ttc-tab { /* avoid accidental inheritance */
+}
+
+.ttc-tab {
+  /* same chrome for every tab, including Download */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+
+  background: #fff;
+  color: #1f2937;
+  border: 1px solid var(--ttc-border);
+  box-shadow: 0 1px 2px rgba(15,23,42,.05);
+  transition: box-shadow .2s ease, transform .1s ease, color .2s ease, background .2s ease;
+}
+
+.ttc-tab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px -12px var(--ttc-glow);
+  color: var(--ttc-primary);
+}
+
+.ttc-tab.is-active {
+  color: var(--ttc-primary);
+  background: linear-gradient(180deg, #ffffff, #f6f3fb);
+  box-shadow: 0 0 0 4px var(--ttc-ring-soft), inset 0 1px 0 rgba(255,255,255,.35);
+  border-color: color-mix(in srgb, var(--ttc-grad-start) 35%, #fff);
+}
+
+/* Make sure older .ttc-btnrow styles don't leak into the tabs */
+.ttc-btnrow .ttc-button { all: unset; }
+
+/* =========================
+   KEYWORD PILLS + LIST (de-bunching)
+   ========================= */
+.creative-results .pos-section {
+  background: #f8fafc;
+  border: 1px solid var(--ttc-border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+.creative-results .pos-section h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.creative-results .pos-section h3::before {
+  content:"";
+  width: 4px;
+  height: 18px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, var(--ttc-grad-start), var(--ttc-grad-end));
+  display: inline-block;
+}
+
+.creative-results .word-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;         
+}
+
+.keyword-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: .95rem;
+  background: #fff;
+  border: 1px solid var(--ttc-border);
+  box-shadow: 0 1px 1px rgba(0,0,0,.04);
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .15s ease, background .15s ease;
+}
+
+.keyword-pill:hover { transform: translateY(-1px); }
+
+/* POS color tints */
+.keyword-pill.adj   { background: #FEF3C7; border-color:#FCD34D; color:#92400E; }
+.keyword-pill.noun  { background: #D1FAE5; border-color:#6EE7B7; color:#065F46; }
+.keyword-pill.verb  { background: #DBEAFE; border-color:#93C5FD; color:#1E3A8A; }
+.keyword-pill.adv   { background: #EDE9FE; border-color:#C4B5FD; color:#4C1D95; }
+.keyword-pill.other { background: #F3F4F6; border-color:#E5E7EB; color:#374151; }
+
+/* Keyboard focus */
+.keyword-pill:focus-visible {
+  outline: 2px solid var(--ttc-ring);
+  outline-offset: 2px;
+}
+
+/* =========================
+   HEADINGS
+   ========================= */
+.keywords-header h2 {
+  font-size: clamp(1.1rem, .6vw + 1rem, 1.35rem);
+  line-height: 1.25;
+  margin: 0 0 6px;
+}
+.keywords-header p {
+  margin: 0 0 8px;
+  color: #475569;
+}
+
+/* keep compact spacing limited to the KPI area */
+.results-summary--compact + .ttc-tabs { margin-top: 10px; }
+
+/* if any old .view-toggle rules exist, make sure tabs win */
+.view-toggle.is-active.ttc-tab { box-shadow: none; }
+
+/* tiny padding on the “Top 50…” section header so it matches the mock */
+.keywords-header { margin-top: 8px; }
