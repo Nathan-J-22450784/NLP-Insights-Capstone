@@ -105,10 +105,10 @@ const ClusteringAnalyser = ({ uploadedText, onBack }) => {
         </button>
 
         <section className="ttc-panel ttc-stack-md">
-          <h1>Clustering Analysis</h1>
+          <h1 className="analysis-title">Clustering Analysis</h1>
 
           <div className="ttc-callout">
-            <p className="ttc-subtitle" style={{ margin: 0 }}>
+            <p className="ttc-subtitle">
               This analysis uses ConceptNet embeddings to discover thematic and
               conceptual connections in your writing. Text segments will be
               grouped based on semantic meaning and common-sense knowledge,

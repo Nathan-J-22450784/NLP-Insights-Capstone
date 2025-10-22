@@ -1233,7 +1233,7 @@ h1, .ttc-title-xl,
 }
 
 .filter-section :is(h1, h2, h3) {
-  font-size: clamp(1.1rem, .6vw + 1rem, 1.35rem);
+  font-size: clamp(1.1rem, .6vw + 1rem, 1.35rem); /* 17.6px → (0.6vw + 16px) → 21.6px */
   line-height: 1.25;
   margin: 0 0 10px;
   font-weight: 800;
