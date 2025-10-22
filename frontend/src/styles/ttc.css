@@ -1102,11 +1102,12 @@ h1, .ttc-title-xl,
         color: #64748b;
     }
 
-.analysis-container {
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.analysis-container .analysis-title {
+    font-size: clamp(1rem, .5vw + 1rem, 1.25rem);
+    line-height: 1.25;
+    text-align: center;
+    letter-spacing: -.01em;
+    margin-bottom: 10px;
 }
 
 .analysis-header {
@@ -1215,11 +1216,12 @@ h1, .ttc-title-xl,
 /* spacing for radios, current-analysis row, and progress bar */
 .filter-section { 
   max-width: 720px;
-  margin: 0 auto 16px;
+  margin: 0 auto 20px;
   text-align: left;
 }
 .filter-section .filter-options {
   display: flex;
+  flex-direction: column;
   gap: 14px;                         /* space between the two radios */
   flex-wrap: wrap;
 }
@@ -1230,23 +1232,31 @@ h1, .ttc-title-xl,
   margin-top: 6px;    /* a little breathing room */
 }
 
+.filter-section :is(h1, h2, h3) {
+  font-size: clamp(1.1rem, .6vw + 1rem, 1.35rem);
+  line-height: 1.25;
+  margin: 0 0 10px;
+  font-weight: 800;
+  color: var(--ttc-primary);
+}
+
 .collapsed-library-selection {
    max-width: 720px;
-   margin: 12px 0 6px;
+   margin: 24px auto 10px;
    text-align: left;
 }
 .current-analysis-info {
   display: flex;
   align-items: center;
   gap: 12px;                        
-  padding: 4px 0;
+  padding: 6px 0 10px;
   justify-content: flex-start;
 }
 
 /* space before the progress bar */
 .progress-container-wrapper {
    max-width: 720px;
-  margin-top: 16px auto 0;
+  margin-top: 8px auto 0;
 }
 
 /* Responsive tweaks */
