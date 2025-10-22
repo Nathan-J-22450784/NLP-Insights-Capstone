@@ -1387,10 +1387,19 @@ h1, .ttc-title-xl,
    ========================= */
 .results-summary--compact {
   padding: 0.25rem 0 0.5rem;
+  max-width: 1000px; 
+  margin-inline: auto;
+}
+
+.results-summary--compact > * {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  align-items: stretch;
 }
 
 .results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"]) {
-  min-height: 120px;            /* smaller tiles */
+  min-height: 120px;
   padding: 14px 16px;
   border-radius: 14px;
 }
