@@ -240,7 +240,7 @@ const KeynessAnalyser = ({
     };
 
     return (
-        <div className="ttc-container">
+        <div className="ttc-container analysis-container">
             <button
                 onClick={onBack}
                 className="ttc-button"
@@ -250,7 +250,7 @@ const KeynessAnalyser = ({
 
             {/* Word Filtering Options */}
             <div className="filter-section">
-                <p className="filter-title">
+                <p className="analysis-title">
                     What words in your text would you like analysed:
                 </p>
                 <div className="filter-options">
