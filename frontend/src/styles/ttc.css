@@ -1188,7 +1188,7 @@ h1, .ttc-title-xl,
 @media (min-width: 640px) {
   .analysis-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (min-width: 1100px) {
+@media (min-width: 900px) {
   .analysis-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
@@ -1197,24 +1197,26 @@ h1, .ttc-title-xl,
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 220px;
+  min-height: 128px;
   height: 100%;
-  gap: 12px;
+  gap: 10px;
+  padding: 16px;
 }
 
 .analysis-tile h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: .95rem;
   line-height: 1.25;
   color: var(--ttc-accent-foreground);
 }
 
-.analysis-tile p { margin: 10px 0 0; }
+.analysis-tile p { margin: 8px 0 0; }
 
 /* spacing for radios, current-analysis row, and progress bar */
 .filter-section { 
   max-width: 720px;
-  margin-bottom: 0 auto 16px;               /* space below the radio group */
+  margin: 0 auto 16px;
+  text-align: left;
 }
 .filter-section .filter-options {
   display: flex;
@@ -1230,19 +1232,21 @@ h1, .ttc-title-xl,
 
 .collapsed-library-selection {
    max-width: 720px;
-  margin: 12px 0 6px;                
+   margin: 12px 0 6px;
+   text-align: left;
 }
 .current-analysis-info {
   display: flex;
   align-items: center;
   gap: 12px;                        
   padding: 4px 0;
+  justify-content: flex-start;
 }
 
 /* space before the progress bar */
 .progress-container-wrapper {
    max-width: 720px;
-  margin-top: 16px;
+  margin-top: 16px auto 0;
 }
 
 /* Responsive tweaks */
