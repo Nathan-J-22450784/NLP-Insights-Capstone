@@ -1393,7 +1393,8 @@ h1, .ttc-title-xl,
 
 .results-summary--compact > * {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(270px, 320px));
+ justify-content: center;
   gap: 16px;
   align-items: stretch;
 }
@@ -1421,10 +1422,16 @@ h1, .ttc-title-xl,
   font-weight: 700;
 }
 
-/* Optional: slightly punchier top borders to echo purple brand */
 .results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"]) {
   box-shadow: var(--ttc-shadow-card);
   border: 1px solid var(--ttc-border);
+  min-height: 120px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  max-width: 320px;
+  margin-inline: auto;
+}
+
 }
 .results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"])::before {
   content:"";
