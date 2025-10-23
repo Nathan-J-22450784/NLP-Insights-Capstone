@@ -1385,58 +1385,53 @@ h1, .ttc-title-xl,
 /* =========================
    RESULTS – COMPACT KPI STRIP
    ========================= */
-.results-summary--compact {
-  padding: 0.25rem 0 0.5rem;
-  margin-inline: auto;
-
-  display: grid;
-  gap: 16px;
-  align-items: stretch;
-
-  grid-template-columns: 1fr;
+.results-summary--compact{
+  margin-inline:auto;
+  padding: .5rem 0 1rem;
+  display:grid;
+  grid-template-columns: repeat(12, minmax(0,1fr));
+  gap:16px;
 }
 
-.results-summary--compact > * { display: contents; }
+@media (max-width: 1024px){
+  .results-summary--compact{
+    grid-template-columns: repeat(6, minmax(0,1fr));
+  }
+}
 
-.results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"]) {
-  box-shadow: var(--ttc-shadow-card);
+@media (max-width: 640px){
+  .results-summary--compact{
+    grid-template-columns: 1fr;
+  }
+}
+
+.results-summary--compact :is(.ttc-panel,[class*="tile"],[class*="card"],[class*="panel"]){
+  grid-column: span 4;           
+  max-width: none !important;
+  width: auto !important;
+  margin: 0 !important;
   border: 1px solid var(--ttc-border);
   border-radius: 14px;
+  box-shadow: var(--ttc-shadow-card);
   min-height: 120px;
   padding: 14px 16px;
-   
   height: 100%;
+  position: relative;
 }
 
-.results-summary--compact :is(.stat-number, .value, .count, .kpi-value, h2, h3) {
-  line-height: 1.15;
+@media (max-width: 1024px){
+  .results-summary--compact :is(.ttc-panel,[class*="tile"],[class*="card"],[class*="panel"]){
+    grid-column: span 6;
+  }
 }
 
-.results-summary--compact :is(.stat-number, .value, .count, .kpi-value) {
-  font-size: clamp(1.35rem, 1.2vw + 1rem, 2rem);
-  font-weight: 800;
-  color: var(--ttc-primary);
+@media (max-width: 640px){
+  .results-summary--compact :is(.ttc-panel,[class*="tile"],[class*="card"],[class*="panel"]){
+    grid-column: 1 / -1;
+  }
 }
 
-.results-summary--compact :is(.stat-label, .caption, .kpi-label, small) {
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  font-size: .72rem;
-  color: #475569;
-  font-weight: 700;
-}
-
-.results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"]) {
-  box-shadow: var(--ttc-shadow-card);
-  border: 1px solid var(--ttc-border);
-  min-height: 120px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  max-width: 320px;
-  margin-inline: auto;
-}
-
-.results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"])::before {
+.results-summary--compact :is(.ttc-panel,[class*="tile"],[class*="card"],[class*="panel"])::before{
   content:"";
   display:block;
   height:4px;
@@ -1445,12 +1440,18 @@ h1, .ttc-title-xl,
   background: linear-gradient(90deg, var(--ttc-grad-start), var(--ttc-grad-end));
   opacity:.35;
 }
-
-@media (min-width: 640px) {
-  .results-summary--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.results-summary--compact :is(.stat-number,.value,.count,.kpi-value,h2,h3){ line-height:1.15; }
+.results-summary--compact :is(.stat-number,.value,.count,.kpi-value){
+  font-size: clamp(1.35rem, 1.2vw + 1rem, 2rem);
+  font-weight: 800;
+  color: var(--ttc-primary);
 }
-@media (min-width: 1024px) {
-  .results-summary--compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.results-summary--compact :is(.stat-label,.caption,.kpi-label,small){
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: .72rem;
+  color: #475569;
+  font-weight: 700;
 }
 
 /* =========================
