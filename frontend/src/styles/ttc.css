@@ -1391,10 +1391,10 @@ h1, .ttc-title-xl,
   margin-inline: auto;
 }
 
-.results-summary--compact > * {
+.results-summary--compact * {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(270px, 320px));
- justify-content: center;
+  justify-content: center;
   gap: 16px;
   align-items: stretch;
 }
@@ -1405,15 +1405,16 @@ h1, .ttc-title-xl,
   border-radius: 14px;
 }
 
-/* Downsize big numbers and captions */
 .results-summary--compact :is(.stat-number, .value, .count, .kpi-value, h2, h3) {
   line-height: 1.15;
 }
+
 .results-summary--compact :is(.stat-number, .value, .count, .kpi-value) {
   font-size: clamp(1.35rem, 1.2vw + 1rem, 2rem);
   font-weight: 800;
   color: var(--ttc-primary);
 }
+
 .results-summary--compact :is(.stat-label, .caption, .kpi-label, small) {
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -1432,7 +1433,6 @@ h1, .ttc-title-xl,
   margin-inline: auto;
 }
 
-}
 .results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"])::before {
   content:"";
   display:block;
