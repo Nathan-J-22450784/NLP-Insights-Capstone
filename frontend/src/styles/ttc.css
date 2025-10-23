@@ -1208,6 +1208,8 @@ h1, .ttc-title-xl,
   height: 100%;
   gap: 10px;
   padding: 16px;
+  position: relative;
+  padding-bottom: 72px;  
 }
 
 .analysis-tile h3 {
@@ -1228,7 +1230,11 @@ h1, .ttc-title-xl,
 }
 
 .analysis-tile .ttc-button-wide {
-  margin-top: auto;
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  margin-top: 0;  
 }
 
 /* spacing for radios, current-analysis row, and progress bar */
@@ -1323,6 +1329,10 @@ h1, .ttc-title-xl,
     .progress-text {
         line-height: 1.75rem;
     }
+}
+
+@media (max-width: 480px) {
+  .analysis-tile { padding-bottom: 64px; }
 }
 
 /* Chart titles/captions */
