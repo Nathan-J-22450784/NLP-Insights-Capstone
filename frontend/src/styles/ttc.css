@@ -1431,6 +1431,111 @@ h1, .ttc-title-xl,
 /* Make sure older .ttc-btnrow styles don't leak into the tabs */
 .ttc-btnrow .ttc-button { all: unset; }
 
+/* ==========================================================
+   RESULTS SUMMARY (shared layout + global token styling)
+   ========================================================== */
+
+/* Container wrapper */
+.results-summary {
+  background: var(--ttc-bg);
+  border: 1px solid var(--ttc-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: var(--ttc-shadow-card);
+  margin-bottom: 1.5rem;
+}
+
+/* Header row with icon + title */
+.results-summary .summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.results-summary .summary-title {
+  font-weight: 800;
+  font-size: 1.125rem;
+  color: var(--ttc-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.results-summary .summary-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--ttc-primary);
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+/* Stats grid layout */
+.results-summary .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+}
+
+/* Individual stat tiles */
+.results-summary .stat-card {
+  background: var(--ttc-bg);
+  border: 1px solid var(--ttc-border);
+  border-radius: 14px;
+  text-align: center;
+  padding: 1.25rem 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,.04);
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+
+.results-summary .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px -6px var(--ttc-glow);
+}
+
+/* Stat text */
+.results-summary .stat-number {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--ttc-primary);
+  margin-bottom: .25rem;
+}
+
+.results-summary .stat-label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+/* Corpus button (green “Corpus” pill) */
+.results-summary .corpus-button {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  border: none;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  margin-left: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+
+.results-summary .corpus-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px -6px rgba(16, 185, 129, 0.4);
+}
+
+.results-summary .corpus-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 /* =========================
    KEYWORD PILLS + LIST (de-bunching)
    ========================= */
