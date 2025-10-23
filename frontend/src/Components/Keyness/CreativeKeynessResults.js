@@ -251,7 +251,7 @@ const CreativeKeynessResults = ({
           </button>
         </div>
 
-      <div className="results-container results-summary--compact">
+      <div className="results-container">
         <ResultsSummary
           stats={stats}
           selectedMethod={method}
