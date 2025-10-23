@@ -1389,14 +1389,16 @@ h1, .ttc-title-xl,
   padding: 0.25rem 0 0.5rem;
   max-width: 1000px; 
   margin-inline: auto;
-}
 
-.results-summary--compact * {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(270px, 320px));
   justify-content: center;
   gap: 16px;
   align-items: stretch;
+}
+
+.results-summary--compact > * {
+  display: contents;
 }
 
 .results-summary--compact :is([class*="tile"], [class*="card"], [class*="panel"]) {
