@@ -56,7 +56,7 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, corpu
                     <div className="ttc-panel ttc-center">
                         <div className="loading-inline">
                             <span className="loading-spinner" aria-hidden="true"></span>
-                        <span>Analysing your text…</<span>>
+                        <span>Analysing your text…</span>
                     </div>
                  </div>
                 )}
