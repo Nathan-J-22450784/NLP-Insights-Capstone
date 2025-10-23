@@ -1383,92 +1383,6 @@ h1, .ttc-title-xl,
 }
 
 /* =========================
-   RESULTS – COMPACT KPI STRIP
-   ========================= */
-.results-container {
-  background: var(--ttc-bg);
-  border: 1px solid var(--ttc-border);
-  border-radius: 12px;
-  padding: 1.25rem;                 /* ~20px */
-  box-shadow: 0 1px 3px rgba(0,0,0,.05);
-  position: relative;
-}
-
-.results-container::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 4px;
-  border-radius: 12px 12px 0 0;
-  background: linear-gradient(90deg, var(--ttc-grad-start), var(--ttc-grad-end));
-  opacity: .35;
-}
-
-.results-container {
-  box-shadow:
-    0 1px 3px rgba(0,0,0,.05),
-    0 0 0 1px var(--ttc-ring-soft) inset;
-}
-
-.results-container :is(.stat-number,.value,.count,.kpi-value,h2,h3) {
-  color: var(--ttc-primary);
-  font-weight: 800;
-  line-height: 1.15;
-}
-
-.results-container :is(.stat-label,.caption,.kpi-label,small) {
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  font-size: .72rem;
-  color: #475569;
-  font-weight: 700;
-}
-
-.results-summary--compact {
-  margin-inline: auto;
-  padding: .5rem 0 1rem;
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0,1fr));
-  gap: 16px;
-}
-.results-summary--compact > * { display: contents; }
-.results-summary--compact > * > * {
-  grid-column: span 4;
-  max-width: none !important;
-  width: auto !important;
-  margin: 0 !important;
-}
-.results-summary--compact > * > :first-child { grid-column: 1 / -1; }
-
-@media (max-width:1024px){
-  .results-summary--compact { grid-template-columns: repeat(6, minmax(0,1fr)); }
-  .results-summary--compact > * > * { grid-column: span 6; }
-}
-@media (max-width:640px){
-  .results-summary--compact { grid-template-columns: 1fr; }
-  .results-summary--compact > * > * { grid-column: 1 / -1; }
-}
-
-.results-summary--compact :is(.ttc-panel,[class*="tile"],[class*="card"],[class*="panel"]) {
-  border: 1px solid var(--ttc-border);
-  border-radius: 14px;
-  box-shadow: var(--ttc-shadow-card, 0 1px 2px rgba(0,0,0,.04));
-  min-height: 120px;
-  padding: 14px 16px;
-  height: 100%;
-  position: relative;
-}
-.results-summary--compact :is(.ttc-panel,[class*="tile"],[class*="card"],[class*="panel"])::before {
-  content:"";
-  display:block;
-  height:4px;
-  margin:-14px -16px 10px;
-  border-radius:14px 14px 0 0;
-  background: linear-gradient(90deg, var(--ttc-grad-start), var(--ttc-grad-end));
-  opacity:.35;
-}
-
-/* =========================
    TABS (Keywords / Charts / Table / Summary / Download)
    ========================= */
 .ttc-tabs {
@@ -1604,3 +1518,53 @@ h1, .ttc-title-xl,
 
 /* tiny padding on the “Top 50…” section header so it matches the mock */
 .keywords-header { margin-top: 8px; }
+
+/* =========================
+   RESULTS TILES
+   ========================= */
+
+.ttc-page .results-container {
+  background: var(--ttc-bg, #fff);
+  border: 1px solid var(--ttc-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  position: relative;
+}
+
+.ttc-page .results-container::before {
+  content: "";
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 4px;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(90deg, var(--ttc-grad-start,#5b4186), var(--ttc-grad-end,#806ba1));
+  opacity: .35;
+}
+
+.ttc-page .results-container > * {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.ttc-page .results-container > * > :first-child { grid-column: 1 / -1; }
+
+.ttc-page .results-container > * > * { grid-column: span 4; }
+
+@media (max-width: 1024px) {
+  .ttc-page .results-container > * { grid-template-columns: repeat(6, minmax(0,1fr)); }
+  .ttc-page .results-container > * > * { grid-column: span 6; }
+}
+
+@media (max-width: 640px) {
+  .ttc-page .results-container > * { grid-template-columns: 1fr; }
+  .ttc-page .results-container > * > * { grid-column: 1 / -1; }
+}
+
+.ttc-page .results-container :is(.stat-number,.value,.count,.kpi-value,h2,h3) {
+  color: var(--ttc-primary,#492c79);
+  font-weight: 800;
+  line-height: 1.15;
+}
