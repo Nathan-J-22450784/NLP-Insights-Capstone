@@ -173,6 +173,32 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
 
     return generated_text.strip()
 
+def ensure_hf_loaded():
+    """
+    Ensure the global _HF_PIPELINE is constructed without doing a full generation.
+    Safe to call multiple times; cheap after first call.
+    """
+    global _HF_PIPELINE
+    if _HF_PIPELINE is not None:
+        return
+
+    # Reuse the same model name/env logic from _generate_huggingface
+    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-large"
+    print(f"📦 [warmup] Preparing HF pipeline for {model_name}")
+
+    try:
+        from optimum.onnxruntime import ORTModelForSeq2SeqLM
+        from transformers import AutoTokenizer
+        model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        from transformers import pipeline as hf_pipeline
+        _HF_PIPELINE = hf_pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+        print("✅ [warmup] ONNX pipeline ready")
+    except Exception as e:
+        print(f"⚠️ [warmup] ONNX failed, falling back to PyTorch: {e}")
+        from transformers import pipeline as hf_pipeline
+        _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
+        print("✅ [warmup] PyTorch pipeline ready")
 
 def _generate_ollama(prompt: str, num_predict: int, temperature: float) -> str:
     """Generate text using Ollama local API."""
