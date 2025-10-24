@@ -36,7 +36,6 @@ from api.keyness.keyness_analyser import (
 from django.core.files.uploadedfile import UploadedFile
 from .models import KeynessResult
 from backend.utils.session_utils import ensure_session_exists, schedule_session_cleanup
-from optimum.onnxruntime import ORTModelForSeq2SeqLM
 
 # File validation constants
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -55,6 +54,8 @@ _HF_PIPELINE = None
 
 CORPUS_DIR = os.path.join(settings.BASE_DIR, "api", "corpus")
 SAMPLE_FILE = os.path.join(CORPUS_DIR, "sample1.txt")
+
+DEFAULT_HF_MODEL = os.getenv("HUGGINGFACE_MODEL", "google/flan-t5-small")
 
 # --- Genre Corpus Meta  -----------
 # Looks for metadata-only corpora in backend/api/corpus_meta/*.json
@@ -109,41 +110,28 @@ def generate_text_with_fallback(prompt: str, num_predict: int = 600, temperature
 
 
 def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: float = 0.7) -> str:
-    """
-    Generate text using Hugging Face Transformers locally.
-    Uses google/flan-t5-large by default (runs with ONNXRuntime via Optimum).
-    """
     global _HF_PIPELINE
     import time
 
-    """ model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-large"    Commented out to try a smaller model 't5-small' """
-    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/t5-small"
+    model_name = DEFAULT_HF_MODEL
+    use_ort = os.getenv("USE_ORT", "0") == "1"
 
     if _HF_PIPELINE is None:
-        print(f"📦 Loading lightweight Hugging Face model via ONNXRuntime: {model_name}")
+        print(f"📦 Loading HF model: {model_name} (ORT={use_ort})")
         start_load = time.time()
-
         try:
-            # Use Optimum's ORTModelForSeq2SeqLM for proper ONNX support
-            from optimum.onnxruntime import ORTModelForSeq2SeqLM
-            from transformers import AutoTokenizer
-
-            model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-            _HF_PIPELINE = pipeline(
-                "text2text-generation",
-                model=model,
-                tokenizer=tokenizer
-            )
-            print(f"✅ Model loaded (ONNX) in {time.time() - start_load:.2f}s")
+            if use_ort:
+                from optimum.onnxruntime import ORTModelForSeq2SeqLM
+                from transformers import AutoTokenizer
+                model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                _HF_PIPELINE = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+            else:
+                _HF_PIPELINE = pipeline("text2text-generation", model=model_name)
+            print(f"✅ Model loaded in {time.time() - start_load:.2f}s")
         except Exception as e:
-            print(f"⚠️ ONNX failed, falling back to PyTorch: {e}")
-            _HF_PIPELINE = pipeline(
-                "text2text-generation",
-                model=model_name
-            )
-            print(f"✅ Model loaded (PyTorch) in {time.time() - start_load:.2f}s")
+            print(f"⚠️ ORT/PyTorch load failed, fallback to PyTorch pipeline: {e}")
+            _HF_PIPELINE = pipeline("text2text-generation", model=model_name)
 
     # Truncate extremely long prompts
     max_input_length = 1024
@@ -175,32 +163,28 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
     return generated_text.strip()
 
 def ensure_hf_loaded():
-    """
-    Ensure the global _HF_PIPELINE is constructed without doing a full generation.
-    Safe to call multiple times; cheap after first call.
-    """
     global _HF_PIPELINE
     if _HF_PIPELINE is not None:
         return
 
-    # Reuse the same model name/env logic from _generate_huggingface
-    """ model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-large"     Commented out to try a smaller model 't5-small' """
-    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/t5-small"
-    print(f"📦 [warmup] Preparing HF pipeline for {model_name}")
-
+    model_name = DEFAULT_HF_MODEL
+    use_ort = os.getenv("USE_ORT", "0") == "1"
+    print(f"📦 [warmup] Preparing HF pipeline for {model_name} (ORT={use_ort})")
     try:
-        from optimum.onnxruntime import ORTModelForSeq2SeqLM
-        from transformers import AutoTokenizer
-        model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        from transformers import pipeline as hf_pipeline
-        _HF_PIPELINE = hf_pipeline("text2text-generation", model=model, tokenizer=tokenizer)
-        print("✅ [warmup] ONNX pipeline ready")
+        if use_ort:
+            from optimum.onnxruntime import ORTModelForSeq2SeqLM
+            from transformers import AutoTokenizer, pipeline as hf_pipeline
+            model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            _HF_PIPELINE = hf_pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+        else:
+            from transformers import pipeline as hf_pipeline
+            _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
+        print("✅ [warmup] pipeline ready")
     except Exception as e:
-        print(f"⚠️ [warmup] ONNX failed, falling back to PyTorch: {e}")
+        print(f"⚠️ [warmup] failed, falling back to PyTorch pipeline: {e}")
         from transformers import pipeline as hf_pipeline
         _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
-        print("✅ [warmup] PyTorch pipeline ready")
 
 def _generate_ollama(prompt: str, num_predict: int, temperature: float) -> str:
     """Generate text using Ollama local API."""
@@ -478,8 +462,6 @@ def read_corpus():
     except FileNotFoundError:
         return ""
 
-@csrf_exempt
-@require_GET
 @csrf_exempt
 @require_GET
 def get_corpus_preview(request):
