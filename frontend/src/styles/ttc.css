@@ -1220,12 +1220,9 @@ h1, .ttc-title-xl,
 }
 
 .analysis-tile p {
-  margin: 0;
-  font-size: .9rem;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 8;           
+  display:-webkit-box;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
   overflow: hidden;
 }
 
@@ -1285,6 +1282,11 @@ h1, .ttc-title-xl,
 
 /* Responsive tweaks */
 @media (max-width:1024px) {
+      .analysis-tile p{
+       -webkit-line-clamp: unset;
+       display: block;
+       overflow: visible;
+     }
     .clustering-card {
         padding: 2rem;
     }
