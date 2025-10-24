@@ -1734,15 +1734,8 @@ h1, .ttc-title-xl,
   line-height: 1.15;
 }
 
-.ttc-page .results-container .results-summary{
-  grid-column: 1 / -1; 
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  padding: 0;
-}
-.ttc-page .results-container .results-summary::before{ display:none; }
-
-.results-summary .stats-grid{
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
+.ttc-page .results-container > .results-summary { display:block; }
+.ttc-page .results-container > .results-summary > * { grid-column:auto; }
+.results-summary .stats-grid { display:grid; gap:1.5rem; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); }
+@media (min-width:640px){ .results-summary .stats-grid { grid-template-columns:repeat(2,1fr); } }
+@media (min-width:1024px){ .results-summary .stats-grid { grid-template-columns:repeat(3,1fr); } }

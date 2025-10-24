@@ -53,10 +53,10 @@ const KeynessWordDetail = ({
 
     if (!wordData) {
         return (
-            <div className="keyness-word-detail-container">
-                <div className="tab-content-container">
-                    <div className="tab-content">
-                        <h3>Loading word details...</h3>
+            <div className="ttc-page">
+        <div className="ttc-container ttc-stack-lg">
+          <div className="ttc-panel">
+            <h3 className="ttc-title--sm">Loading word details...</h3>
                         <ProgressBar loading={true} />
                     </div>
                 </div>
@@ -186,53 +186,46 @@ const KeynessWordDetail = ({
         concepts: "💡 Concepts"
     };
 
-    // Placeholder tab content
-    const renderPlaceholder = (tabName) => (
-        <div className="tab-content">
-            <h3>{tabName}</h3>
-            <div style={{
-                padding: "3rem",
-                textAlign: "center",
-                background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-                borderRadius: "16px",
-                border: "2px dashed #cbd5e1",
-                margin: "2rem 0"
-            }}>
-                <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🚧</div>
-                <h4 style={{ color: "#64748b", marginBottom: "0.5rem" }}>Coming Soon</h4>
-                <p style={{ color: "#94a3b8" }}>This functionality is currently under development and will be available in a future update.</p>
-            </div>
-        </div>
-    );
+    // // Placeholder tab content
+    // const renderPlaceholder = (tabName) => (
+    //     <div className="tab-content">
+    //         <h3>{tabName}</h3>
+    //         <div style={{
+    //             padding: "3rem",
+    //             textAlign: "center",
+    //             background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+    //             borderRadius: "16px",
+    //             border: "2px dashed #cbd5e1",
+    //             margin: "2rem 0"
+    //         }}>
+    //             <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🚧</div>
+    //             <h4 style={{ color: "#64748b", marginBottom: "0.5rem" }}>Coming Soon</h4>
+    //             <p style={{ color: "#94a3b8" }}>This functionality is currently under development and will be available in a future update.</p>
+    //         </div>
+    //     </div>
+    // );
 
     // Empty state for sentences
     const renderEmptyState = (type, icon = "🔍") => (
-        <div style={{
-            padding: "3rem",
-            textAlign: "center",
-            background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-            borderRadius: "16px",
-            border: "2px solid #e2e8f0",
-            margin: "2rem 0"
-        }}>
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>{icon}</div>
-            <h4 style={{ color: "#64748b", marginBottom: "0.5rem" }}>No {type} Found</h4>
-            <p style={{ color: "#94a3b8" }}>We couldn't find any {type.toLowerCase()} for this word in the current text.</p>
+        <div className="ttc-panel ttc-center ttc-stack-md">
+        <div style={{ fontSize: "2rem" }}>{icon}</div>
+            <h4 className="ttc-title--sm" style={{ margin: 0 }}>No {type} Found</h4>
+            <p className="ttc-sub" style={{ margin: 0 }}>We couldn't find any {type.toLowerCase()} for this word in the current text.</p>
         </div>
     );
 
     return (
-        <div className="keyness-word-detail-container">
-            <h1 className="page-heading">
-                Keyword Analysis: "{word}"
+        <div className="ttc-page">
+          <div className="ttc-container ttc-stack-lg">
+            <h1 className="analysis-title">Keyword Analysis: "{word}"
             </h1>
 
             {/* Main View Toggle Buttons */}
-            <div className="view-controls">
+            <div className="ttc-tabs">
                 {Object.keys(viewLabels).map((view) => (
                     <button
                         key={view}
-                        className={`btn ${activeTab === view ? "bg-blue-500 text-white" : ""}`}
+                        className={`ttc-tab ${activeTab === view ? "is-active" : ""}`}
                         onClick={() => handleTabChange(view)}
                     >
                         {viewLabels[view]}
@@ -240,56 +233,55 @@ const KeynessWordDetail = ({
                 ))}
             </div>
 
-            <div className="tab-content-container">
-                {/* Word Data */}
+            {/* Word Data */}
                 {activeTab === "wordData" && (
-                    <div className="results-section">
-                        <h2 className="results-title">
+                    <h2 className="analysis-title">
                             {methodInfo.icon} Word Detail: {word}
                         </h2>
 
                         {/* Method Explanation */}
-                        <div className="method-explanation">
-                            <h3 className="method-title">{methodInfo.title}</h3>
-                            <p className="method-description">{methodInfo.description}</p>
-                            <div className="method-focus">
+                        <div className="ttc-callout">
+                          <div className="ttc-callout-title">{methodInfo.title}</div>
+                          <p className="ttc-sub" style={{margin:0}}>{methodInfo.description}</p>
+                          <div style={{marginTop:8}}>
                                 <strong>💡 What to look for:</strong> {methodInfo.focus}
                             </div>
                         </div>
 
-                        <div className="keyword-card">
-                            <div className="keyword-header">
-                                <h4 className="keyword-word">{wordData.word}</h4>
-                                <div className="keyword-pos">
+                        <div className="ttc-panel ttc-stack-md">
+                            <div className="ttc-flex-between">
+                                <h4 className="ttc-title--sm" style={{margin:0}}>{wordData.word}</h4>
+                                <div className="corpus-button" aria-label="Part of speech">
                                     {wordData.pos || wordData.pos_tag || "Unknown POS"}
                                 </div>
                             </div>
 
-                            <div className="keyword-stats">
+                            <div className="results-summary" style={{margin:0}}>
+                                <div className="stats-grid">
                                 {/* --- sklearn --- */}
                                 {isSklearn && (
                                     <>
-                                        <div className="stat-item">
+                                         <div className="stat-card">
                                             <span className="stat-label">📄 Your Text:</span>
-                                            <span className="stat-value">
+                                            <div className="stat-number">
                                                 {wordData.uploaded_count ?? wordData.count_a}
                                             </span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📚 Corpus:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.sample_count ?? wordData.count_b}
                                             </span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">🔬 Chi²:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.chi2?.toFixed(3)}
                                             </span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📈 P-Value:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.p_value?.toExponential(2)}
                                             </span>
                                         </div>
@@ -299,19 +291,19 @@ const KeynessWordDetail = ({
                                 {/* --- gensim --- */}
                                 {isGensim && (
                                     <>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📄 Your Text:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.uploaded_count}
                                             </span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📚 Corpus:</span>
-                                            <span className="stat-value">{wordData.sample_count}</span>
+                                            <span className="stat-number">{wordData.sample_count}</span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📊 TF-IDF:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.tfidf_score?.toFixed(3)}
                                             </span>
                                         </div>
@@ -321,55 +313,55 @@ const KeynessWordDetail = ({
                                 {/* --- spacy --- */}
                                 {isSpacy && (
                                     <>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📄 Your Text:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.uploaded_count ?? wordData.count_a}
                                             </span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📚 Corpus:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.sample_count ?? wordData.count_b}
                                             </span>
                                         </div>
                                         {wordData.chi2 !== undefined && (
-                                            <div className="stat-item">
+                                            <div className="stat-card">
                                                 <span className="stat-label">🔬 Chi²:</span>
-                                                <span className="stat-value">
+                                                <span className="stat-number">
                                                     {wordData.chi2?.toFixed(3)}
                                                 </span>
                                             </div>
                                         )}
                                         {wordData.p_value !== undefined && (
-                                            <div className="stat-item">
+                                            <div className="stat-card">
                                                 <span className="stat-label">📈 P-Value:</span>
-                                                <span className="stat-value">
+                                                <span className="stat-number">
                                                     {wordData.p_value?.toExponential(2)}
                                                 </span>
                                             </div>
                                         )}
                                         {wordData.tfidf_score !== undefined && (
-                                            <div className="stat-item">
+                                            <div className="stat-card">
                                                 <span className="stat-label">📊 TF-IDF:</span>
-                                                <span className="stat-value">
+                                                <span className="stat-number">
                                                     {wordData.tfidf_score?.toFixed(3)}
                                                 </span>
                                             </div>
                                         )}
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📉 Log-Likelihood:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.log_likelihood}
                                             </span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">⚡ Effect Size:</span>
-                                            <span className="stat-value">{wordData.effect_size}</span>
+                                            <span className="stat-number">{wordData.effect_size}</span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">🎯 Keyness:</span>
-                                            <span className="stat-value">{wordData.keyness_score}</span>
+                                            <span className="stat-number">{wordData.keyness_score}</span>
                                         </div>
                                     </>
                                 )}
@@ -377,65 +369,60 @@ const KeynessWordDetail = ({
                                 {/* --- nltk --- */}
                                 {isNltk && (
                                     <>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📉 Log-Likelihood:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.log_likelihood}
                                             </span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📄 Your Text:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.uploaded_count ?? wordData.count_a}
                                             </span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">📚 Corpus:</span>
-                                            <span className="stat-value">
+                                            <span className="stat-number">
                                                 {wordData.sample_count ?? wordData.count_b}
                                             </span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">⚡ Effect Size:</span>
-                                            <span className="stat-value">{wordData.effect_size}</span>
+                                            <span className="stat-number">{wordData.effect_size}</span>
                                         </div>
-                                        <div className="stat-item">
+                                        <div className="stat-card">
                                             <span className="stat-label">🎯 Keyness:</span>
-                                            <span className="stat-value">{wordData.keyness_score}</span>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
+                                            <span className="stat-number">{wordData.keyness_score}</span>
+                                            </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </section>
+                            )}
 
                 {/* Sentences */}
                 {activeTab === "sentences" && (
-                    <div className="tab-content">
-                        <h3>📝 Sentences containing "{word}"</h3>
+                    <section className="ttc-stack-md">
+    <h3 className="ttc-title--sm">📝 Sentences containing "{word}"</h3>
                         {loadingSentences ? (
-                            <div>
-                                <p style={{ textAlign: "center", color: "#64748b", marginBottom: "1rem" }}>
+                            <div className="ttc-center ttc-stack-md">
+                                <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
                                     Finding sentences containing "{word}"...
                                 </p>
                                 <ProgressBar loading={true} />
                             </div>
                         ) : sentences.length > 0 ? (
                             <div>
-                                <p style={{
-                                    color: "#64748b",
-                                    marginBottom: "1.5rem",
-                                    padding: "1rem",
-                                    background: "#f8fafc",
-                                    borderRadius: "8px",
-                                    border: "1px solid #e2e8f0"
-                                }}>
+                                <div className="ttc-stack-md">
+                                  <div className="ttc-banner ttc-banner--info">
                                     Found {sentences.length} sentence{sentences.length !== 1 ? 's' : ''} containing "<strong>{word}</strong>":
-                                </p>
-                                <ul className="sentences-list">
+                                </div>
+                                <ul className="ttc-stack-md" style={{ listStyle: "none", padding: 0, margin: 0 }}>
                                     {sentences.map((s, idx) => (
-                                        <li key={idx}>{highlightWord(s, word)}</li>
+                                        <li key={idx} className="ttc-panel">{highlightWord(s, word)}</li>
                                     ))}
                                 </ul>
                             </div>
@@ -447,71 +434,53 @@ const KeynessWordDetail = ({
 
                 {/* Alternate Words */}
                 {activeTab === "alternateWords" && (
-                    <div className="tab-content">
-                        <h3>🔄 Alternate Words for "{word}"</h3>
+                    <section className="ttc-stack-md">
+                    <h3 className="ttc-title--sm">🔄 Alternate Words for "{word}"</h3>
                         {loadingSynonyms ? (
-                            <div>
-                                <p style={{ textAlign: "center", color: "#64748b", marginBottom: "1rem" }}>
+                            <div className="ttc-center ttc-stack-md">
+                                <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
                                     Analysing alternate words and synonyms for "{word}"...
                                 </p>
                                 <ProgressBar loading={true} />
                             </div>
                         ) : synonymsAnalysis ? (
-                            <div
-                                style={{
-                                    whiteSpace: "pre-wrap",
-                                    lineHeight: 1.7,
-                                    fontSize: "15px",
-                                    maxHeight: "65vh",
-                                    overflowY: "auto",
-                                    padding: "2rem",
-                                    fontFamily: "inherit",
-                                    color: "#374151"
-                                }}
-                            >
+                            <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
+                                <div className="chart-summary-text">
                                 {synonymsAnalysis}
                             </div>
                         ) : (
                             renderEmptyState("alternate words", "🔄")
                         )}
-                    </div>
+                    </section>
                 )}
 
                 {/* Concepts */}
                 {activeTab === "concepts" && (
-                    <div className="tab-content">
-                        <h3>💡 Concepts related to "{word}"</h3>
-                        {loadingConcepts ? (
-                            <div>
-                                <p style={{ textAlign: "center", color: "#64748b", marginBottom: "1rem" }}>
+                    <section className="ttc-stack-md">
+                      <h3 className="ttc-title--sm">💡 Concepts related to "{word}"</h3>
+                        
+                         {loadingConcepts ? (
+                            <div className="ttc-center ttc-stack-md">
+                                <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
                                     Analysing concepts and themes related to "{word}"...
                                 </p>
                                 <ProgressBar loading={true} />
                             </div>
                         ) : conceptsAnalysis ? (
-                            <div
-                                style={{
-                                    whiteSpace: "pre-wrap",
-                                    lineHeight: 1.7,
-                                    fontSize: "15px",
-                                    maxHeight: "65vh",
-                                    overflowY: "auto",
-                                    padding: "2rem",
-                                    fontFamily: "inherit",
-                                    color: "#374151"
-                                }}
-                            >
+                            <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
+                               <div className="chart-summary-text">
                                 {conceptsAnalysis}
                             </div>
                         ) : (
                             renderEmptyState("concepts", "💡")
                         )}
-                    </div>
+                    </section>
                 )}
 
                 {/* Back Button */}
-                <button
-                    className="back-button"
+                <div className="analysis-actions">
+                  <button
+                    className="ttc-button"
                     onClick={() => {
                         console.log("Back clicked, current wordData:", wordData);
                         onBack();
@@ -519,9 +488,10 @@ const KeynessWordDetail = ({
                 >
                     ← Back to all keywords
                 </button>
-            </div>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default KeynessWordDetail;
