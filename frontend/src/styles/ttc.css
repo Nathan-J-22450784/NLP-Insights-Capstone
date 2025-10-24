@@ -1205,7 +1205,7 @@ h1, .ttc-title-xl,
   flex-direction: column;
   justify-content: space-between;
   min-height: 0;
-  height: 100%;
+  height: auto;
   gap: 10px;
   padding: 16px;
   position: relative;
@@ -1220,10 +1220,11 @@ h1, .ttc-title-xl,
 }
 
 .analysis-tile p {
+  flex: 1 1 auto;
+  overflow: visible;
   display:block;
   -webkit-line-clamp: unset;
   -webkit-box-orient: initial;
-  overflow: visible;
 }
 
 .analysis-tile .ttc-button-wide {
@@ -1734,9 +1735,14 @@ h1, .ttc-title-xl,
 }
 
 .ttc-page .results-container .results-summary{
+  grid-column: 1 / -1; 
   background: transparent;
   border: 0;
   box-shadow: none;
   padding: 0;
 }
 .ttc-page .results-container .results-summary::before{ display:none; }
+
+.results-summary .stats-grid{
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
