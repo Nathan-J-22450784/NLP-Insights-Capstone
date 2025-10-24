@@ -116,7 +116,8 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
     global _HF_PIPELINE
     import time
 
-    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-large"
+    """ model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-large"    Commented out to try a smaller model 't5-small' """
+    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/t5-small"
 
     if _HF_PIPELINE is None:
         print(f"📦 Loading lightweight Hugging Face model via ONNXRuntime: {model_name}")
@@ -183,7 +184,8 @@ def ensure_hf_loaded():
         return
 
     # Reuse the same model name/env logic from _generate_huggingface
-    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-large"
+    """ model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-large"     Commented out to try a smaller model 't5-small' """
+    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/t5-small"
     print(f"📦 [warmup] Preparing HF pipeline for {model_name}")
 
     try:
