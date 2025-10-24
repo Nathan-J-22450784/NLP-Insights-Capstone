@@ -1205,11 +1205,11 @@ h1, .ttc-title-xl,
   flex-direction: column;
   justify-content: space-between;
   min-height: 0;
-  height: 100%;
+  height: auto;
   gap: 10px;
   padding: 16px;
   position: relative;
-  padding-bottom: 72px;  
+  padding-bottom: 16px;  
 }
 
 .analysis-tile h3 {
@@ -1220,18 +1220,20 @@ h1, .ttc-title-xl,
 }
 
 .analysis-tile p {
-  display:-webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 8;
-  overflow: hidden;
+  flex: 1 1 auto;
+  overflow: visible;
+  display:block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
 }
 
 .analysis-tile .ttc-button-wide {
-  position: absolute;
+  position: static;
   left: 16px;
   right: 16px;
   bottom: 16px;
-  margin-top: 0;  
+  margin-top: auto;  
+  align-self: stretch;
 }
 
 /* spacing for radios, current-analysis row, and progress bar */
@@ -1730,4 +1732,17 @@ h1, .ttc-title-xl,
   color: var(--ttc-primary,#492c79);
   font-weight: 800;
   line-height: 1.15;
+}
+
+.ttc-page .results-container .results-summary{
+  grid-column: 1 / -1; 
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.ttc-page .results-container .results-summary::before{ display:none; }
+
+.results-summary .stats-grid{
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
