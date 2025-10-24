@@ -98,7 +98,7 @@ const KeynessWordDetail = ({
             setSynonymsAnalysis(data.analysis || "No analysis available");
         } catch (err) {
             console.error(err);
-            setSynonymsAnalysis("Error fetching synonyms.");
+            setSynonymsAnalysis("We couldn't fetch alternate words right now. The language model may still be warming up. Please try again in a few seconds.");
         } finally {
             setLoadingSynonyms(false);
         }
@@ -118,7 +118,7 @@ const KeynessWordDetail = ({
             setConceptsAnalysis(data.analysis || "No analysis available");
         } catch (err) {
             console.error(err);
-            setConceptsAnalysis("Error fetching concepts.");
+            setConceptsAnalysis("We couldn't fetch concepts right now. The language model may still be warming up. Please try again in a few seconds.");
         } finally {
             setLoadingConcepts(false);
         }

@@ -46,7 +46,6 @@ const ResultsSummary = ({ stats, selectedMethod, comparisonResults, genre }) => 
 
   return (
     <>
-      <div className="results-summary">
         <div className="summary-header">
           <h3 className="summary-title">
             <BarChart3 className="summary-icon" />
@@ -87,7 +86,6 @@ const ResultsSummary = ({ stats, selectedMethod, comparisonResults, genre }) => 
             <div className="stat-label">Significant keywords</div>
           </div>
         </div>
-      </div>
 
       {/* Corpus Modal */}
       {showCorpusModal && (
