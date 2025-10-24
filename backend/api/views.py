@@ -36,7 +36,6 @@ from api.keyness.keyness_analyser import (
 from django.core.files.uploadedfile import UploadedFile
 from .models import KeynessResult
 from backend.utils.session_utils import ensure_session_exists, schedule_session_cleanup
-''' from optimum.onnxruntime import ORTModelForSeq2SeqLM '''
 
 # File validation constants
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -114,7 +113,7 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
     global _HF_PIPELINE
     import time
 
-    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-small"
+    model_name = DEFAULT_HF_MODEL
     use_ort = os.getenv("USE_ORT", "0") == "1"
 
     if _HF_PIPELINE is None:
@@ -168,7 +167,7 @@ def ensure_hf_loaded():
     if _HF_PIPELINE is not None:
         return
 
-    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-small"
+    model_name = DEFAULT_HF_MODEL
     use_ort = os.getenv("USE_ORT", "0") == "1"
     print(f"📦 [warmup] Preparing HF pipeline for {model_name} (ORT={use_ort})")
     try:
@@ -465,7 +464,6 @@ def read_corpus():
 
 @csrf_exempt
 @require_GET
-
 def get_corpus_preview(request):
     """
     Optional query param: ?name=<genre>
