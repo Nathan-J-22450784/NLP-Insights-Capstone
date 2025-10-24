@@ -186,24 +186,24 @@ const KeynessWordDetail = ({
         concepts: "💡 Concepts"
     };
 
-    // // Placeholder tab content
-    // const renderPlaceholder = (tabName) => (
-    //     <div className="tab-content">
-    //         <h3>{tabName}</h3>
-    //         <div style={{
-    //             padding: "3rem",
-    //             textAlign: "center",
-    //             background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-    //             borderRadius: "16px",
-    //             border: "2px dashed #cbd5e1",
-    //             margin: "2rem 0"
-    //         }}>
-    //             <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🚧</div>
-    //             <h4 style={{ color: "#64748b", marginBottom: "0.5rem" }}>Coming Soon</h4>
-    //             <p style={{ color: "#94a3b8" }}>This functionality is currently under development and will be available in a future update.</p>
-    //         </div>
-    //     </div>
-    // );
+    // Placeholder tab content
+    const renderPlaceholder = (tabName) => (
+        <div className="tab-content">
+            <h3>{tabName}</h3>
+            <div style={{
+                padding: "3rem",
+                textAlign: "center",
+                background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+                borderRadius: "16px",
+                border: "2px dashed #cbd5e1",
+                margin: "2rem 0"
+            }}>
+                <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🚧</div>
+                <h4 style={{ color: "#64748b", marginBottom: "0.5rem" }}>Coming Soon</h4>
+                <p style={{ color: "#94a3b8" }}>This functionality is currently under development and will be available in a future update.</p>
+            </div>
+        </div>
+    );
 
     // Empty state for sentences
     const renderEmptyState = (type, icon = "🔍") => (
@@ -234,261 +234,240 @@ const KeynessWordDetail = ({
             </div>
 
             {/* Word Data */}
-                {activeTab === "wordData" && (
-                    <h2 className="analysis-title">
-                            {methodInfo.icon} Word Detail: {word}
-                        </h2>
-
-                        {/* Method Explanation */}
-                        <div className="ttc-callout">
-                          <div className="ttc-callout-title">{methodInfo.title}</div>
-                          <p className="ttc-sub" style={{margin:0}}>{methodInfo.description}</p>
-                          <div style={{marginTop:8}}>
-                                <strong>💡 What to look for:</strong> {methodInfo.focus}
-                            </div>
-                        </div>
-
-                        <div className="ttc-panel ttc-stack-md">
-                            <div className="ttc-flex-between">
-                                <h4 className="ttc-title--sm" style={{margin:0}}>{wordData.word}</h4>
-                                <div className="corpus-button" aria-label="Part of speech">
-                                    {wordData.pos || wordData.pos_tag || "Unknown POS"}
-                                </div>
-                            </div>
-
-                            <div className="results-summary" style={{margin:0}}>
-                                <div className="stats-grid">
-                                {/* --- sklearn --- */}
-                                {isSklearn && (
-                                    <>
-                                         <div className="stat-card">
-                                            <span className="stat-label">📄 Your Text:</span>
-                                            <div className="stat-number">
-                                                {wordData.uploaded_count ?? wordData.count_a}
-                                            </span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📚 Corpus:</span>
-                                            <span className="stat-number">
-                                                {wordData.sample_count ?? wordData.count_b}
-                                            </span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">🔬 Chi²:</span>
-                                            <span className="stat-number">
-                                                {wordData.chi2?.toFixed(3)}
-                                            </span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📈 P-Value:</span>
-                                            <span className="stat-number">
-                                                {wordData.p_value?.toExponential(2)}
-                                            </span>
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* --- gensim --- */}
-                                {isGensim && (
-                                    <>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📄 Your Text:</span>
-                                            <span className="stat-number">
-                                                {wordData.uploaded_count}
-                                            </span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📚 Corpus:</span>
-                                            <span className="stat-number">{wordData.sample_count}</span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📊 TF-IDF:</span>
-                                            <span className="stat-number">
-                                                {wordData.tfidf_score?.toFixed(3)}
-                                            </span>
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* --- spacy --- */}
-                                {isSpacy && (
-                                    <>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📄 Your Text:</span>
-                                            <span className="stat-number">
-                                                {wordData.uploaded_count ?? wordData.count_a}
-                                            </span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📚 Corpus:</span>
-                                            <span className="stat-number">
-                                                {wordData.sample_count ?? wordData.count_b}
-                                            </span>
-                                        </div>
-                                        {wordData.chi2 !== undefined && (
-                                            <div className="stat-card">
-                                                <span className="stat-label">🔬 Chi²:</span>
-                                                <span className="stat-number">
-                                                    {wordData.chi2?.toFixed(3)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {wordData.p_value !== undefined && (
-                                            <div className="stat-card">
-                                                <span className="stat-label">📈 P-Value:</span>
-                                                <span className="stat-number">
-                                                    {wordData.p_value?.toExponential(2)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {wordData.tfidf_score !== undefined && (
-                                            <div className="stat-card">
-                                                <span className="stat-label">📊 TF-IDF:</span>
-                                                <span className="stat-number">
-                                                    {wordData.tfidf_score?.toFixed(3)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        <div className="stat-card">
-                                            <span className="stat-label">📉 Log-Likelihood:</span>
-                                            <span className="stat-number">
-                                                {wordData.log_likelihood}
-                                            </span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">⚡ Effect Size:</span>
-                                            <span className="stat-number">{wordData.effect_size}</span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">🎯 Keyness:</span>
-                                            <span className="stat-number">{wordData.keyness_score}</span>
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* --- nltk --- */}
-                                {isNltk && (
-                                    <>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📉 Log-Likelihood:</span>
-                                            <span className="stat-number">
-                                                {wordData.log_likelihood}
-                                            </span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📄 Your Text:</span>
-                                            <span className="stat-number">
-                                                {wordData.uploaded_count ?? wordData.count_a}
-                                            </span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">📚 Corpus:</span>
-                                            <span className="stat-number">
-                                                {wordData.sample_count ?? wordData.count_b}
-                                            </span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">⚡ Effect Size:</span>
-                                            <span className="stat-number">{wordData.effect_size}</span>
-                                        </div>
-                                        <div className="stat-card">
-                                            <span className="stat-label">🎯 Keyness:</span>
-                                            <span className="stat-number">{wordData.keyness_score}</span>
-                                            </div>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </section>
-                            )}
-
-                {/* Sentences */}
-                {activeTab === "sentences" && (
-                    <section className="ttc-stack-md">
-    <h3 className="ttc-title--sm">📝 Sentences containing "{word}"</h3>
-                        {loadingSentences ? (
-                            <div className="ttc-center ttc-stack-md">
-                                <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
-                                    Finding sentences containing "{word}"...
-                                </p>
-                                <ProgressBar loading={true} />
-                            </div>
-                        ) : sentences.length > 0 ? (
-                            <div>
-                                <div className="ttc-stack-md">
-                                  <div className="ttc-banner ttc-banner--info">
-                                    Found {sentences.length} sentence{sentences.length !== 1 ? 's' : ''} containing "<strong>{word}</strong>":
-                                </div>
-                                <ul className="ttc-stack-md" style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                                    {sentences.map((s, idx) => (
-                                        <li key={idx} className="ttc-panel">{highlightWord(s, word)}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ) : (
-                            renderEmptyState("sentences", "📝")
-                        )}
+            {activeTab === "wordData" && (
+              <section className="ttc-stack-md">
+                <h2 className="analysis-title">
+                  {methodInfo.icon} Word Detail: {word}
+                </h2>
+            
+                {/* Method Explanation */}
+                <div className="ttc-callout">
+                  <div className="ttc-callout-title">{methodInfo.title}</div>
+                  <p className="ttc-sub" style={{ margin: 0 }}>{methodInfo.description}</p>
+                  <div style={{ marginTop: 8 }}>
+                    <strong>💡 What to look for:</strong> {methodInfo.focus}
+                  </div>
+                </div>
+            
+                <div className="ttc-panel ttc-stack-md">
+                  <div className="ttc-flex-between">
+                    <h4 className="ttc-title--sm" style={{ margin: 0 }}>{wordData.word}</h4>
+                    <div className="corpus-button" aria-label="Part of speech">
+                      {wordData.pos || wordData.pos_tag || "Unknown POS"}
                     </div>
+                  </div>
+            
+                  <div className="results-summary" style={{ margin: 0 }}>
+                    <div className="stats-grid">
+                      {/* --- sklearn --- */}
+                      {isSklearn && (
+                        <>
+                          <div className="stat-card">
+                            <div className="stat-number">
+                              {wordData.uploaded_count ?? wordData.count_a}
+                            </div>
+                            <div className="stat-label">📄 Your Text</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">
+                              {wordData.sample_count ?? wordData.count_b}
+                            </div>
+                            <div className="stat-label">📚 Corpus</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.chi2?.toFixed(3)}</div>
+                            <div className="stat-label">🔬 Chi²</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.p_value?.toExponential(2)}</div>
+                            <div className="stat-label">📈 P-Value</div>
+                          </div>
+                        </>
+                      )}
+            
+                      {/* --- gensim --- */}
+                      {isGensim && (
+                        <>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.uploaded_count}</div>
+                            <div className="stat-label">📄 Your Text</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.sample_count}</div>
+                            <div className="stat-label">📚 Corpus</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.tfidf_score?.toFixed(3)}</div>
+                            <div className="stat-label">📊 TF-IDF</div>
+                          </div>
+                        </>
+                      )}
+            
+                      {/* --- spacy --- */}
+                      {isSpacy && (
+                        <>
+                          <div className="stat-card">
+                            <div className="stat-number">
+                              {wordData.uploaded_count ?? wordData.count_a}
+                            </div>
+                            <div className="stat-label">📄 Your Text</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">
+                              {wordData.sample_count ?? wordData.count_b}
+                            </div>
+                            <div className="stat-label">📚 Corpus</div>
+                          </div>
+                          {wordData.chi2 !== undefined && (
+                            <div className="stat-card">
+                              <div className="stat-number">{wordData.chi2?.toFixed(3)}</div>
+                              <div className="stat-label">🔬 Chi²</div>
+                            </div>
+                          )}
+                          {wordData.p_value !== undefined && (
+                            <div className="stat-card">
+                              <div className="stat-number">{wordData.p_value?.toExponential(2)}</div>
+                              <div className="stat-label">📈 P-Value</div>
+                            </div>
+                          )}
+                          {wordData.tfidf_score !== undefined && (
+                            <div className="stat-card">
+                              <div className="stat-number">{wordData.tfidf_score?.toFixed(3)}</div>
+                              <div className="stat-label">📊 TF-IDF</div>
+                            </div>
+                          )}
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.log_likelihood}</div>
+                            <div className="stat-label">📉 Log-Likelihood</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.effect_size}</div>
+                            <div className="stat-label">⚡ Effect Size</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.keyness_score}</div>
+                            <div className="stat-label">🎯 Keyness</div>
+                          </div>
+                        </>
+                      )}
+            
+                      {/* --- nltk --- */}
+                      {isNltk && (
+                        <>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.log_likelihood}</div>
+                            <div className="stat-label">📉 Log-Likelihood</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">
+                              {wordData.uploaded_count ?? wordData.count_a}
+                            </div>
+                            <div className="stat-label">📄 Your Text</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">
+                              {wordData.sample_count ?? wordData.count_b}
+                            </div>
+                            <div className="stat-label">📚 Corpus</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.effect_size}</div>
+                            <div className="stat-label">⚡ Effect Size</div>
+                          </div>
+                          <div className="stat-card">
+                            <div className="stat-number">{wordData.keyness_score}</div>
+                            <div className="stat-label">🎯 Keyness</div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+            
+            {/* Sentences */}
+            {activeTab === "sentences" && (
+              <section className="ttc-stack-md">
+                <h3 className="ttc-title--sm">📝 Sentences containing "{word}"</h3>
+                {loadingSentences ? (
+                  <div className="ttc-center ttc-stack-md">
+                    <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
+                      Finding sentences containing "{word}"...
+                    </p>
+                    <ProgressBar loading={true} />
+                  </div>
+                ) : sentences.length > 0 ? (
+                  <div className="ttc-stack-md">
+                    <div className="ttc-banner ttc-banner--info">
+                      Found {sentences.length} sentence{sentences.length !== 1 ? "s" : ""} containing <strong>{word}</strong>:
+                    </div>
+                    <ul className="ttc-stack-md" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                      {sentences.map((s, idx) => (
+                        <li key={idx} className="ttc-panel">{highlightWord(s, word)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  renderEmptyState("sentences", "📝")
                 )}
-
-                {/* Alternate Words */}
-                {activeTab === "alternateWords" && (
-                    <section className="ttc-stack-md">
-                    <h3 className="ttc-title--sm">🔄 Alternate Words for "{word}"</h3>
-                        {loadingSynonyms ? (
-                            <div className="ttc-center ttc-stack-md">
-                                <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
-                                    Analysing alternate words and synonyms for "{word}"...
-                                </p>
-                                <ProgressBar loading={true} />
-                            </div>
-                        ) : synonymsAnalysis ? (
-                            <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
-                                <div className="chart-summary-text">
-                                {synonymsAnalysis}
-                            </div>
-                        ) : (
-                            renderEmptyState("alternate words", "🔄")
-                        )}
-                    </section>
+              </section>
+            )}
+            
+            {/* Alternate Words */}
+            {activeTab === "alternateWords" && (
+              <section className="ttc-stack-md">
+                <h3 className="ttc-title--sm">🔄 Alternate Words for "{word}"</h3>
+                {loadingSynonyms ? (
+                  <div className="ttc-center ttc-stack-md">
+                    <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
+                      Analysing alternate words and synonyms for "{word}"...
+                    </p>
+                    <ProgressBar loading={true} />
+                  </div>
+                ) : synonymsAnalysis ? (
+                  <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
+                    <div className="chart-summary-text">{synonymsAnalysis}</div>
+                  </div>
+                ) : (
+                  renderEmptyState("alternate words", "🔄")
                 )}
-
-                {/* Concepts */}
-                {activeTab === "concepts" && (
-                    <section className="ttc-stack-md">
-                      <h3 className="ttc-title--sm">💡 Concepts related to "{word}"</h3>
-                        
-                         {loadingConcepts ? (
-                            <div className="ttc-center ttc-stack-md">
-                                <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
-                                    Analysing concepts and themes related to "{word}"...
-                                </p>
-                                <ProgressBar loading={true} />
-                            </div>
-                        ) : conceptsAnalysis ? (
-                            <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
-                               <div className="chart-summary-text">
-                                {conceptsAnalysis}
-                            </div>
-                        ) : (
-                            renderEmptyState("concepts", "💡")
-                        )}
-                    </section>
+              </section>
+            )}
+            
+            {/* Concepts */}
+            {activeTab === "concepts" && (
+              <section className="ttc-stack-md">
+                <h3 className="ttc-title--sm">💡 Concepts related to "{word}"</h3>
+                {loadingConcepts ? (
+                  <div className="ttc-center ttc-stack-md">
+                    <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
+                      Analysing concepts and themes related to "{word}"...
+                    </p>
+                    <ProgressBar loading={true} />
+                  </div>
+                ) : conceptsAnalysis ? (
+                  <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
+                    <div className="chart-summary-text">{conceptsAnalysis}</div>
+                  </div>
+                ) : (
+                  renderEmptyState("concepts", "💡")
                 )}
-
-                {/* Back Button */}
-                <div className="analysis-actions">
-                  <button
-                    className="ttc-button"
-                    onClick={() => {
-                        console.log("Back clicked, current wordData:", wordData);
-                        onBack();
-                    }}
-                >
-                    ← Back to all keywords
-                </button>
-        </div>
+              </section>
+            )}
+            
+            {/* Back Button */}
+            <div className="analysis-actions">
+              <button
+                className="ttc-button"
+                onClick={() => {
+                  console.log("Back clicked, current wordData:", wordData);
+                  onBack();
+                }}
+              >
+                ← Back to all keywords
+              </button>
+            </div>
       </div>
     </div>
   );
