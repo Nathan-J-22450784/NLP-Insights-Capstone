@@ -144,7 +144,7 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
         prompt,
         max_new_tokens=num_predict,
         temperature=temperature,
-        do_sample=True,
+        do_sample=False,
         top_p=0.9,  # Nucleus sampling
         repetition_penalty=1.2,  # Penalize repetition
         no_repeat_ngram_size=3,  # Prevent repeating 3-grams
