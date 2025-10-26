@@ -501,6 +501,8 @@ h1, .ttc-title-xl,
   height: 18px;
   background: #edeaf2; 
   border-radius: 9999px;
+  width: 100%;  
+  display: block;
   overflow: hidden;
   position: relative;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, .06);
@@ -1278,8 +1280,9 @@ h1, .ttc-title-xl,
 
 /* space before the progress bar */
 .progress-container-wrapper {
-   max-width: 720px;
-  margin-top: 8px auto 0;
+   margin: 8px auto 0;
+   width: 100%;
+   flex: 1 1 100%;
 }
 
 /* Responsive tweaks */
