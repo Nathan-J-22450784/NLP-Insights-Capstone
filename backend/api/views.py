@@ -18,10 +18,9 @@ from django.views.decorators.http import require_GET
 from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from pathlib import Path
 from sklearn.feature_extraction.text import CountVectorizer
-from scipy.stats import chi2_contingency, chi2
+from scipy.stats import chi2
 from gensim import corpora, models
 from collections import defaultdict, Counter
 from api.keyness.keyness_analyser import (
@@ -145,6 +144,7 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
     # Generate response with parameters to prevent repetition
     gen_kwargs = {
         "max_new_tokens": int(num_predict),
+        "min_new_tokens": max(1, min(int(0.25 * num_predict), int(num_predict) - 1)),
         "no_repeat_ngram_size": 3,
         "repetition_penalty": 1.2,
         "num_beams": 1,              # beam search off (keeps memory small)
@@ -154,6 +154,31 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
         # These are only set when sampling to avoid warnings
         gen_kwargs["temperature"] = float(temperature)
         gen_kwargs["top_p"] = 0.9
+
+    p_low = prompt.lower()
+
+    def wants_deterministic(p: str) -> bool:
+        # Analytical / structured instructions → cleaner, longer, factual
+        return (
+            "analyse the bar chart" in p
+            or "analyse the scatter plot" in p
+            or "you are an expert data analyst" in p
+            or "provide exactly 5 synonyms" in p   # synonyms endpoint
+            or "concepts related to" in p          # concepts endpoint
+            or "task: analyse" in p
+        )
+
+    if wants_deterministic(p_low):
+        # Deterministic, cleaner outputs (good for reports/explanations/tools)
+        gen_kwargs.update({
+            "do_sample": False,      # turn sampling off
+            "num_beams": 4,          # modest beam search for coherence
+            "length_penalty": 1.0,   # neutral length control
+        })
+    else:
+        # Creative mode (existing sampling settings already apply)
+        # Nothing to change; 'do_sample' and temperature/top_p are set above.
+        pass
 
     start_gen = time.time()
     result = _HF_PIPELINE(prompt, **gen_kwargs)
@@ -1675,7 +1700,7 @@ Provide insights that reveal the dynamic, interconnected nature of themes and ho
             "analysis_title": analysis_title,
             "data_source": data_source,
             "total_documents": total_docs,
-            "documents_analsed": sample_size,
+            "documents_analysed": sample_size,
             "analysis": analysis,
             "success": True,
             "has_clustering_context": bool(clustering_context)
