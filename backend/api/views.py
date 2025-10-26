@@ -89,7 +89,7 @@ def generate_text_with_fallback(prompt: str, num_predict: int = 600, temperature
     Generate text using Groq, HuggingFace, or Ollama.
     """
     log_memory_usage("LLM request start")
-
+    
     provider = (os.environ.get("LLM_PROVIDER") or "huggingface").strip().lower()
     print(f"🔍 Using LLM provider: {provider}")
 
@@ -122,37 +122,44 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
         try:
             if use_ort:
                 from optimum.onnxruntime import ORTModelForSeq2SeqLM
-                from transformers import AutoTokenizer
+                from transformers import AutoTokenizer, pipeline as hf_pipeline
                 model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
                 tokenizer = AutoTokenizer.from_pretrained(model_name)
-                _HF_PIPELINE = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+                _HF_PIPELINE = hf_pipeline("text2text-generation", model=model, tokenizer=tokenizer)
             else:
-                _HF_PIPELINE = pipeline("text2text-generation", model=model_name)
+                from transformers import pipeline as hf_pipeline
+                _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
             print(f"✅ Model loaded in {time.time() - start_load:.2f}s")
         except Exception as e:
             print(f"⚠️ ORT/PyTorch load failed, fallback to PyTorch pipeline: {e}")
-            _HF_PIPELINE = pipeline("text2text-generation", model=model_name)
+            from transformers import pipeline as hf_pipeline
+            _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
 
     # Truncate extremely long prompts
-    max_input_length = 1024
-    if len(prompt) > max_input_length:
-        prompt = prompt[:max_input_length]
+    if len(prompt) > 1024:
+        prompt = prompt[:1024]
+        
+    # --- key part: only set sampling params when sampling is ON
+    use_sampling = (temperature is not None) and (float(temperature) > 0.0)
 
     # Generate response with parameters to prevent repetition
+    gen_kwargs = {
+        "max_new_tokens": int(num_predict),
+        "no_repeat_ngram_size": 3,
+        "repetition_penalty": 1.2,
+        "num_beams": 1,              # beam search off (keeps memory small)
+        "do_sample": use_sampling,   # <-- key
+    }
+    if use_sampling:
+        # These are only set when sampling to avoid warnings
+        gen_kwargs["temperature"] = float(temperature)
+        gen_kwargs["top_p"] = 0.9
+
     start_gen = time.time()
-    result = _HF_PIPELINE(
-        prompt,
-        max_new_tokens=num_predict,
-        temperature=temperature,
-        do_sample=False,
-        top_p=0.9,  # Nucleus sampling
-        repetition_penalty=1.2,  # Penalize repetition
-        no_repeat_ngram_size=3,  # Prevent repeating 3-grams
-        early_stopping=True
-    )
+    result = _HF_PIPELINE(prompt, **gen_kwargs)
     print(f"⏱️ Generation took {time.time() - start_gen:.2f}s")
 
-    generated_text = result[0]["generated_text"]
+    generated_text = result[0].get("generated_text", "").strip()
 
     # Trim to last complete sentence if cut off
     if generated_text and not generated_text.endswith(('.', '!', '?')):
@@ -160,7 +167,7 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
         if last_period > 0:
             generated_text = generated_text[:last_period + 1]
 
-    return generated_text.strip()
+    return generated_text
 
 def ensure_hf_loaded():
     global _HF_PIPELINE
@@ -1058,7 +1065,8 @@ Requirements:
 - Choose synonyms that are genuinely interchangeable in at least some contexts
 - Focus on subtle differences rather than obvious ones
 - Provide concrete examples showing the difference in usage
-- Consider connotation, formality level, and context appropriateness"""
+- Consider connotation, formality level, and context appropriateness
+"""
 
     try:
         analysis = generate_text_with_fallback(prompt, num_predict=400, temperature=0.7)
