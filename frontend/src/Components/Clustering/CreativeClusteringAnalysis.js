@@ -434,7 +434,6 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
                 {isLoadingThematicFlow ? "Analysing..." : "Regenerate"}
               </button>
             </div>
-          </section>
 
             {isLoadingThematicFlow && (
               <div className="loading-inline">
@@ -473,7 +472,7 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
                 </p>
               </div>
             )}
-          </div>
+          </section>
         )}
 
         {/* Overused Themes View */}
@@ -491,7 +490,6 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
                 {isLoadingOverusedThemes ? "Analysing..." : "Regenerate"}
               </button>
             </div>
-          </section>
 
             {isLoadingOverusedThemes && (
               <div className="loading-inline">
