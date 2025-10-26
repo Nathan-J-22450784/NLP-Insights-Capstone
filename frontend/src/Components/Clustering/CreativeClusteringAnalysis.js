@@ -203,58 +203,58 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
 
   return (
     <div className="ttc-page">
-      <div className="ttc-container">
+      <div className="ttc-container ttc-stack-lg">
 
         {/* View Controls */}
-        <div className="ttc-btnrow" style={{ justifyContent: "flex-start", marginBottom: 14 }}>
+        <nav className="ttc-tabs" aria-label="Clustering views">
           <button
-            className="ttc-button ttc-button-sm"
+            className={`ttc-tab ${showChart ? "is-active" : ""}`}
             onClick={() => handleViewChange("chart")}
             aria-pressed={showChart}
           >
-            Show Chart
+            Chart
           </button>
           <button
-            className="ttc-button ttc-button-sm"
+            className={`ttc-tab ${showTopTerms ? "is-active" : ""}`}
             onClick={() => handleViewChange("terms")}
             aria-pressed={showTopTerms}
           >
-            Show Top Terms
+            Top Terms
           </button>
           <button
-            className="ttc-button ttc-button-sm"
+            className={`ttc-tab ${showDocuments ? "is-active" : ""}`}
             onClick={() => handleViewChange("documents")}
             aria-pressed={showDocuments}
           >
-            Show Clustered Documents
+            Documents
           </button>
           <button
-            className="ttc-button ttc-button-sm"
+            className={`ttc-tab ${showThemes ? "is-active" : ""}`}
             onClick={() => handleViewChange("themes")}
             aria-pressed={showThemes}
           >
             Themes
           </button>
           <button
-            className="ttc-button ttc-button-sm"
+            className={`ttc-tab ${showThematicFlow ? "is-active" : ""}`}
             onClick={() => handleViewChange("flow")}
             aria-pressed={showThematicFlow}
           >
             Thematic Flow
           </button>
           <button
-            className="ttc-button ttc-button-sm"
+            className={`ttc-tab ${showOverusedThemes ? "is-active" : ""}`}
             onClick={() => handleViewChange("overused")}
             aria-pressed={showOverusedThemes}
           >
-            Overused Themes
+            Overused / Underused
           </button>
-        </div>
+        </nav>
 
         {/* Cluster Filter */}
         {clusters.length > 0 && (
           <div className="ttc-stack-md" style={{ marginBottom: 12 }}>
-            <label style={{ fontWeight: 700, color: "#1f2937" }}>Filter Cluster:</label>
+             <label className="homepage-label" htmlFor="clusterFilter">Filter Cluster</label>
             <select
               value={selectedCluster}
               onChange={(e) => setSelectedCluster(e.target.value)}
@@ -273,22 +273,16 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
 
         {/* Chart View + Summary */}
         {showChart && clusters.length > 0 && (
-          <div className="ttc-stack-md">
+           <div className="charts-container">
             <ClusteringCharts clusters={clusters} selectedCluster={selectedCluster} />
 
             <div className="ttc-panel">
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  marginBottom: 8,
-                }}
-              >
-                <h3 className="ttc-title--sm" style={{ margin: 0 }}>
+              <div className="chart-summary-header">
+                <span className="chart-summary-badge" aria-hidden />
+                <h3 className="chart-summary-title">
                   Chart Analysis
                 </h3>
+            <div className="ttc-btnrow" style={{ marginLeft: "auto" }}>
                 <button
                   className="ttc-button ttc-button-sm"
                   onClick={generateChartSummary}
@@ -300,14 +294,14 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
               </div>
 
               {isLoadingChartSummary && (
-                <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#475569" }}>
+                <div className="chart-summary-loading">
                   <div className="loading-spinner" />
-                  <p style={{ margin: 0 }}>Analysing clustering results...</p>
+                  <span>Analysing clustering results...</span>
                 </div>
               )}
 
               {chartSummaryError && (
-                <div className="ttc-banner ttc-banner--error">
+                <div className="chart-summary-error">
                   <p style={{ margin: 0 }}>Error generating analysis: {chartSummaryError}</p>
                   <button onClick={generateChartSummary} className="ttc-button ttc-button-sm">
                     Try Again
@@ -316,42 +310,43 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
               )}
 
               {chartSummaryData && !isLoadingChartSummary && (
-                <div style={{ display: "grid", gap: 8 }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, color: "#475569" }}>
+                <div className="chart-summary-body">
+                  <div className="ttc-btnrow" style={{ justifyContent: "flex-start", gap: ".75rem" }}>
                     <span>Scope: {chartSummaryData.analysis_scope}</span>
                     <span>Documents: {chartSummaryData.total_documents}</span>
                     <span>Clusters: {chartSummaryData.num_clusters}</span>
                   </div>
-                  <pre className="ttc-pre">{chartSummaryData.analysis}</pre>
+                  <pre className="ttc-pre chart-summary-text">{chartSummaryData.analysis}</pre>
                 </div>
               )}
-            </div>
+            </section>
           </div>
         )}
 
         {/* Top Terms View */}
         {showTopTerms && Object.keys(topTerms).length > 0 && (
-          <div className="ttc-grid ttc-grid-3-lg" style={{ gap: 16 }}>
+          <div className="ttc-grid ttc-grid-3-lg">
             {Object.entries(topTerms).map(([cluster, terms]) => (
               <div key={cluster} className="ttc-panel">
-                <h3 className="ttc-title--sm" style={{ color: "var(--ttc-primary)", marginTop: 0 }}>
+                <h3 className="ttc-title--sm" style={{marginTop: 0 }}>
                   Cluster {cluster}
                 </h3>
-                <div style={{ color: "#374151", lineHeight: 1.55 }}>{terms.join(", ")}</div>
+                <div className="ttc-sub">{terms.join(", ")}</div>
                 {themes[cluster] && (
-                  <div style={{ marginTop: 8, fontWeight: 600, color: "var(--ttc-accent-foreground)" }}>
+                  <div className="ttc-callout" style={{ marginTop: 8 }}>
+                    <span className="ttc-callout-title">
                     Suggested theme: {themes[cluster]}
                   </div>
                 )}
-              </div>
+              </article>
             ))}
           </div>
         )}
 
         {/* Documents View */}
         {showDocuments && displayedClusters.length > 0 && (
-          <div className="ttc-stack-md">
-            <h2 className="ttc-title" style={{ color: "var(--ttc-primary)" }}>
+          <section className="ttc-stack-md">
+            <h2 className="analysis-title">
               Clustered Documents
             </h2>
             <div className="ttc-stack-md">
@@ -364,13 +359,13 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {/* Themes View */}
         {showThemes && (
-          <div className="ttc-panel">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <section className="ttc-panel ttc-stack-md">
+            <div className="ttc-flex-between">
               <h2 className="ttc-title" style={{ margin: 0 }}>
                 Theme Analysis
               </h2>
@@ -384,9 +379,9 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
             </div>
 
             {isLoadingThemeAnalysis && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#475569" }}>
+              <div className="loading-inline">
                 <div className="loading-spinner" />
-                <p style={{ margin: 0 }}>Analysing themes and topics in your document collection...</p>
+                <span>Analysing themes and topics in your document collection...</span>
               </div>
             )}
 
@@ -401,7 +396,7 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
 
             {themeAnalysisData && !isLoadingThemeAnalysis && (
               <div className="ttc-stack-md">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, color: "#475569" }}>
+                <div className="ttc-btnrow" style={{ justifyContent: "flex-start" }}>
                   <span>Data Source: {themeAnalysisData.data_source}</span>
                   <span>Total Documents: {themeAnalysisData.total_documents}</span>
                   <span>Analysed: {themeAnalysisData.documents_analysed}</span>
@@ -420,13 +415,13 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
                 </p>
               </div>
             )}
-          </div>
+          </section>
         )}
 
         {/* Thematic Flow View */}
         {showThematicFlow && (
-          <div className="ttc-panel">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <section className="ttc-panel ttc-stack-md">
+            <div className="ttc-flex-between">
               <h2 className="ttc-title" style={{ margin: 0 }}>
                 Thematic Flow Analysis
               </h2>
@@ -440,9 +435,9 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
             </div>
 
             {isLoadingThematicFlow && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#475569" }}>
+              <div className="loading-inline">
                 <div className="loading-spinner" />
-                <p style={{ margin: 0 }}>Analysing thematic relationships and flow patterns...</p>
+                <span>Analysing thematic relationships and flow patterns...</span>
               </div>
             )}
 
@@ -457,7 +452,7 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
 
             {thematicFlowData && !isLoadingThematicFlow && (
               <div className="ttc-stack-md">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, color: "#475569" }}>
+                <div className="ttc-btnrow" style={{ justifyContent: "flex-start" }}>
                   <span>Data Source: {thematicFlowData.data_source}</span>
                   <span>Total Documents: {thematicFlowData.total_documents}</span>
                   <span>Analysed: {thematicFlowData.documents_analysed}</span>
@@ -481,8 +476,8 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
 
         {/* Overused Themes View */}
         {showOverusedThemes && (
-          <div className="ttc-panel">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <section className="ttc-panel ttc-stack-md">
+            <div className="ttc-flex-between">
               <h2 className="ttc-title" style={{ margin: 0 }}>
                 Overused/Underused Analysis
               </h2>
@@ -496,7 +491,7 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
             </div>
 
             {isLoadingOverusedThemes && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#475569" }}>
+              <div className="loading-inline">
                 <div className="loading-spinner" />
                 <p style={{ margin: 0 }}>Analysing patterns of overuse and underuse...</p>
               </div>
@@ -513,7 +508,7 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
 
             {overusedThemesData && !isLoadingOverusedThemes && (
               <div className="ttc-stack-md">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, color: "#475569" }}>
+                <div className="ttc-btnrow" style={{ justifyContent: "flex-start" }}>
                   <span>Data Source: {overusedThemesData.data_source}</span>
                   <span>Total Documents: {overusedThemesData.total_documents}</span>
                   <span>Analysed: {overusedThemesData.documents_analysed}</span>
@@ -532,10 +527,10 @@ const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments 
                 </p>
               </div>
             )}
-          </div>
+          </section>
         )}
       </div>
-    </div>
+    </main>
   );
 };
 
