@@ -99,15 +99,16 @@ const ClusteringAnalyser = ({ uploadedText, onBack }) => {
 
   return (
     <main className="ttc-page">
-      <div className="ttc-container ttc-stack-lg">
+      <div className="ttc-container ttc-stack-lg analysis-container">
         <button onClick={onBack} className="ttc-button">
           ← Back
         </button>
 
         <section className="ttc-panel ttc-stack-md">
+         <header className="analysis-header">
           <h1 className="analysis-title">Clustering Analysis</h1>
 
-          <div className="ttc-callout">
+          <div className="ttc-callout analysis-description">
             <p className="ttc-subtitle">
               This analysis uses ConceptNet embeddings to discover thematic and
               conceptual connections in your writing. Text segments will be
@@ -136,7 +137,7 @@ const ClusteringAnalyser = ({ uploadedText, onBack }) => {
           )}
 
           {!loading && !error && numClusters && numDocs && (
-            <p className="ttc-subtitle">
+            <p className="ttc-subtitle current-analysis-info">
               Automatically grouped into {numClusters} clusters based on {numDocs} text
               segments.
             </p>
