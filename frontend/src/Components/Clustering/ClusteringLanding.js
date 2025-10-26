@@ -52,14 +52,13 @@ const ClusteringLanding = ({ onBack }) => {
         <button onClick={onBack} className="ttc-button ttc-button-sm">
           ← Back
         </button>
-      </div>
 
-     <header className="ttc-stack-md">
+      <header className="ttc-stack-md">
           <h1 className="analysis-title">Clustering Analysis</h1>
         <p className="ttc-subtitle">
           See how your words naturally group together into clusters, highlighting the themes, styles, and repeated ideas that shape your writing.
         </p>
-      </div>
+      </header>
 
       <section className="ttc-panel ttc-stack-md">
           <TextInputSection
