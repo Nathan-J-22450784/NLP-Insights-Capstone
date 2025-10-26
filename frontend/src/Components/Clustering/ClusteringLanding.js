@@ -75,15 +75,15 @@ const ClusteringLanding = ({ onBack }) => {
               {error}
             </div>
           )}
-
-          <div className="ttc-btnrow" style={{ justifyContent: "flex-end" }}>
+  
+      <div className="analysis-actions">
             <button
               onClick={handleContinue}
-              className="ttc-button ttc-button-lg"
+              className="analysis-button"
               disabled={!uploadedText.trim()}
             >
               Continue to Analysis →
-            </button>
+                  </button>
           </div>
         </section>
       </div>

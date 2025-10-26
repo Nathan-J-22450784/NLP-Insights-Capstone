@@ -109,9 +109,15 @@ def generate_text_with_fallback(prompt: str, num_predict: int = 600, temperature
 
 
 def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: float = 0.7) -> str:
+    """
+    Hugging Face generation with clean args:
+    - Only include temperature/top_p when do_sample=True
+    - Switch to deterministic decoding for analysis-style prompts
+    - Avoid the invalid-flags warning and reduce template echoing
+    """
     global _HF_PIPELINE
     import time
-
+    
     model_name = DEFAULT_HF_MODEL
     use_ort = os.getenv("USE_ORT", "0") == "1"
 
@@ -138,47 +144,41 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
     if len(prompt) > 1024:
         prompt = prompt[:1024]
         
-    # --- key part: only set sampling params when sampling is ON
-    use_sampling = (temperature is not None) and (float(temperature) > 0.0)
+    p = prompt.lower()
 
-    # Generate response with parameters to prevent repetition
-    gen_kwargs = {
-        "max_new_tokens": int(num_predict),
-        "min_new_tokens": max(1, min(int(0.25 * num_predict), int(num_predict) - 1)),
-        "no_repeat_ngram_size": 3,
-        "repetition_penalty": 1.2,
-        "num_beams": 1,              # beam search off (keeps memory small)
-        "do_sample": use_sampling,   # <-- key
-    }
-    if use_sampling:
-        # These are only set when sampling to avoid warnings
-        gen_kwargs["temperature"] = float(temperature)
-        gen_kwargs["top_p"] = 0.9
-
-    p_low = prompt.lower()
-
-    def wants_deterministic(p: str) -> bool:
-        # Analytical / structured instructions → cleaner, longer, factual
+    def wants_deterministic(s: str) -> bool:
+        # For tool-like, structured tasks (synonyms/concepts/charts/etc.)
         return (
-            "analyse the bar chart" in p
-            or "analyse the scatter plot" in p
-            or "you are an expert data analyst" in p
-            or "provide exactly 5 synonyms" in p   # synonyms endpoint
-            or "concepts related to" in p          # concepts endpoint
-            or "task: analyse" in p
+            "provide exactly 5 synonyms" in s
+            or "concepts related to" in s
+            or "you are an expert data analyst" in s
+            or "analyse the bar chart" in s
+            or "analyse the scatter plot" in s
+            or "task: analyse" in s
         )
 
-    if wants_deterministic(p_low):
-        # Deterministic, cleaner outputs (good for reports/explanations/tools)
+    # Base args that are valid for both modes
+    gen_kwargs = {
+        "max_new_tokens": int(num_predict),
+        "min_new_tokens": 1,
+        "no_repeat_ngram_size": 3,
+        "repetition_penalty": 1.2,
+    }
+    if wants_deterministic(p) or (temperature is None) or (float(temperature) <= 0.0):
+        # Deterministic → beam search, NO sampling flags (prevents the warning)
         gen_kwargs.update({
-            "do_sample": False,      # turn sampling off
-            "num_beams": 4,          # modest beam search for coherence
-            "length_penalty": 1.0,   # neutral length control
+            "do_sample": False,
+            "num_beams": 4,
+            "length_penalty": 1.0,
         })
     else:
-        # Creative mode (existing sampling settings already apply)
-        # Nothing to change; 'do_sample' and temperature/top_p are set above.
-        pass
+        # Sampling → include temperature/top_p (now valid because do_sample=True)
+        gen_kwargs.update({
+            "do_sample": True,
+            "temperature": float(temperature),
+            "top_p": 0.9,
+            "num_beams": 1,
+        })
 
     start_gen = time.time()
     result = _HF_PIPELINE(prompt, **gen_kwargs)
