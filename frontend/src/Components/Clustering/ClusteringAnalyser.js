@@ -107,7 +107,8 @@ const ClusteringAnalyser = ({ uploadedText, onBack }) => {
         <section className="ttc-panel ttc-stack-md">
          <header className="analysis-header">
           <h1 className="analysis-title">Clustering Analysis</h1>
-
+         </header>
+    
           <div className="ttc-callout analysis-description">
             <p className="ttc-subtitle">
               This analysis uses ConceptNet embeddings to discover thematic and
