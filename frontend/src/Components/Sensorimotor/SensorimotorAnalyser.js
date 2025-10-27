@@ -128,12 +128,11 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
 
         {/* Charts */}
         {status === "done" && (
-          <section className="ttc-panel">
-            <div className="ttc-grid ttc-grid-2-md">
+          <>
               {/* Bar chart tile */}
-              <div className="ttc-panel">
+              <section  className="ttc-panel">
                 <h3 className="ttc-chart-title">Bar chart</h3>
-                <div style={{ width: "100%", height: 280 }}>
+                <div style={{ width: "100%", height: 380 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData}>
                       <defs>
@@ -154,14 +153,14 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              </div>
+              </section>
 
               {/* Radar chart tile */}
               <div className="ttc-panel">
                 <h3 className="ttc-chart-title">Radar chart</h3>
-                <div style={{ width: "100%", height: 320 }}>
+                <div style={{ width: "100%", height: 420 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={chartData} outerRadius="70%">
+                    <RadarChart data={chartData} outerRadius="80%">
                       <defs>
                         <linearGradient id="smRadarGrad" x1="0" y1="0" x2="1" y2="1">
                           <stop offset="0%"  stopColor={CHART_START} stopOpacity={0.18} />
@@ -180,20 +179,8 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Privacy note */}
-        {status === "done" && (
-          <details className="ttc-panel" style={{ marginTop: 12 }}>
-            <summary className="ttc-title--sm">Privacy & method</summary>
-            <p className="ttc-sub" style={{ margin: 0 }}>
-              We send only your token list to the backend. The backend keeps the norms in memory,
-              averages scores per modality across matched words, and stores nothing.
-            </p>
-          </details>
+              </section>
+            </>
         )}
       </div>
     </main>

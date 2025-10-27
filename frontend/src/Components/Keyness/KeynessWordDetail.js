@@ -44,7 +44,8 @@ const KeynessWordDetail = ({
     const [conceptsAnalysis, setConceptsAnalysis] = useState("");
     const [loadingSynonyms, setLoadingSynonyms] = useState(false);
     const [loadingConcepts, setLoadingConcepts] = useState(false);
-
+    const [synonymsList, setSynonymsList] = useState([]);
+    
     const methodUpper = method?.toUpperCase() || "";
     const isSklearn = methodUpper === "SKLEARN";
     const isGensim = methodUpper === "GENSIM";
@@ -86,7 +87,7 @@ const KeynessWordDetail = ({
 
     // Fetch synonym analysis
     const fetchSynonyms = async () => {
-        if (synonymsAnalysis) return;
+        if (synonymsAnalysis || synonymsList.length > 0) return;
         setLoadingSynonyms(true);
         try {
             const response = await fetch("http://localhost:8000/api/get-synonyms/", {
@@ -95,14 +96,28 @@ const KeynessWordDetail = ({
                 body: JSON.stringify({ word }),
             });
             const data = await response.json();
-            setSynonymsAnalysis(data.analysis || "No analysis available");
+            setSynonymsList(Array.isArray(data.synonyms) ? data.synonyms : []);
+            setSynonymsAnalysis(data.analysis || "");
         } catch (err) {
             console.error(err);
             setSynonymsAnalysis("We couldn't fetch alternate words right now. The language model may still be warming up. Please try again in a few seconds.");
+            setSynonymsList([]);
         } finally {
             setLoadingSynonyms(false);
         }
     };
+
+        useEffect(() => {
+      // clear per-word caches so new fetches will run
+      setSentences([]);
+      setSynonymsAnalysis("");
+      setSynonymsList([]);
+      setConceptsAnalysis("");
+      setActiveTab("wordData");
+      setLoadingSentences(false);
+      setLoadingSynonyms(false);
+      setLoadingConcepts(false);
+    }, [word]);
 
     // Fetch concepts analysis
     const fetchConcepts = async () => {
@@ -418,6 +433,7 @@ const KeynessWordDetail = ({
             {activeTab === "alternateWords" && (
               <section className="ttc-stack-md">
                 <h3 className="ttc-title--sm">🔄 Alternate Words for "{word}"</h3>
+             
                 {loadingSynonyms ? (
                   <div className="ttc-center ttc-stack-md">
                     <p className="ttc-sub" style={{ textAlign: "center", marginBottom: 0 }}>
@@ -425,6 +441,33 @@ const KeynessWordDetail = ({
                     </p>
                     <ProgressBar loading={true} />
                   </div>
+                 ) : synonymsList.length > 0 ? (
+                  <div className="ttc-panel ttc-stack-md" style={{ maxHeight: "65vh", overflowY: "auto" }}>
+                    <div className="creative-results">
+                     <div className="word-list">
+                      {synonymsList.map((s, i) => {
+                        const text = typeof s === "string" ? s : s.word;
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            className="keyword-pill other"
+                            aria-label={`Alternate word: ${text}`}
+                          >
+                            {text}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                    {synonymsAnalysis && (
+                        <p className="ttc-sub" style={{ margin: 0 }}>
+                            {synonymsAnalysis}
+                        </p>
+                    )}
+                  </div>
+
                 ) : synonymsAnalysis ? (
                   <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
                     <div className="chart-summary-text">{synonymsAnalysis}</div>
