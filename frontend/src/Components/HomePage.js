@@ -187,7 +187,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
               />
 
               {/* Privacy Tile */}
-              <PrivacyTile style={{ marginBottom: 8 }} />
+              <PrivacyTile style={{ marginBottom: 16px }} />
 
               <button
                 onClick={() => {
@@ -229,7 +229,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
           {analysisType === "clustering" && (
             <>
              {/* Privacy Tile */}
-              <PrivacyTile style={{ marginBottom: 8 }} />
+              <PrivacyTile style={{ marginBottom: 16px }} />
             
             <button
               onClick={() => onProceed({ analysisType })}
