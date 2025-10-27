@@ -187,7 +187,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
               />
 
               {/* Privacy Tile */}
-              <PrivacyTile />
+              <PrivacyTile style={{ marginBottom: 8 }} />
 
               <button
                 onClick={() => {
@@ -227,6 +227,8 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
 
           {/* Clustering button */}
           {analysisType === "clustering" && (
+             {/* Privacy Tile */}
+              <PrivacyTile style={{ marginBottom: 8 }} />
             <button
               onClick={() => onProceed({ analysisType })}
               className="ttc-button ttc-button-lg"
