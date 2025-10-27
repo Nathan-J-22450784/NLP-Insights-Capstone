@@ -227,16 +227,18 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
 
           {/* Clustering button */}
           {analysisType === "clustering" && (
+            <>
              {/* Privacy Tile */}
               <PrivacyTile style={{ marginBottom: 8 }} />
+            
             <button
               onClick={() => onProceed({ analysisType })}
               className="ttc-button ttc-button-lg"
             >
               Go to Clustering Analysis
             </button>
+                </>
           )}
-        </div>
 
         {/* Render CreativeKeynessResults below the selection UI (only for corpus mode) */}
         {analysisDone && localGenre && comparisonMode === "corpus" && (
