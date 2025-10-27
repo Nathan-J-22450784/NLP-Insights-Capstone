@@ -6,7 +6,7 @@ import {
 
 // Vercel → Settings → Environment Variables
 const BACKEND_URL =
-  process.env.REACT_APP_BACKEND_URL || "https://nlp-insights-capstone.onrender.com";
+  process.env.REACT_APP_BACKEND_URL || "https://nlp-insights-capstone-ljvw.onrender.com";
 
 const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
   const [status, setStatus] = useState("idle"); // idle | loading | error | done
@@ -14,6 +14,7 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
   const [matchedCount, setMatchedCount] = useState(0);
   const [modalities, setModalities] = useState([]);
   const [profile, setProfile] = useState([]);
+  
   const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const CHART_START = cssVar("--ttc-chart-start") || "#3b82f6";
   const CHART_END   = cssVar("--ttc-chart-end")   || "#8b5cf6";
@@ -56,31 +57,50 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
   const chartData = modalities.map((m, i) => ({ modality: m, value: Number(profile[i] || 0) }));
 
   return (
-    <div className="analysis-container">
-      {/* header row: back + title on one line */}
-      <div className="analysis-header">
+    <main className="ttc-page">
+      <div className="ttc-container ttc-stack-lg">
+        {/* Back */}
         <button type="button" onClick={onBack} className="ttc-button">
           ← Back
         </button>
-        <h1 className="analysis-title">Sensorimotor Analysis</h1>
+        {/* Title */}
+        <section className="ttc-panel ttc-stack-md">
+          <h1 className="analysis-title">Sensorimotor Analysis</h1>
       </div>
 
-      <div className="analysis-main">
-        {status === "loading" && <p>Crunching numbers…</p>}
-        {status === "error" && <p className="error-text">{error}</p>}
+        {status === "loading" && (
+            <div className="ttc-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={50}>
+              <div className="ttc-progress__fill" style={{ width: "50%" }} />
+              <span className="progress-text">Loading…</span>
+            </div>
+          )}
 
-        {status === "done" && (
-          <>
-            {uploadedPreview && <pre className="analysis-preview">{uploadedPreview}</pre>}
+          {status === "error" && (
+            <div className="ttc-banner ttc-banner--error">{error}</div>
+          )}
 
-            <p className="tcc-sub">
+          {status === "done" && (
+            <p className="ttc-sub">
               Matched <strong>{matchedCount}</strong> words. Higher values indicate stronger
               sensory/action associations in the Lancaster norms.
             </p>
+          )}
+        </section>
 
-            <div className="tcc-grid tcc-grid-2-md">
+        {/* Preview */}
+        {status === "done" && uploadedPreview && (
+          <section className="ttc-panel">
+            <h3 className="ttc-title--sm">Text preview</h3>
+            <pre
+              className="analysis-preview"
+              style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}
+            >
+              {uploadedPreview}
+            </pre>
+          </section>
+        )}
               {/* ================= BAR CHART ================= */}
-              <div className="tcc-panel">
+              <div className="ttc-panel">
                 <h3 className="ttc-chart-title">Bar chart</h3>
                 <div style={{ width: "100%", height: 280 }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -110,7 +130,7 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
               </div>
 
               {/* ================= RADAR CHART ================= */}
-              <div className="tcc-panel">
+              <div className="ttc-panel">
                 <h3 className="ttc-chart-title">Radar chart</h3>
                 <div style={{ width: "100%", height: 320 }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -144,9 +164,10 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
               </div>
             </div>
 
-            <details className="tcc-panel" style={{ marginTop: 12 }}>
-              <summary className="tcc-title--sm">Privacy & method</summary>
-              <p className="tcc-sub" style={{ margin: 0 }}>
+           {/* Privacy note */}               
+            <details className="ttc-panel" style={{ marginTop: 12 }}>
+              <summary className="ttc-title--sm">Privacy & method</summary>
+              <p className="ttc-sub" style={{ margin: 0 }}>
                 We send only your token list to the backend. The backend keeps the norms in memory,
                 averages scores per modality across matched words, and stores nothing.
               </p>
