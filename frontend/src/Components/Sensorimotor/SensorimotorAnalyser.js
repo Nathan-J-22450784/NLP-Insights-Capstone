@@ -130,7 +130,7 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
         {status === "done" && (
           <>
               {/* Bar chart tile */}
-              <section  className="ttc-panel">
+              <section className="ttc-panel">
                 <h3 className="ttc-chart-title">Bar chart</h3>
                 <div style={{ width: "100%", height: 380 }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -156,7 +156,7 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
               </section>
 
               {/* Radar chart tile */}
-              <div className="ttc-panel">
+              <section className="ttc-panel">
                 <h3 className="ttc-chart-title">Radar chart</h3>
                 <div style={{ width: "100%", height: 420 }}>
                   <ResponsiveContainer width="100%" height="100%">
