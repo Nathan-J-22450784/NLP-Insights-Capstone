@@ -185,15 +185,6 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
           </section>
         )}
 
-        {/* Privacy note */}
-        {status === "done" && (
-          <details className="ttc-panel" style={{ marginTop: 12 }}>
-            <summary className="ttc-title--sm">Privacy & method</summary>
-            <p className="ttc-sub" style={{ margin: 0 }}>
-              We send only your token list to the backend. The backend keeps the norms in memory,
-              averages scores per modality across matched words, and stores nothing.
-            </p>
-          </details>
         )}
       </div>
     </main>
