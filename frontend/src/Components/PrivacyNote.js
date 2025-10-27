@@ -2,7 +2,7 @@ import React from "react";
 
 export default function PrivacyTile() {
   return (
-    <section className="ttc-panel ttc-panel--notice ttc-stack-sm" aria-live="polite">
+    <section className="ttc-panel ttc-panel--notice ttc-stack-sm" style={style} aria-live="polite">
       <h3 className="ttc-title--sm" style={{ margin: 0 }}>Privacy & Method</h3>
       <p className="ttc-sub" style={{ margin: 0 }}>
         Your writing is yours. We only use your text to generate your results,
