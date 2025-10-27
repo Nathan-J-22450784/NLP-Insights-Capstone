@@ -180,7 +180,7 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
                   </ResponsiveContainer>
                 </div>
               </section>
-                        </>
+            </>
         )}
       </div>
     </main>
