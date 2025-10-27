@@ -6,50 +6,6 @@ import SensorimotorAnalyser from "./SensorimotorAnalyser";
 const tokenize = (text) =>
   (text || "").toLowerCase().split(/[^a-zA-Z']+/).filter(Boolean);
 
-// Simple overlay shown on top of the Landing page
-const CrunchingOverlay = ({ onComplete }) => {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setProgress((p) => {
-        const next = p + Math.max(1, Math.round((100 - p) * 0.12));
-        return next >= 100 ? 100 : next;
-      });
-    }, 120);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    if (progress >= 100) {
-      const t = setTimeout(onComplete, 250);
-      return () => clearTimeout(t);
-    }
-  }, [progress, onComplete]);
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Crunching numbers"
-      style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,.35)",
-        display: "grid", placeItems: "center", zIndex: 50, backdropFilter: "blur(2px)"
-      }}
-      className="ttc-overlay"
-    >
-      <section className="ttc-panel ttc-stack-md" style={{ width: "min(92vw,640px)" }}>
-        <h2 className="analysis-title">Crunching numbers…</h2>
-        <p className="ttc-subtitle">Tokenising your text and priming the analysis.</p>
-        <div className="ttc-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
-          <div className="ttc-progress__fill" style={{ width: `${progress}%` }} />
-          <span className="progress-text">{progress}%</span>
-        </div>
-      </section>
-    </div>
-  );
-};
-
 const SensorimotorLanding = ({ onBack }) => {
   const [pastedText, setPastedText] = useState("");
   const [uploadedText, setUploadedText] = useState("");
@@ -92,16 +48,13 @@ const SensorimotorLanding = ({ onBack }) => {
       <SensorimotorAnalyser
         words={tokenize(uploadedText)}      // privacy: send tokens only
         uploadedPreview={uploadedPreview}   // matches other tools’ UX
-        onBack={() => {
-          setAnalysisStarted(false);
-          setShowCrunching(false);
-        }}
+        onBack={() => {setAnalysisStarted(false);}
       />
     );
   }
 
   return (
-    <main className="ttc-page" aria-busy={showCrunching ? "true" : "false"}>
+    <main className="ttc-page">
       <div className="ttc-container ttc-stack-lg">
         {/* Back */}
         <button type="button" onClick={onBack} className="ttc-button">← Back</button>
@@ -139,8 +92,6 @@ const SensorimotorLanding = ({ onBack }) => {
           </div>
         </section>
       </div>
-
-      {showCrunching && <CrunchingOverlay onComplete={handleCrunchingComplete} />}
     </main>
   );
 };
