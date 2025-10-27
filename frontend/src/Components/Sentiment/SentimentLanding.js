@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import TextInputSection from "../TextInputSection";
 import SentimentAnalyser from "./SentimentAnalyser";
-import PrivacyTile from "./PrivacyNote";
+import PrivacyTile from "../PrivacyNote.js";
 
 const SentimentLanding = ({ onBack, genre }) => {
   const [pastedText, setPastedText] = useState("");
