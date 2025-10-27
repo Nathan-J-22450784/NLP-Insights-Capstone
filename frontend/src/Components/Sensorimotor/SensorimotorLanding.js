@@ -12,7 +12,6 @@ const SensorimotorLanding = ({ onBack }) => {
   const [uploadedText, setUploadedText] = useState("");
   const [uploadedPreview, setUploadedPreview] = useState("");
   const [error, setError] = useState("");
-  const [showCrunching, setShowCrunching] = useState(false);
   const [analysisStarted, setAnalysisStarted] = useState(false);
   const [pastedWordCount, setPastedWordCount] = useState(0);
 
@@ -36,11 +35,6 @@ const SensorimotorLanding = ({ onBack }) => {
       setError("Please enter or upload some text before continuing.");
       return;
     }
-    setShowCrunching(true); // stay on Landing and show overlay
-  };
-
-  const handleCrunchingComplete = () => {
-    setShowCrunching(false);
     setAnalysisStarted(true);
   };
 
@@ -49,7 +43,7 @@ const SensorimotorLanding = ({ onBack }) => {
       <SensorimotorAnalyser
         words={tokenize(uploadedText)}      // privacy: send tokens only
         uploadedPreview={uploadedPreview}   // matches other tools’ UX
-        onBack={() => {setAnalysisStarted(false);}
+        onBack={() => setAnalysisStarted(false)}
       />
     );
   }
