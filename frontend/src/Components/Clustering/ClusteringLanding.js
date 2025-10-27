@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import TextInputSection from "../TextInputSection";
 import ClusteringAnalyser from "./ClusteringAnalyser";
-import PrivacyTile from "./PrivacyNote";
+import PrivacyTile from "../PrivacyNote";
 
 const ClusteringLanding = ({ onBack }) => {
   const [pastedText, setPastedText] = useState("");

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import TextInputSection from "../TextInputSection";
 import KeynessAnalyser from "./KeynessAnalyser";
-import PrivacyTile from "../PrivacyNote.js";
+import PrivacyTile from "../PrivacyNote";
 
 
 const KeynessLanding = ({
