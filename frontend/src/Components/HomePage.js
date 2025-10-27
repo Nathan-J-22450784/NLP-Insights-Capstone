@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import CreativeKeynessResults from "./Keyness/CreativeKeynessResults";
 import GenreCorpusSelector from "./GenreCorpusSelector";
+import PrivacyTile from "./PrivacyNote";
 
 const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
   const [corpora, setCorpora] = useState([]);
@@ -184,6 +185,9 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
                 filteredCorpora={filteredCorpora}
                 formatDisplayName={formatDisplayName}
               />
+
+              {/* Privacy Tile */}
+              <PrivacyTile />
 
               <button
                 onClick={() => {
