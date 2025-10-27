@@ -52,6 +52,18 @@ const KeynessWordDetail = ({
     const isSpacy = methodUpper === "SPACY";
     const isNltk = methodUpper === "NLTK";
 
+    useEffect(() => {
+      // clear per-word caches so new fetches will run
+      setSentences([]);
+      setSynonymsAnalysis("");
+      setSynonymsList([]);
+      setConceptsAnalysis("");
+      setActiveTab("wordData");
+      setLoadingSentences(false);
+      setLoadingSynonyms(false);
+      setLoadingConcepts(false);
+    }, [word]);
+
     if (!wordData) {
         return (
             <div className="ttc-page">
@@ -106,18 +118,6 @@ const KeynessWordDetail = ({
             setLoadingSynonyms(false);
         }
     };
-
-        useEffect(() => {
-      // clear per-word caches so new fetches will run
-      setSentences([]);
-      setSynonymsAnalysis("");
-      setSynonymsList([]);
-      setConceptsAnalysis("");
-      setActiveTab("wordData");
-      setLoadingSentences(false);
-      setLoadingSynonyms(false);
-      setLoadingConcepts(false);
-    }, [word]);
 
     // Fetch concepts analysis
     const fetchConcepts = async () => {
