@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import TextInputSection from "../TextInputSection";
 import SensorimotorAnalyser from "./SensorimotorAnalyser";
-import PrivacyTile from "./PrivacyNote";
+import PrivacyTile from "../PrivacyNote.js";
 
 // same tokenizer style across tools
 const tokenize = (text) =>
