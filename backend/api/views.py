@@ -18,10 +18,9 @@ from django.views.decorators.http import require_GET
 from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from pathlib import Path
 from sklearn.feature_extraction.text import CountVectorizer
-from scipy.stats import chi2_contingency, chi2
+from scipy.stats import chi2
 from gensim import corpora, models
 from collections import defaultdict, Counter
 from api.keyness.keyness_analyser import (
@@ -36,7 +35,6 @@ from api.keyness.keyness_analyser import (
 from django.core.files.uploadedfile import UploadedFile
 from .models import KeynessResult
 from backend.utils.session_utils import ensure_session_exists, schedule_session_cleanup
-from optimum.onnxruntime import ORTModelForSeq2SeqLM
 
 # File validation constants
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -55,6 +53,8 @@ _HF_PIPELINE = None
 
 CORPUS_DIR = os.path.join(settings.BASE_DIR, "api", "corpus")
 SAMPLE_FILE = os.path.join(CORPUS_DIR, "sample1.txt")
+
+DEFAULT_HF_MODEL = os.getenv("HUGGINGFACE_MODEL", "google/flan-t5-small")
 
 # --- Genre Corpus Meta  -----------
 # Looks for metadata-only corpora in backend/api/corpus_meta/*.json
@@ -88,7 +88,7 @@ def generate_text_with_fallback(prompt: str, num_predict: int = 600, temperature
     Generate text using Groq, HuggingFace, or Ollama.
     """
     log_memory_usage("LLM request start")
-
+    
     provider = (os.environ.get("LLM_PROVIDER") or "huggingface").strip().lower()
     print(f"🔍 Using LLM provider: {provider}")
 
@@ -110,60 +110,81 @@ def generate_text_with_fallback(prompt: str, num_predict: int = 600, temperature
 
 def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: float = 0.7) -> str:
     """
-    Generate text using Hugging Face Transformers locally.
-    Uses google/flan-t5-large by default (runs with ONNXRuntime via Optimum).
+    Hugging Face generation with clean args:
+    - Only include temperature/top_p when do_sample=True
+    - Switch to deterministic decoding for analysis-style prompts
+    - Avoid the invalid-flags warning and reduce template echoing
     """
     global _HF_PIPELINE
     import time
-
-    model_name = os.environ.get("HUGGINGFACE_MODEL") or "google/flan-t5-large"
+    
+    model_name = DEFAULT_HF_MODEL
+    use_ort = os.getenv("USE_ORT", "0") == "1"
 
     if _HF_PIPELINE is None:
-        print(f"📦 Loading lightweight Hugging Face model via ONNXRuntime: {model_name}")
+        print(f"📦 Loading HF model: {model_name} (ORT={use_ort})")
         start_load = time.time()
-
         try:
-            # Use Optimum's ORTModelForSeq2SeqLM for proper ONNX support
-            from optimum.onnxruntime import ORTModelForSeq2SeqLM
-            from transformers import AutoTokenizer
-
-            model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-            _HF_PIPELINE = pipeline(
-                "text2text-generation",
-                model=model,
-                tokenizer=tokenizer
-            )
-            print(f"✅ Model loaded (ONNX) in {time.time() - start_load:.2f}s")
+            if use_ort:
+                from optimum.onnxruntime import ORTModelForSeq2SeqLM
+                from transformers import AutoTokenizer, pipeline as hf_pipeline
+                model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                _HF_PIPELINE = hf_pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+            else:
+                from transformers import pipeline as hf_pipeline
+                _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
+            print(f"✅ Model loaded in {time.time() - start_load:.2f}s")
         except Exception as e:
-            print(f"⚠️ ONNX failed, falling back to PyTorch: {e}")
-            _HF_PIPELINE = pipeline(
-                "text2text-generation",
-                model=model_name
-            )
-            print(f"✅ Model loaded (PyTorch) in {time.time() - start_load:.2f}s")
+            print(f"⚠️ ORT/PyTorch load failed, fallback to PyTorch pipeline: {e}")
+            from transformers import pipeline as hf_pipeline
+            _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
 
     # Truncate extremely long prompts
-    max_input_length = 1024
-    if len(prompt) > max_input_length:
-        prompt = prompt[:max_input_length]
+    if len(prompt) > 1024:
+        prompt = prompt[:1024]
+        
+    p = prompt.lower()
 
-    # Generate response with parameters to prevent repetition
+    def wants_deterministic(s: str) -> bool:
+        # For tool-like, structured tasks (synonyms/concepts/charts/etc.)
+        return (
+            "provide exactly 5 synonyms" in s
+            or "concepts related to" in s
+            or "you are an expert data analyst" in s
+            or "analyse the bar chart" in s
+            or "analyse the scatter plot" in s
+            or "task: analyse" in s
+        )
+
+    # Base args that are valid for both modes
+    gen_kwargs = {
+        "max_new_tokens": int(num_predict),
+        "min_new_tokens": 1,
+        "no_repeat_ngram_size": 3,
+        "repetition_penalty": 1.2,
+    }
+    if wants_deterministic(p) or (temperature is None) or (float(temperature) <= 0.0):
+        # Deterministic → beam search, NO sampling flags (prevents the warning)
+        gen_kwargs.update({
+            "do_sample": False,
+            "num_beams": 4,
+            "length_penalty": 1.0,
+        })
+    else:
+        # Sampling → include temperature/top_p (now valid because do_sample=True)
+        gen_kwargs.update({
+            "do_sample": True,
+            "temperature": float(temperature),
+            "top_p": 0.9,
+            "num_beams": 1,
+        })
+
     start_gen = time.time()
-    result = _HF_PIPELINE(
-        prompt,
-        max_new_tokens=num_predict,
-        temperature=temperature,
-        do_sample=True,
-        top_p=0.9,  # Nucleus sampling
-        repetition_penalty=1.2,  # Penalize repetition
-        no_repeat_ngram_size=3,  # Prevent repeating 3-grams
-        early_stopping=True
-    )
+    result = _HF_PIPELINE(prompt, **gen_kwargs)
     print(f"⏱️ Generation took {time.time() - start_gen:.2f}s")
 
-    generated_text = result[0]["generated_text"]
+    generated_text = result[0].get("generated_text", "").strip()
 
     # Trim to last complete sentence if cut off
     if generated_text and not generated_text.endswith(('.', '!', '?')):
@@ -171,8 +192,31 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
         if last_period > 0:
             generated_text = generated_text[:last_period + 1]
 
-    return generated_text.strip()
+    return generated_text
 
+def ensure_hf_loaded():
+    global _HF_PIPELINE
+    if _HF_PIPELINE is not None:
+        return
+
+    model_name = DEFAULT_HF_MODEL
+    use_ort = os.getenv("USE_ORT", "0") == "1"
+    print(f"📦 [warmup] Preparing HF pipeline for {model_name} (ORT={use_ort})")
+    try:
+        if use_ort:
+            from optimum.onnxruntime import ORTModelForSeq2SeqLM
+            from transformers import AutoTokenizer, pipeline as hf_pipeline
+            model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            _HF_PIPELINE = hf_pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+        else:
+            from transformers import pipeline as hf_pipeline
+            _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
+        print("✅ [warmup] pipeline ready")
+    except Exception as e:
+        print(f"⚠️ [warmup] failed, falling back to PyTorch pipeline: {e}")
+        from transformers import pipeline as hf_pipeline
+        _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
 
 def _generate_ollama(prompt: str, num_predict: int, temperature: float) -> str:
     """Generate text using Ollama local API."""
@@ -450,8 +494,6 @@ def read_corpus():
     except FileNotFoundError:
         return ""
 
-@csrf_exempt
-@require_GET
 @csrf_exempt
 @require_GET
 def get_corpus_preview(request):
@@ -1048,7 +1090,8 @@ Requirements:
 - Choose synonyms that are genuinely interchangeable in at least some contexts
 - Focus on subtle differences rather than obvious ones
 - Provide concrete examples showing the difference in usage
-- Consider connotation, formality level, and context appropriateness"""
+- Consider connotation, formality level, and context appropriateness
+"""
 
     try:
         analysis = generate_text_with_fallback(prompt, num_predict=400, temperature=0.7)
@@ -1657,7 +1700,7 @@ Provide insights that reveal the dynamic, interconnected nature of themes and ho
             "analysis_title": analysis_title,
             "data_source": data_source,
             "total_documents": total_docs,
-            "documents_analsed": sample_size,
+            "documents_analysed": sample_size,
             "analysis": analysis,
             "success": True,
             "has_clustering_context": bool(clustering_context)
