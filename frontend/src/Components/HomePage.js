@@ -46,7 +46,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
         }
 
         let defaultFile = localGenre || list[0];
-        if (analysisType === "keyness" &&  === "corpus") {
+        if (analysisType === "keyness" && comparisonMode === "corpus") {
           defaultFile =
             list.find((f) => f.startsWith("general_fiction")) || list[0];
         }
@@ -62,18 +62,18 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
     return () => {
       cancelled = true;
     };
-  }, [analysisType, ]);
+  }, [analysisType, comparisonMode]);
 
   const handleAnalysisChange = (e) => {
     const type = e.target.value;
     setAnalysisType(type);
     setLocalGenre("");
-    set("");
+    setComparisonMode("");
   };
 
-  const handleChange = (e) => {
+  const handleComparisonModeChange = (e) => {
     const mode = e.target.value;
-    set(mode);
+    setComparisonMode(mode);
     setLocalGenre("");
   };
 
@@ -86,7 +86,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
     if (!Array.isArray(corpora)) return [];
 
     return corpora.filter((file) => {
-      if (analysisType === "keyness" &&  === "corpus") return true;
+      if (analysisType === "keyness" && comparisonMode === "corpus") return true;
       if (analysisType === "sentiment" || analysisType === "sensorimotor") return true;
       return false; // clustering or user_text: no dropdown
     });
@@ -239,6 +239,8 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
             </button>
                 </>
           )}
+
+        </div>
 
         {/* Render CreativeKeynessResults below the selection UI (only for corpus mode) */}
         {analysisDone && localGenre && comparisonMode === "corpus" && (
