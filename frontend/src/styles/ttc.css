@@ -125,6 +125,12 @@ h1, .ttc-title-xl,
   background: linear-gradient(180deg, var(--ttc-grad-start), var(--ttc-grad-end));
 }
 
+/* Privacy Notice variant: purple left rail, subtle background */
+.ttc-panel--notice {
+  border-left: 6px solid var(--ttc-primary);
+  background: var(--ttc-accent);
+}
+
 .ttc-flex-between {
   display: flex;
   justify-content: space-between;
