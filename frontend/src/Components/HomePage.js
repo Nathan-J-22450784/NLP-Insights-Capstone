@@ -46,7 +46,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
         }
 
         let defaultFile = localGenre || list[0];
-        if (analysisType === "keyness" && comparisonMode === "corpus") {
+        if (analysisType === "keyness" &&  === "corpus") {
           defaultFile =
             list.find((f) => f.startsWith("general_fiction")) || list[0];
         }
@@ -62,18 +62,18 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
     return () => {
       cancelled = true;
     };
-  }, [analysisType, comparisonMode]);
+  }, [analysisType, ]);
 
   const handleAnalysisChange = (e) => {
     const type = e.target.value;
     setAnalysisType(type);
     setLocalGenre("");
-    setComparisonMode("");
+    set("");
   };
 
-  const handleComparisonModeChange = (e) => {
+  const handleChange = (e) => {
     const mode = e.target.value;
-    setComparisonMode(mode);
+    set(mode);
     setLocalGenre("");
   };
 
@@ -86,7 +86,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
     if (!Array.isArray(corpora)) return [];
 
     return corpora.filter((file) => {
-      if (analysisType === "keyness" && comparisonMode === "corpus") return true;
+      if (analysisType === "keyness" &&  === "corpus") return true;
       if (analysisType === "sentiment" || analysisType === "sensorimotor") return true;
       return false; // clustering or user_text: no dropdown
     });
@@ -227,16 +227,18 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
 
           {/* Clustering button */}
           {analysisType === "clustering" && (
+            <>
              {/* Privacy Tile */}
               <PrivacyTile style={{ marginBottom: 8 }} />
+            
             <button
               onClick={() => onProceed({ analysisType })}
               className="ttc-button ttc-button-lg"
             >
               Go to Clustering Analysis
             </button>
+                </>
           )}
-        </div>
 
         {/* Render CreativeKeynessResults below the selection UI (only for corpus mode) */}
         {analysisDone && localGenre && comparisonMode === "corpus" && (

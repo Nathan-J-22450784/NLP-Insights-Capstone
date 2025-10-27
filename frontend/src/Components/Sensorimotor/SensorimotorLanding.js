@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import TextInputSection from "../TextInputSection";
 import SensorimotorAnalyser from "./SensorimotorAnalyser";
+import PrivacyTile from "./PrivacyNote";
 
 // same tokenizer style across tools
 const tokenize = (text) =>
@@ -11,7 +12,6 @@ const SensorimotorLanding = ({ onBack }) => {
   const [uploadedText, setUploadedText] = useState("");
   const [uploadedPreview, setUploadedPreview] = useState("");
   const [error, setError] = useState("");
-  const [showCrunching, setShowCrunching] = useState(false);
   const [analysisStarted, setAnalysisStarted] = useState(false);
   const [pastedWordCount, setPastedWordCount] = useState(0);
 
@@ -35,11 +35,6 @@ const SensorimotorLanding = ({ onBack }) => {
       setError("Please enter or upload some text before continuing.");
       return;
     }
-    setShowCrunching(true); // stay on Landing and show overlay
-  };
-
-  const handleCrunchingComplete = () => {
-    setShowCrunching(false);
     setAnalysisStarted(true);
   };
 
@@ -48,7 +43,7 @@ const SensorimotorLanding = ({ onBack }) => {
       <SensorimotorAnalyser
         words={tokenize(uploadedText)}      // privacy: send tokens only
         uploadedPreview={uploadedPreview}   // matches other tools’ UX
-        onBack={() => {setAnalysisStarted(false);}
+        onBack={() => setAnalysisStarted(false)}
       />
     );
   }
