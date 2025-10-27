@@ -20,6 +20,46 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
   const GRID_STROKE = cssVar("--ttc-border")      || "#e5e7eb";
   const TICK_FILL   = "#475569";
 
+    /**
+   * Progress Bar
+   */
+  const ProgressBar = ({ loading }) => {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    let timerId = null;
+    let resetId = null;
+
+    if (loading) {
+      setProgress(0);
+      timerId = setInterval(() => {
+        setProgress((p) => (p < 90 ? p + Math.random() * 3 : p));
+      }, 200);
+    } else {
+      setProgress(100);
+      resetId = setTimeout(() => setProgress(0), 500);
+    }
+
+    return () => {
+      if (timerId) clearInterval(timerId);
+      if (resetId) clearTimeout(resetId);
+    };
+  }, [loading]);
+
+  return (
+    <div
+      className="progress-container"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.floor(progress)}
+    >
+      <div className="progress-fill" style={{ width: `${progress}%` }} />
+      <div className="progress-text">{Math.floor(progress)}%</div>
+    </div>
+  );
+};
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -57,24 +97,23 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
         <button type="button" onClick={onBack} className="ttc-button">← Back</button>
 
         {/* Title + status */}
-        <section className="ttc-panel ttc-stack-md">
+        <section className="ttc-panel ttc-stack-md" aria-live="polite">
           <h1 className="analysis-title">Sensorimotor Analysis</h1>
 
-          {status === "loading" && (
-            <div className="ttc-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={50}>
-              <div className="ttc-progress__fill" style={{ width: "50%" }} />
-              <span className="progress-text">Loading…</span>
-            </div>
-          )}
+        {status === "loading" && (
+          <div className="progress-container-wrapper" style={{ marginTop: 4 }}>
+            <ProgressBar loading />
+          </div>
+        )}
 
-          {status === "error" && <div className="ttc-banner ttc-banner--error">{error}</div>}
+        {status === "error" && <div className="ttc-banner ttc-banner--error">{error}</div>}
 
-          {status === "done" && (
+        {status === "done" && (
             <p className="ttc-sub">
               Matched <strong>{matchedCount}</strong> words. Higher values indicate stronger
               sensory/action associations in the Lancaster norms.
             </p>
-          )}
+        )}
         </section>
 
         {/* Preview */}
