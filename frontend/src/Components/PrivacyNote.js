@@ -7,7 +7,7 @@ export default function PrivacyTile() {
       <p className="ttc-sub" style={{ margin: 0 }}>
         Your writing is yours. We only use your text to generate your results,
         processing it on our server and deleting it right after. We don’t store
-        or reuse your content—your privacy and intellectual property stay protected.
+        or reuse your content; your privacy and intellectual property stay protected.
       </p>
     </section>
   );
