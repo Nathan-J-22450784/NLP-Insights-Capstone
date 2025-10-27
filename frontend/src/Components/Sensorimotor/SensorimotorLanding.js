@@ -124,6 +124,8 @@ const SensorimotorLanding = ({ onBack }) => {
             onFilesUploaded={handleFilesUploaded}
           />
 
+         <PrivacyTile />
+            
           {error && <div className="ttc-banner ttc-banner--error">{error}</div>}
 
           <div className="analysis-actions">
