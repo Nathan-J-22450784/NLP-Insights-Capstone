@@ -227,6 +227,8 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
 
           {/* Clustering button */}
           {analysisType === "clustering" && (
+             {/* Privacy Tile */}
+              <PrivacyTile />
             <button
               onClick={() => onProceed({ analysisType })}
               className="ttc-button ttc-button-lg"
