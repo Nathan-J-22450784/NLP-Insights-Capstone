@@ -271,59 +271,38 @@ h1, .ttc-title-xl,
    How It Works (details card)
    ========================== */
 .ttc-howitworks {
-  border: 1px solid var(--ttc-border, #e5e7eb);
+  border: 1px solid var(--ttc-border);
+  border-left: 6px solid var(--ttc-primary);
+
+  background: var(--ttc-accent);
   border-radius: 12px;
   padding: 12px 14px;
-  background: var(--ttc-surface, #fff);
-  transition: box-shadow 160ms ease, border-color 160ms ease;
-}
-.ttc-howitworks[open] {
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
-  border-color: var(--ttc-border-strong, #d1d5db);
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
 }
 
-.ttc-howitworks > summary {
-  cursor: pointer;
+.ttc-howitworks__title {
   list-style: none;
-  font-weight: 600;
-  color: var(--ttc-accent-foreground, #24163c);
-  display: flex;
+  margin: 0 0 6px;
+  font-weight: 800;
+  color: var(--ttc-primary);
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  outline: none;
+  cursor: default; 
 }
+
+/* remove default disclosure marker & caret */
 .ttc-howitworks > summary::-webkit-details-marker { display: none; }
+.ttc-howitworks > summary::before { display: none; }
 
-/* Caret indicator */
-.ttc-howitworks > summary::before {
-  content: "▸";
-  transform: translateY(-1px);
-  transition: transform 160ms ease;
-  font-size: 0.9em;
-  opacity: 0.9;
-}
-.ttc-howitworks[open] > summary::before {
-  transform: rotate(90deg) translateX(-1px);
+/* keyboard focus ring */
+.ttc-howitworks > summary:focus-visible {
+  outline: 2px solid var(--ttc-ring);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
-/* Inner prose spacing */
-.ttc-howitworks .ttc-prose {
-  margin-top: 8px;
-}
-.ttc-howitworks .ttc-prose ul {
-  padding-left: 1.2rem;
-  margin: 8px 0 0;
-}
-.ttc-howitworks .ttc-prose li {
-  margin: 4px 0;
-}
-
-/* Horizontal rule used in the user_text note */
-.ttc-howitworks .ttc-prose hr {
-  border: 0;
-  border-top: 1px solid var(--ttc-border, #e5e7eb);
-  margin: 8px 0 4px;
-}
+.ttc-howitworks .ttc-prose { margin-top: 4px; }
 
 /* ==========================
    HomePage layout helpers
