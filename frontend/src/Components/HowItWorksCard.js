@@ -1,6 +1,6 @@
 import React from "react";
 
-const HowToNoteCards = {
+const HowItWorksCard = {
   keyness: (
     <>
       <p>Keyness highlights words unusually frequent in your <em>Target</em> text compared to a <em>Reference</em> corpus.</p>
@@ -46,4 +46,4 @@ const HowToNoteCards = {
   ),
 };
 
-export default HowToNoteCards;
+export default HowItWorksCard;
