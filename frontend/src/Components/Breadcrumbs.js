@@ -6,7 +6,7 @@ import React from "react";
  *  - onNavigate: (page) => void   // usually setActivePage
  *  - currentWord?: string         // for keyness-word-detail
  */
-export default function Breadcrumbs({ activePage, onNavigate, currentWord }) {
+export default function Breadcrumbs({ activePage, onNavigate, currentWord, showBack = false }) {
   const items = [{ label: "Home", page: "home" }];
 
   if (["keyness","keyness-results","keyness-word-detail"].includes(activePage)) {
@@ -28,7 +28,7 @@ export default function Breadcrumbs({ activePage, onNavigate, currentWord }) {
   if (activePage === "sensorimotor") {
     items.push({ label: "Sensorimotor", page: null });
   }
-
+  
   const canGoBack = items.length > 1;
   const goBack = () => {
     // simple state-based back logic
@@ -39,23 +39,23 @@ export default function Breadcrumbs({ activePage, onNavigate, currentWord }) {
 
   return (
     <div className="ttc-breadcrumbs">
-      {canGoBack && (
-        <button onClick={goBack} className="ttc-button ttc-button-sm">
+      {showBack && canGoBack && (
+        <button onClick={goBack} className="ttc-button ttc-button-sm ttc-breadcrumbs__back">
           ← Back
         </button>
       )}
 
-      <nav aria-label="Breadcrumb" style={{overflowX:"auto"}}>
-        <ol style={{display:"flex",gap:"0.5rem",listStyle:"none",padding:0,margin:0}}>
+      <nav className="ttc-breadcrumbs__nav" aria-label="Breadcrumb">
+        <ol className="ttc-breadcrumbs__list">
           {items.map((it, i) => (
-            <li key={`${it.label}-${i}`} style={{display:"flex",gap:"0.5rem",alignItems:"center",whiteSpace:"nowrap"}}>
-              {i > 0 && <span aria-hidden="true">›</span>}
+            <li key={`${it.label}-${i}`} className="ttc-breadcrumbs__item">
+              {i > 0 && <span className="ttc-breadcrumbs__sep" aria-hidden="true">›</span>}
               {i === items.length - 1 || !it.page ? (
-                <span aria-current="page" className="ttc-crumb-current" style={{fontWeight:600}}>
+                <span aria-current="page" className="ttc-breadcrumbs__current">
                   {it.label}
                 </span>
               ) : (
-                <button className="ttc-crumb-link" onClick={() => onNavigate(it.page)} style={{all:"unset",cursor:"pointer",color:"var(--ttc-primary,#492c79)"}}>
+                <button className="ttc-breadcrumbs__link" onClick={() => onNavigate(it.page)}>
                   {it.label}
                 </button>
               )}
