@@ -1098,6 +1098,50 @@ def get_synonyms(request):
                 return False
         return True
 
+    def _normalise_item_keys(obj: dict) -> dict:
+        """Map common alias keys from the model to the exact required keys."""
+        if not isinstance(obj, dict):
+            return obj
+    
+        key_map = {
+            # synonym
+            "synonym": "synonym", "term": "synonym", "word": "synonym",
+            # meaning
+            "meaning": "meaning", "definition": "meaning", "def": "meaning", "sense": "meaning",
+            # difference
+            "difference": "difference", "nuance": "difference",
+            "difference_from_word": "difference", "difference_from_base": "difference",
+            "contrast": "difference",
+            # usage
+            "usage": "usage", "context": "usage", "when_to_use": "usage",
+            "register": "usage", "style": "usage",
+            # example
+            "example": "example", "example_sentence": "example", "sentence": "example",
+            "illustration": "example",
+        }
+    
+        required = {"synonym", "meaning", "difference", "usage", "example"}
+    
+        out = {}
+        for k, v in obj.items():
+            k_norm = k.strip().lower()
+            mapped = key_map.get(k_norm)
+            if mapped:
+                out[mapped] = v
+    
+        # Keep only the required keys if they exist after mapping
+        return {k: out.get(k, "") for k in ["synonym", "meaning", "difference", "usage", "example"]}
+
+    def _normalise_items(items: list) -> list:
+        """Apply key normalisation + strip extras + enforce order."""
+        if not isinstance(items, list):
+            return items
+        normed = []
+        for it in items:
+            if isinstance(it, dict):
+                normed.append(_normalise_item_keys(it))
+        return normed
+
     def _markdown(items, base):
         lines = [f'**Synonyms for "{base}":**', ""]
         for i, it in enumerate(items, 1):
@@ -1130,6 +1174,42 @@ def get_synonyms(request):
                 "success": False,
                 "error": "Synonyms unavailable for this word right now."
             }, status=502)
+
+        items = _normalise_items(items)
+        # enforce exactly 5 in case model returns 6–7 good rows
+        if isinstance(items, list) and len(items) > 5:
+            items = items[:5]
+
+        # --- Begin: extra diagnostics for why validation failed ---
+        def _validation_reasons(items):
+            reasons = []
+            required = {"synonym", "meaning", "difference", "usage", "example"}
+        
+            if not isinstance(items, list):
+                return ["not a list"]
+        
+            if len(items) != 5:
+                reasons.append(f"len={len(items)} (expected 5)")
+        
+            for i, it in enumerate(items):
+                if not isinstance(it, dict):
+                    reasons.append(f"item {i} not an object")
+                    continue
+                miss = sorted(required - set(it.keys()))
+                extra = sorted(set(it.keys()) - required)
+                if miss:
+                    reasons.append(f"item {i} missing {miss}")
+                if extra:
+                    reasons.append(f"item {i} extra {extra}")
+        
+            return reasons or ["passed structure check"]
+        
+        # Run diagnostics (without changing strict validator)
+        _diag = _validation_reasons(items)
+        if _diag and _diag != ["passed structure check"]:
+            # keep logs concise to avoid noisy output
+            logger.info(f'[synonyms] validation reasons: {", ".join(_diag)[:500]}')
+        # --- End: extra diagnostics ---
 
         if not _is_valid(items):
             logger.info("[synonyms] JSON failed validation")
