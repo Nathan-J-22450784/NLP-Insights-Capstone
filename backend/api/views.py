@@ -56,8 +56,6 @@ SAMPLE_FILE = os.path.join(CORPUS_DIR, "sample1.txt")
 
 DEFAULT_HF_MODEL = os.getenv("HUGGINGFACE_MODEL", "google/flan-t5-base")
 
-USE_SYNONYM_FALLBACK = os.getenv("ENABLE_SYNONYM_FALLBACK", "0") == "1"
-
 # --- Genre Corpus Meta  -----------
 # Looks for metadata-only corpora in backend/api/corpus_meta/*.json
 META_DIR = Path("api/corpus_meta")
@@ -1054,211 +1052,113 @@ def corpus_meta_keyness(request):
         logger.exception(f"Error reading corpus metadata: {e}")
         return JsonResponse({"error": "Internal server error"}, status=500)
 
-
 @api_view(['POST'])
 def get_synonyms(request):
     """
-    Generates exactly 5 synonyms with concise metadata.
-    Strategy:
-      1) Ask flan-t5-base for a single JSON array (deterministic decoding).
-      2) Validate JSON shape; if invalid, attempt a one-shot repair.
-      3) If still invalid, return a simple, safe fallback set.
-      4) Provide both JSON and a markdown rendering to avoid UI changes.
+    Simple, strict: ask the model for EXACTLY 5 items and return them.
+    If parsing/validation fails, return a clean error. Removed generic fallback.
     """
-    word = request.data.get('word', None)
-    uploaded_text = (request.data.get('uploaded_text') or "").strip()
+    word = (request.data.get('word') or "").strip()
+    uploaded_text = (request.data.get('uploaded_text') or "").strip()  # optional, used only to flag present words
+
     if not word:
         return Response({'error': 'No word provided.'}, status=400)
 
     logger.info(f'[synonyms] start word="{word}"')
 
-    # --- compact, front-loaded prompt that flan-t5-small follows well ---
+    # Compact prompt; model must output ONLY a JSON array.
     prompt = (
-        f'Return exactly 5 synonyms for "{word}". Output ONLY a JSON array of 5 items. '
-        'Each item must have keys: synonym, meaning (<=12 words), difference vs '
-        f'"{word}" (<=12 words), usage (<=6 words), example (one short sentence using both words). '
-        'Synonyms must be interchangeable in some contexts; note connotation/formality. '
-        'Example for "happy": '
-        '[{"synonym":"joyful","meaning":"feeling great pleasure","difference":"stronger, more elevated",'
-        '"usage":"formal/literary","example":"She felt happy; he was joyful."}]. '
+        f'Return exactly 5 synonyms for "{word}". Output ONLY a JSON array of 5 objects.\n'
+        'Each object must have keys: "synonym", "meaning", "difference", "usage", "example".\n'
         f'Now do "{word}". Output only the JSON array.'
     )
 
-    def _is_valid(items):
-        """Validate the model output structure."""
-        if not isinstance(items, list) or len(items) != 5:
-            return False, "array_length"
-        required = {"synonym", "meaning", "difference", "usage", "example"}
-        for i, it in enumerate(items):
-            if not isinstance(it, dict):
-                return False, f"item_{i}_not_object"
-            missing = required - set(it.keys())
-            if missing:
-                return False, f"item_{i}_missing_{','.join(sorted(missing))}"
-        return True, "ok"
-
-    def _markdownify(items, base_word):
-        """Render a friendly markdown block for UIs expecting text."""
-        lines = [f'**Synonyms for "{base_word}":**', ""]
-        for i, it in enumerate(items, 1):
-            lines.append(
-                f"{i}. **{it['synonym']}**\n"
-                f"   - Meaning: {it['meaning']}\n"
-                f"   - Difference from \"{base_word}\": {it['difference']}\n"
-                f"   - Usage: {it['usage']}\n"
-                f"   - Example: {it['example']}"
-            )
-        return "\n".join(lines)
-
-    def _fallback_set(base_word):
-        """Guaranteed 5 items so the UI never breaks (very small, generic set)."""
-        # Simple, safe defaults that work for many words like "soft".
-        # Expand this mapping later if needed.
-        default_syns = [
-            {"synonym": "gentle",  "meaning": "not harsh or severe", "difference": "softer tone/connotation",
-             "usage": "general", "example": f"The fabric is {base_word}; the touch is gentle."},
-            {"synonym": "mild",    "meaning": "moderate in force or intensity", "difference": "weaker degree",
-             "usage": "neutral", "example": f"The flavour is {base_word}; the heat is mild."},
-            {"synonym": "tender",  "meaning": "soft to touch; easily chewed", "difference": "often tactile/culinary",
-             "usage": "culinary", "example": f"The fruit is {base_word}; the flesh is tender."},
-            {"synonym": "supple",  "meaning": "soft and flexible", "difference": "emphasises flexibility",
-             "usage": "descriptive", "example": f"The leather is {base_word}; the strap is supple."},
-            {"synonym": "delicate","meaning": "fine and easily damaged", "difference": "fragility nuance",
-             "usage": "careful", "example": f"The fabric is {base_word}; the lace is delicate."}
-        ]
-        return default_syns
-        
-    def _fail_or_fallback(base_word, uploaded_text):
-        items = _fallback_set(base_word)
-        present = [it for it in items
-                   if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b", uploaded_text, flags=re.I)]
-        if USE_SYNONYM_FALLBACK:
-            return Response({
-                "word": base_word,
-                "analysis_json": items,
-                "analysis_markdown": _markdownify(items, base_word),
-                "synonyms": items,
-                "present_in_text": present,
-                "success": True,
-                "fallback": True
-            })
-        # Prefer clean failure so UI shows your empty/“try again” state
-        return Response({
-            "word": base_word,
-            "error": "Synonym JSON invalid from model",
-            "fallback": False,
-            "success": False
-        }, status=502)
-
+    # --- helpers ---
     def _extract_json_array(raw: str) -> str | None:
         if not raw:
             return None
         s = raw.strip()
-    
-        # Grab only the JSON array if the model added prose around it
         start = s.find('[')
         end = s.rfind(']')
         if start == -1 or end == -1 or end <= start:
             return None
         s = s[start:end+1]
-    
-        # Normalize quotes the model sometimes uses
-        s = (s.replace("’", "'")
-               .replace("‘", "'")
-               .replace("“", '"')
-               .replace("”", '"'))
-    
-        # T5 sometimes emits single-quoted JSON — make it JSON compliant
-        # (safe enough here because keys are known and values are short)
+        # normalise curly quotes -> straight, and single -> double if needed
+        s = (s.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"'))
         if '"' not in s and "'" in s:
             s = s.replace("'", '"')
-    
         return s
 
-    try:
-        # --- 1) First attempt: deterministic decoding (beam search path in generator) ---
-        # temperature=0 => _generate_huggingface() switches to deterministic mode
-        raw = generate_text_with_fallback(prompt, num_predict=220, temperature=0)
-        first = None
-        if raw:
-            cleaned = _extract_json_array(raw)
-            if cleaned:
-                try:
-                    first = json.loads(cleaned)
-                except Exception as e:
-                    logger.info(f"[synonyms] parse fail after clean: {e}")
-            else:
-                logger.info("[synonyms] no bracketed JSON found in raw output")
+    def _is_valid(items):
+        if not isinstance(items, list) or len(items) != 5:
+            return False
+        req = {"synonym", "meaning", "difference", "usage", "example"}
+        for it in items:
+            if not isinstance(it, dict) or not req.issubset(it.keys()):
+                return False
+        return True
 
-        # --- 2) Parse/validate JSON ---
-        ok = False
-        reason = "unparsed"
-        if first is not None:
-            ok, reason = _is_valid(first)
-
-        if not ok:
-            logger.info(f"[synonyms] invalid first output: {reason}; attempting one-shot repair")
-
-            # --- 3) One-shot repair: ask model to fix ONLY the JSON shape ---
-            repair_prompt = (
-                "Fix the following to a valid JSON array of exactly 5 items with keys "
-                "synonym, meaning, difference, usage, example. Output ONLY the JSON array.\n\n"
-                f"{raw}"
+    def _markdown(items, base):
+        lines = [f'**Synonyms for "{base}":**', ""]
+        for i, it in enumerate(items, 1):
+            lines.append(
+                f"{i}. **{it['synonym']}** — {it['meaning']} "
+                f"(diff: {it['difference']}; usage: {it['usage']}) "
+                f'Example: {it["example"]}'
             )
-            repaired_raw = generate_text_with_fallback(repair_prompt, num_predict=220, temperature=0)
-            repaired = None
-            cleaned = _extract_json_array(repaired_raw)
-            if cleaned:
-                try:
-                    repaired = json.loads(cleaned)
-                except Exception as e:
-                    logger.info(f"[synonyms] parse fail repair after clean: {e}")
+        return "\n".join(lines)
 
-            if repaired is not None:
-                ok2, reason2 = _is_valid(repaired)
-                if ok2:
-                    items = repaired
-                    logger.info("[synonyms] repair succeeded")
-                else:
-                    logger.info(f"[synonyms] repair invalid: {reason2}; using fallback")
-                    items = _fallback_set(word)
-                    present = [it for it in items
-                               if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b", uploaded_text, flags=re.I)]
-                    return _fail_or_fallback(word, uploaded_text)
-            else:
-                logger.info("[synonyms] repair unparsed; using fallback")
-                items = _fallback_set(word)
-                present = [it for it in items
-                           if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b", uploaded_text, flags=re.I)]
-                return _fail_or_fallback(word, uploaded_text)
-        else:
-            items = first
+    try:
+        # temperature=0 triggers deterministic decoding in generator
+        raw = generate_text_with_fallback(prompt, num_predict=220, temperature=0)
+        cleaned = _extract_json_array(raw) if raw else None
 
-        # --- 4) Success path: return both JSON and pretty text ---
-        present = [it for it in items
-           if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b",
-                                             uploaded_text, flags=re.I)]
+        if not cleaned:
+            logger.info("[synonyms] model did not return a JSON array")
+            return Response({
+                "word": word,
+                "success": False,
+                "error": "Synonyms unavailable for this word right now."
+            }, status=502)
+
+        try:
+            items = json.loads(cleaned)
+        except Exception as e:
+            logger.info(f"[synonyms] JSON parse error: {e}")
+            return Response({
+                "word": word,
+                "success": False,
+                "error": "Synonyms unavailable for this word right now."
+            }, status=502)
+
+        if not _is_valid(items):
+            logger.info("[synonyms] JSON failed validation")
+            return Response({
+                "word": word,
+                "success": False,
+                "error": "Synonyms unavailable for this word right now."
+            }, status=502)
+
+        # Optional: flag which suggested synonyms already occur in the text
+        present = [
+            it for it in items
+            if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b", uploaded_text, flags=re.I)
+        ]
+
         return Response({
-                        "word": word,
-                        "analysis_json": items,
-                        "analysis_markdown": _markdownify(items, word),
-                        "synonyms": items, 
-                        "present_in_text": present,
-                        "success": True,
-                        "fallback": False
+            "word": word,
+            "success": True,
+            "synonyms": items,                 # keep for current UI
+            "analysis_json": items,            # backwards compat
+            "analysis_markdown": _markdown(items, word),
+            "present_in_text": present,
+            "fallback": False
         })
 
     except requests.exceptions.Timeout:
-        return Response({'error': 'Request timed out. The model is taking too long to respond.'}, status=504)
-    except requests.exceptions.HTTPError as e:
-        status_code = getattr(e.response, "status_code", 500)
-        if status_code == 404:
-            return Response(
-                {'error': 'Hugging Face model not found. Check HUGGINGFACE_MODEL name or repository visibility.'},
-                status=502)
-        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
+        return Response({'error': 'Request timed out.'}, status=504)
     except requests.exceptions.RequestException as e:
-        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
+        return Response({'error': f'LLM request failed: {str(e)}'}, status=500)
     except Exception as e:
         logger.exception(f"[synonyms] unexpected error: {e}")
         return Response({'error': f'An error occurred: {str(e)}'}, status=500)
