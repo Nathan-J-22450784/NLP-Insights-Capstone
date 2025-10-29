@@ -38,9 +38,9 @@ export default function Breadcrumbs({ activePage, onNavigate, currentWord }) {
   };
 
   return (
-    <div className="ttc-breadcrumbs" style={{display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"12px"}}>
+    <div className="ttc-breadcrumbs">
       {canGoBack && (
-        <button className="ttc-btn--ghost" aria-label="Go back" onClick={goBack} style={{padding:"0.25rem 0.5rem",borderRadius:"9999px"}}>
+        <button onClick={goBack} className="ttc-button ttc-button-sm">
           ← Back
         </button>
       )}
