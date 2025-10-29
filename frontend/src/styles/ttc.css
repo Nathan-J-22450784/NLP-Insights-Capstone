@@ -193,13 +193,27 @@ h1, .ttc-title-xl,
          1.2) Breadcrumbs
          ================= */
 
+/* Sticky bar that holds Back + Breadcrumbs */
+.ttc-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--ttc-accent, #edeaf2); /* light purple */
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--ttc-border, #e5e7eb);
+}
+
+/* Let breadcrumbs breathe inside the bar */
+.ttc-topbar .ttc-breadcrumbs {
+  margin: 0;             /* override any external margins */
+}
+
+/* Keep link hover consistent */
 .ttc-breadcrumbs .ttc-crumb-link:hover { text-decoration: underline; }
-
 .ttc-breadcrumbs .ttc-crumb-current { color: var(--ttc-accent-foreground, #24163c); }
-
-.ttc-btn--ghost { background: transparent; border: 1px solid var(--ttc-border, #e5e7eb); cursor: pointer; }
-
-.ttc-btn--ghost:hover { background: var(--ttc-accent, #edeaf2); }
 
 /* ==========================================================================
    2) BUTTONS (unified base + variants)
