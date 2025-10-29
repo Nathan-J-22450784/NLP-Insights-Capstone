@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import CreativeKeynessResults from "./Keyness/CreativeKeynessResults";
 import GenreCorpusSelector from "./GenreCorpusSelector";
+import HowItWorks from "./HowItWorks";
 import PrivacyTile from "./PrivacyNote";
 
 const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
@@ -12,6 +13,13 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
   const [analysisDone, setAnalysisDone] = useState(false);
   const [comparisonMode, setComparisonMode] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("");
+
+const labelByType = {
+  keyness: "Keyness",
+  sentiment: "Sentiment",
+  clustering: "Clustering",
+  sensorimotor: "Sensorimotor Norms",
+};
 
   // Fetch corpora list from backend (only for corpus mode)
   useEffect(() => {
@@ -131,6 +139,28 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
               <option value="sensorimotor">Sensorimotor Norms</option>
             </select>
           </div>
+
+          {/* How it works card (appears once a type is selected) */}
+          {analysisType && (
+            <div className="homepage-section" style={{ marginTop: 12 }}>
+              <HowItWorks
+                id={
+                  analysisType === "keyness" && comparisonMode
+                    ? `keyness:${comparisonMode}`
+                    : analysisType
+                }
+                title={`How it works — ${labelByType[analysisType]}`}
+              >
+                {/* Extra note for the keyness two-file mode */}
+                {analysisType === "keyness" && comparisonMode === "user_text" && (
+                  <>
+                    <hr />
+                    <p><strong>Two-file mode:</strong> you’ll upload a <em>Reference</em> file and a <em>Target</em> file. We compare Target against Reference to find unusually frequent words.</p>
+                  </>
+                )}
+              </HowItWorks>
+            </div>
+          )}
 
           {/* Comparison Mode Selection (only for keyness) */}
           {analysisType === "keyness" && (
