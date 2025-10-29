@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import TextInputSection from "../TextInputSection";
 import SensorimotorAnalyser from "./SensorimotorAnalyser";
+import PrivacyTile from "../PrivacyNote";
 
 // same tokenizer style across tools
 const tokenize = (text) =>
@@ -48,35 +49,45 @@ const SensorimotorLanding = ({ onBack }) => {
   }
 
   return (
-    <div className="analysis-container">
-      {/* header row: back + title on one line */}
-      <div className="analysis-header">
-        <button type="button" onClick={onBack} className="ttc-button ttc-button-sm">
-          ← Back
-        </button>
-        <h1 className="analysis-title">Sensorimotor Analysis</h1>
-      </div>
+    <main className="ttc-page">
+      <div className="ttc-container ttc-stack-lg">
+        {/* Back */}
+        <button type="button" onClick={onBack} className="ttc-button">← Back</button>
 
-      <p className="tcc-sub">See which senses and actions your text evokes.</p>
+        {/* Title */}
+        <section className="ttc-panel ttc-stack-md">
+          <h1 className="analysis-title">Sensorimotor Analysis</h1>
+          <p className="ttc-subtitle">See which senses and actions your text evokes.</p>
+        </section>
 
-      <div className="analysis-main">
-        <TextInputSection
-          pastedText={pastedText}
-          handleTextPaste={handleTextPaste}
-          pastedWordCount={pastedWordCount}
-          uploadedPreview={uploadedPreview}
-          corpusPreview={""}           // not used here
-          error={error}
-          onFilesUploaded={handleFilesUploaded}
-        />
-      </div>
+        {/* Input + actions */}
+        <section className="ttc-panel ttc-stack-md">
+          <TextInputSection
+            pastedText={pastedText}
+            handleTextPaste={handleTextPaste}
+            pastedWordCount={pastedWordCount}
+            uploadedPreview={uploadedPreview}
+            corpusPreview={""}
+            error={error}
+            onFilesUploaded={handleFilesUploaded}
+          />
 
-      <div className="analysis-actions">
-        <button onClick={handleContinue} className="ttc-button ttc-button-lg">
-          Continue to Analysis →
-        </button>
+         <PrivacyTile />
+            
+          {error && <div className="ttc-banner ttc-banner--error">{error}</div>}
+
+          <div className="analysis-actions">
+            <button
+              onClick={handleContinue}
+              className="analysis-button"
+              disabled={!uploadedText.trim()}   // ✅ remove undefined vars
+            >
+              Continue to Analysis →
+            </button>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 };
 

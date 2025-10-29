@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import TextInputSection from "../TextInputSection";
 import KeynessAnalyser from "./KeynessAnalyser";
+import PrivacyTile from "../PrivacyNote";
 
 
 const KeynessLanding = ({
@@ -185,6 +186,8 @@ const KeynessLanding = ({
                         comparisonMode={comparisonMode}
                     />
 
+                    <PrivacyTile />
+                            
                     {error && (
                             <div className="ttc-banner ttc-banner--error">
                         {error}

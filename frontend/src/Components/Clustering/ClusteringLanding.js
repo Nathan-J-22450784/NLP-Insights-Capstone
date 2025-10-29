@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import TextInputSection from "../TextInputSection";
 import ClusteringAnalyser from "./ClusteringAnalyser";
+import PrivacyTile from "../PrivacyNote";
 
 const ClusteringLanding = ({ onBack }) => {
   const [pastedText, setPastedText] = useState("");
@@ -17,7 +18,6 @@ const ClusteringLanding = ({ onBack }) => {
     setUploadedText(text);
     setUploadedPreview(text.split("\n").slice(0, 4).join("\n"));
     setActiveInput("text");
-
     const words = text.trim().split(/\s+/).filter(Boolean);
     setPastedWordCount(words.length);
   };
@@ -48,22 +48,20 @@ const ClusteringLanding = ({ onBack }) => {
   }
 
   return (
-    <div className="ttc-page">
-      <div className="ttc-container">
+    <main className="ttc-page">
+      <div className="ttc-container ttc-stack-lg">
         <button onClick={onBack} className="ttc-button ttc-button-sm">
           ← Back
         </button>
-      </div>
 
-      <div className="ttc-container ttc-stack-md">
-        <h1>Clustering Analysis</h1>
+      <header className="ttc-stack-md">
+          <h1 className="analysis-title">Clustering Analysis</h1>
         <p className="ttc-subtitle">
           See how your words naturally group together into clusters, highlighting the themes, styles, and repeated ideas that shape your writing.
         </p>
-      </div>
+      </header>
 
-      <div className="ttc-container">
-        <div className="ttc-card">
+      <section className="ttc-panel ttc-stack-md">
           <TextInputSection
             pastedText={pastedText}
             handleTextPaste={handleTextPaste}
@@ -73,12 +71,15 @@ const ClusteringLanding = ({ onBack }) => {
             onFilesUploaded={handleFilesUploaded}
           />
 
+         <PrivacyTile />
+            
           {error && (
             <div className="ttc-banner ttc-banner--error">
               {error}
             </div>
           )}
-  
+
+      
       <div className="analysis-actions">
             <button
               onClick={handleContinue}

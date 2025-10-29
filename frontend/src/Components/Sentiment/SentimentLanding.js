@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import TextInputSection from "../TextInputSection";
 import SentimentAnalyser from "./SentimentAnalyser";
+import PrivacyTile from "../PrivacyNote";
 
 const SentimentLanding = ({ onBack, genre }) => {
   const [pastedText, setPastedText] = useState("");
@@ -92,6 +93,8 @@ const SentimentLanding = ({ onBack, genre }) => {
             error={error}
             onFilesUploaded={handleFilesUploaded}
           />
+
+         <PrivacyTile />
 
           {error && <div className="ttc-banner ttc-banner--error">{error}</div>}
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import CreativeKeynessResults from "./Keyness/CreativeKeynessResults";
 import GenreCorpusSelector from "./GenreCorpusSelector";
+import PrivacyTile from "./PrivacyNote";
 
 const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
   const [corpora, setCorpora] = useState([]);
@@ -185,6 +186,9 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
                 formatDisplayName={formatDisplayName}
               />
 
+              {/* Privacy Tile */}
+              <PrivacyTile style={{ marginBottom: 16 }} />
+
               <button
                 onClick={() => {
                   onProceed({
@@ -223,13 +227,19 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
 
           {/* Clustering button */}
           {analysisType === "clustering" && (
+            <>
+             {/* Privacy Tile */}
+              <PrivacyTile style={{ marginBottom: 16 }} />
+            
             <button
               onClick={() => onProceed({ analysisType })}
               className="ttc-button ttc-button-lg"
             >
               Go to Clustering Analysis
             </button>
+                </>
           )}
+
         </div>
 
         {/* Render CreativeKeynessResults below the selection UI (only for corpus mode) */}
