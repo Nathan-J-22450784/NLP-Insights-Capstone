@@ -1066,6 +1066,7 @@ def get_synonyms(request):
       4) Provide both JSON and a markdown rendering to avoid UI changes.
     """
     word = request.data.get('word', None)
+    uploaded_text = (request.data.get('uploaded_text') or "").strip()
     if not word:
         return Response({'error': 'No word provided.'}, status=400)
 
@@ -1134,10 +1135,14 @@ def get_synonyms(request):
         if not raw:
             logger.warning("[synonyms] empty response, using fallback")
             items = _fallback_set(word)
+            present = [it for it in items
+                       if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b", uploaded_text, flags=re.I)]
             return Response({
                 "word": word,
                 "analysis_json": items,
                 "analysis_markdown": _markdownify(items, word),
+                "synonyms": items, 
+                "present_in_text": present,
                 "success": True,
                 "fallback": True
             })
@@ -1179,33 +1184,46 @@ def get_synonyms(request):
                 else:
                     logger.info(f"[synonyms] repair invalid: {reason2}; using fallback")
                     items = _fallback_set(word)
+                    present = [it for it in items
+                               if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b", uploaded_text, flags=re.I)]
                     return Response({
                         "word": word,
                         "analysis_json": items,
                         "analysis_markdown": _markdownify(items, word),
+                        "synonyms": items, 
+                        "present_in_text": present,
                         "success": True,
                         "fallback": True
                     })
             else:
                 logger.info("[synonyms] repair unparsed; using fallback")
                 items = _fallback_set(word)
+                present = [it for it in items
+                           if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b", uploaded_text, flags=re.I)]
                 return Response({
-                    "word": word,
-                    "analysis_json": items,
-                    "analysis_markdown": _markdownify(items, word),
-                    "success": True,
-                    "fallback": True
+                        "word": word,
+                        "analysis_json": items,
+                        "analysis_markdown": _markdownify(items, word),
+                        "synonyms": items, 
+                        "present_in_text": present,
+                        "success": True,
+                        "fallback": True
                 })
         else:
             items = first
 
         # --- 4) Success path: return both JSON and pretty text ---
+        present = [it for it in items
+           if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b",
+                                             uploaded_text, flags=re.I)]
         return Response({
-            "word": word,
-            "analysis_json": items,
-            "analysis_markdown": _markdownify(items, word),
-            "success": True,
-            "fallback": False
+                        "word": word,
+                        "analysis_json": items,
+                        "analysis_markdown": _markdownify(items, word),
+                        "synonyms": items, 
+                        "present_in_text": present,
+                        "success": True,
+                        "fallback": False
         })
 
     except requests.exceptions.Timeout:
