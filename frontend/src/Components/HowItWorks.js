@@ -4,7 +4,7 @@ import HowItWorksCard from "./HowItWorksCard";
 export default function HowItWorks({ id, title = "How it works" }) {
   const [open, setOpen] = useState(false);
   const storageKey = id ? `howit:${id}` : null;
-  const body = id ? howItWorksCard[id] : null;
+  const body = id ? HowItWorksCard[id] : null;
 
   // restore open/closed state per page
   useEffect(() => {
