@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import HomePage from "./Components/HomePage";
+import Breadcrumbs from "./Components/Breadcrumbs";
 import KeynessLanding from "./Components/Keyness/KeynessLanding";
 import KeynessAnalyser from "./Components/Keyness/KeynessAnalyser";
 import ClusteringLanding from "./Components/Clustering/ClusteringLanding";
@@ -87,6 +88,11 @@ function App() {
 
     return (
         <div className="p-6">
+            <Breadcrumbs
+              activePage={activePage}
+              onNavigate={(page) => setActivePage(page)}
+              currentWord={wordDetailData?.word}
+            />
             {activePage === "home" && (
                 <HomePage
                     onSelect={setActivePage}
