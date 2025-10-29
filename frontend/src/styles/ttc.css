@@ -188,6 +188,19 @@ h1, .ttc-title-xl,
 .ttc-card {
   container-type: inline-size;
 }
+
+      /* =================
+         1.2) Breadcrumbs
+         ================= */
+
+.ttc-breadcrumbs .ttc-crumb-link:hover { text-decoration: underline; }
+
+.ttc-breadcrumbs .ttc-crumb-current { color: var(--ttc-accent-foreground, #24163c); }
+
+.ttc-btn--ghost { background: transparent; border: 1px solid var(--ttc-border, #e5e7eb); cursor: pointer; }
+
+.ttc-btn--ghost:hover { background: var(--ttc-accent, #edeaf2); }
+
 /* ==========================================================================
    2) BUTTONS (unified base + variants)
    - Base layout + brand gradient for every button class already in use
