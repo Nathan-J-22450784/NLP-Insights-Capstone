@@ -52,17 +52,24 @@ const KeynessWordDetail = ({
     const isSpacy = methodUpper === "SPACY";
     const isNltk = methodUpper === "NLTK";
 
+    // clear per-word state
     useEffect(() => {
-      // clear per-word caches so new fetches will run
-      setSentences([]);
-      setSynonymsAnalysis("");
-      setSynonymsList([]);
-      setConceptsAnalysis("");
-      setActiveTab("wordData");
-      setLoadingSentences(false);
-      setLoadingSynonyms(false);
-      setLoadingConcepts(false);
-    }, [word]);
+        setSynonymsAnalysis("");
+        setConceptsAnalysis("");
+        setSentences([]);
+        setLoadingSynonyms(false);
+        setLoadingConcepts(false);
+        setLoadingSentences(false);
+      }, [word]);
+
+    // optional auto-refetch when the *word* changes and the tab is already open
+    useEffect(() => {
+        if (!word) return;
+        if (activeTab === "alternateWords" && !synonymsAnalysis) fetchSynonyms();
+        if (activeTab === "sentences" && sentences.length === 0) fetchSentences();
+        if (activeTab === "concepts" && !conceptsAnalysis) fetchConcepts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [word]);
 
     if (!wordData) {
         return (
@@ -97,6 +104,22 @@ const KeynessWordDetail = ({
         }
     };
 
+    // Helper for Fetch synonym analysis
+    function markdownFromItems(items, baseWord) {
+      if (!Array.isArray(items) || items.length === 0) return "";
+      const lines = [`**Synonyms for "${baseWord}":**`, ""];
+      items.forEach((it, i) => {
+        lines.push(
+          `${i + 1}. **${it.synonym}**\n` +
+          `   - Meaning: ${it.meaning}\n` +
+          `   - Difference from "${baseWord}": ${it.difference}\n` +
+          `   - Usage: ${it.usage}\n` +
+          `   - Example: ${it.example}`
+        );
+      });
+      return lines.join("\n");
+    }
+
     // Fetch synonym analysis
     const fetchSynonyms = async () => {
         if (synonymsAnalysis || synonymsList.length > 0) return;
@@ -105,11 +128,23 @@ const KeynessWordDetail = ({
             const response = await fetch("http://localhost:8000/api/get-synonyms/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ word }),
+                //include uploaded_text so backend can compute present_in_text
+                body: JSON.stringify({ word, uploaded_text: uploadedText || "" }), 
             });
             const data = await response.json();
-            setSynonymsList(Array.isArray(data.synonyms) ? data.synonyms : []);
-            setSynonymsAnalysis(data.analysis || "");
+
+            // Prefer in-text matches; else use full synonyms; else fall back to backend markdown
+            const items =
+              (Array.isArray(data.present_in_text) && data.present_in_text.length > 0)
+                ? data.present_in_text
+                : (Array.isArray(data.synonyms) ? data.synonyms : null);
+        
+            const md =
+              (items ? markdownFromItems(items, word) : null) ||
+              data.analysis_markdown ||
+              "No alternate words found.";
+
+            setSynonymsAnalysis(md);
         } catch (err) {
             console.error(err);
             setSynonymsAnalysis("We couldn't fetch alternate words right now. The language model may still be warming up. Please try again in a few seconds.");
