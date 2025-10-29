@@ -1,12 +1,37 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import ResultsSummary from "./ResultsSummary";
 import Charts from "./Charts";
 import ResultsTable from "./ResultsTable";
 import CreativeKeynessResults from "./CreativeKeynessResults";
-import '../ProgressBar.css';
-import './KeynessAnalyser.css';
+
 
 console.log("KeynessAnalyser file loaded");
+
+function useWhyDidYouUpdate(name, props) {
+    const previousProps = useRef();
+
+    useEffect(() => {
+        if (previousProps.current) {
+            const allKeys = Object.keys({ ...previousProps.current, ...props });
+            const changedProps = {};
+
+            allKeys.forEach(key => {
+                if (previousProps.current[key] !== props[key]) {
+                    changedProps[key] = {
+                        from: previousProps.current[key],
+                        to: props[key]
+                    };
+                }
+            });
+
+            if (Object.keys(changedProps).length > 0) {
+                console.log('[why-did-you-update]', name, changedProps);
+            }
+        }
+
+        previousProps.current = props;
+    });
+}
 
 /**
  * Progress Bar
@@ -48,6 +73,7 @@ const KeynessAnalyser = ({
     genre,
     onWordDetail,
     onResults
+
 }) => {
     const [comparisonResults, setComparisonResults] = useState([]);
     const [stats, setStats] = useState({ uploadedTotal: 0, corpusTotal: 0, totalSignificant: 0 });
@@ -59,14 +85,24 @@ const KeynessAnalyser = ({
     const [showLibraryOptions, setShowLibraryOptions] = useState(true);
     const [showResults, setShowResults] = useState(false);
 
-    const handleChangeMethod = () => {
+    const handleChangeMethod = useCallback(() => {
         console.log("handleChangeMethod called!");
         setAnalysisDone(false);
         setSelectedMethod("");
         setShowLibraryOptions(true);
         setComparisonResults([]);
         setShowResults(false);
-    };
+    }, []);
+
+    useWhyDidYouUpdate('KeynessAnalyser', {
+        comparisonResults,
+        selectedMethod,
+        analysisDone,
+        uploadedText,
+        genre,
+        stats,
+        loading
+    });
 
     console.log("KeynessAnalyser component rendered");
     console.log("handleChangeMethod exists:", typeof handleChangeMethod);
@@ -190,7 +226,6 @@ const KeynessAnalyser = ({
                         corpusTotal: json.corpus_total ?? 0,
                         totalSignificant: json.total_significant ?? (resultsArray ? resultsArray.length : 0)
                     }
-
                 });
             }
             console.log("Analysis completed successfully:", {
@@ -205,19 +240,17 @@ const KeynessAnalyser = ({
     };
 
     return (
-        <div className="mb-6">
+        <div className="ttc-container analysis-container">
             <button
                 onClick={onBack}
-                className="keyness-back-button"
+                className="ttc-button"
             >
                 ← Back
             </button>
 
             {/* Word Filtering Options */}
             <div className="filter-section">
-                <p className="filter-title">
-                    What words in your text would you like analysed:
-                </p>
+                <h2>What words in your text would you like analysed:</h2>
                 <div className="filter-options">
                     <label className="filter-option">
                         <input
@@ -242,54 +275,49 @@ const KeynessAnalyser = ({
                 </div>
             </div>
 
-            {/* Library Selection Section */}
             {showLibraryOptions ? (
-                <div className="library-selection">
-                    <h2 className="library-selection-title">Choose Your Analysis Method</h2>
-                    <div className="library-container">
-                        {libraries.map((library) => (
-                            <div key={library.id} className="library-card">
-                                <div className="library-card-content">
-                                    {/* Left side - Description */}
-                                    <div className="library-description">
-                                        <h3 className="library-title">
-                                            {library.name}: {library.title}
-                                        </h3>
-                                        <p className="library-text">
-                                            {library.description}
-                                        </p>
-                                    </div>
-
-                                    {/* Right side - Button */}
-                                    <div className="library-button-container">
-                                        <button
-                                            onClick={() => performAnalysis(library.id)}
-                                            disabled={loading || !uploadedText}
-                                            className="analysis-button"
-                                        >
-                                            Analyse with {library.name}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ) : (
-                <div className="collapsed-library-selection">
-                    <div className="current-analysis-info">
-                        <span className="current-analysis-text">
-                            Analysing with <strong>{libraries.find(lib => lib.id === selectedMethod)?.name || selectedMethod.toUpperCase()}</strong>
-                        </span>
+              <div className="library-selection">
+                <h2>Choose Your Analysis Method</h2>
+            
+                <div className="analysis-tiles">
+                  {libraries.map((library) => (
+                    <div key={library.id} className="ttc-panel analysis-tile">
+                      <div>
+                        <h3>{library.name}: {library.title}</h3>
+                        <p>{library.description}</p>
+                      </div>
+                      <div>
                         <button
-                            onClick={handleChangeMethod}
-                            className="change-method-button"
-                            disabled={loading}
+                          onClick={() => performAnalysis(library.id)}
+                          disabled={loading || !uploadedText}
+                          className="ttc-button ttc-button-wide"
                         >
-                            Change Method
+                          Analyse with {library.name}
                         </button>
+                      </div>
                     </div>
+                  ))}
                 </div>
+              </div>
+            ) : (
+              <div className="collapsed-library-selection">
+                <div className="current-analysis-info">
+                  <span className="current-analysis-text">
+                    Analysing with{" "}
+                    <strong>
+                      {libraries.find((lib) => lib.id === selectedMethod)?.name ||
+                        selectedMethod.toUpperCase()}
+                    </strong>
+                  </span>
+                  <button
+                    onClick={handleChangeMethod}
+                    className="ttc-button"
+                    disabled={loading}
+                  >
+                    Change Method
+                  </button>
+                </div>
+              </div>
             )}
 
             {loading && (

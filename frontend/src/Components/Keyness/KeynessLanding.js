@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import TextInputSection from "../TextInputSection";
 import KeynessAnalyser from "./KeynessAnalyser";
-import "./KeynessLanding.css";
+import PrivacyTile from "../PrivacyNote";
+
 
 const KeynessLanding = ({
     onBack,
@@ -31,7 +32,7 @@ const KeynessLanding = ({
                 if (comparisonMode === "corpus") {
                     if (!genre) return;
 
-                    const url = `http://localhost:8000/api/corpus-preview-keyness/?name=${encodeURIComponent(genre)}`;
+                    const url = `http://localhost:8000/api/corpus-preview/?name=${encodeURIComponent(genre)}`;
                     const response = await fetch(url, { credentials: "include" });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const data = await response.json();
@@ -105,15 +106,11 @@ const KeynessLanding = ({
                         (refFile.textContent || "").split("\n").slice(0, 4).join("\n")
                     );
                 }
-
-                // Clear error if we have exactly 2 files
                 setError(updatedFiles.length === 2 ? "" : "Please upload both reference and target texts.");
-
                 return updatedFiles;
             });
 
         } else {
-            // CORPUS MODE
             setSelectedFiles(files || []);
             setUploadedText(text);
             setUploadedPreview(text.split("\n").slice(0, 4).join("\n"));
@@ -159,26 +156,25 @@ const KeynessLanding = ({
     }
 
     return (
-        <div className="keyness-landing-wrapper">
-            <button
-                onClick={onBack}
-                className="keyness-back-button"
-            >
-                ← Back
-            </button>
+        <main className="ttc-page">
+      <div className="ttc-container ttc-stack-lg">
+        {/* Back */}
+        <button onClick={onBack} className="ttc-button">
+          ← Back
+        </button>
 
-            <div className="keyness-header">
-                <h1 className="keyness-title">Keyness Analysis</h1>
-                <p className="keyness-subtitle">
-                    {comparisonMode === "user_text"
-                        ? "Compare two texts to find distinctive words and phrases."
-                        : "Find the words that stand out most in your writing, showing what makes your voice and style different from other texts."
-                    }
-                </p>
-            </div>
+            {/* Title + intro */}
+        <section className="ttc-panel ttc-stack-md">
+          <h1 className="analysis-title">Keyness Analysis</h1>
+          <p className="ttc-subtitle">
+            {comparisonMode === "user_text"
+              ? "Compare two texts to find distinctive words and phrases."
+              : "Find the words that stand out most in your writing, showing what makes your voice and style different from other texts."}
+          </p>
+        </section>
 
-            <div className="keyness-container">
-                <div className="keyness-content-card">
+            {/* Input section */}
+        <section className="ttc-panel ttc-stack-md">
                     <TextInputSection
                         pastedText={pastedText}
                         handleTextPaste={handleTextPaste}
@@ -190,30 +186,33 @@ const KeynessLanding = ({
                         comparisonMode={comparisonMode}
                     />
 
+                    <PrivacyTile />
+                            
                     {error && (
-                        <div className="keyness-error-message">
-                            {error}
-                        </div>
-                    )}
+                            <div className="ttc-banner ttc-banner--error">
+                        {error}
+                            </div>
+                            )}
 
-                    <div className="keyness-continue-section">
-                        <button
-                            onClick={handleContinue}
-                            className="keyness-continue-button"
-                            disabled={
-                                comparisonMode === "user_text"
-                                    ? selectedFiles.length !== 2
-                                    : !uploadedText.trim()
-                            }
-                        >
-                            Continue to Analysis →
-                        </button>
+          {/* Actions */}
 
-                    </div>
-                </div>
+                    <div className="analysis-actions">
+            <button
+              onClick={handleContinue}
+              className="analysis-button"
+              disabled={
+                comparisonMode === "user_text"
+                  ? selectedFiles.length !== 2
+                  : !uploadedText.trim()
+              }
+            >
+              Continue to Analysis →
+            </button>
             </div>
-        </div>
-    );
+        </section>
+      </div>
+    </main>
+  );
 };
 
 export default KeynessLanding;

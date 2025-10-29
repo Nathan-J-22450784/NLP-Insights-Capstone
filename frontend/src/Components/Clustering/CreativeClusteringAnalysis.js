@@ -1,535 +1,538 @@
 import React, { useState, useEffect } from "react";
 import ClusteringCharts from "./ClusteringCharts";
-import "./CreativeClusteringAnalysis.css";
 
 const CreativeClusteringAnalysis = ({ clusters, topTerms, themes, textDocuments = [] }) => {
-    const [showChart, setShowChart] = useState(true);
-    const [selectedCluster, setSelectedCluster] = useState("all");
-    const [showTopTerms, setShowTopTerms] = useState(false);
-    const [showDocuments, setShowDocuments] = useState(false);
-    const [showThemes, setShowThemes] = useState(false);
-    const [showThematicFlow, setShowThematicFlow] = useState(false);
-    const [showOverusedThemes, setShowOverusedThemes] = useState(false);
-    const [themeAnalysisData, setThemeAnalysisData] = useState(null);
-    const [isLoadingThemeAnalysis, setIsLoadingThemeAnalysis] = useState(false);
-    const [themeAnalysisError, setThemeAnalysisError] = useState(null);
-    const [thematicFlowData, setThematicFlowData] = useState(null);
-    const [isLoadingThematicFlow, setIsLoadingThematicFlow] = useState(false);
-    const [thematicFlowError, setThematicFlowError] = useState(null);
-    const [overusedThemesData, setOverusedThemesData] = useState(null);
-    const [isLoadingOverusedThemes, setIsLoadingOverusedThemes] = useState(false);
-    const [overusedThemesError, setOverusedThemesError] = useState(null);
-    const [chartSummaryData, setChartSummaryData] = useState(null);
-    const [isLoadingChartSummary, setIsLoadingChartSummary] = useState(false);
-    const [chartSummaryError, setChartSummaryError] = useState(null);
+  const [showChart, setShowChart] = useState(true);
+  const [selectedCluster, setSelectedCluster] = useState("all");
+  const [showTopTerms, setShowTopTerms] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
+  const [showThemes, setShowThemes] = useState(false);
+  const [showThematicFlow, setShowThematicFlow] = useState(false);
+  const [showOverusedThemes, setShowOverusedThemes] = useState(false);
+  
+  const [themeAnalysisData, setThemeAnalysisData] = useState(null);
+  const [isLoadingThemeAnalysis, setIsLoadingThemeAnalysis] = useState(false);
+  const [themeAnalysisError, setThemeAnalysisError] = useState(null);
+  
+  const [thematicFlowData, setThematicFlowData] = useState(null);
+  const [isLoadingThematicFlow, setIsLoadingThematicFlow] = useState(false);
+  const [thematicFlowError, setThematicFlowError] = useState(null);
+  
+  const [overusedThemesData, setOverusedThemesData] = useState(null);
+  const [isLoadingOverusedThemes, setIsLoadingOverusedThemes] = useState(false);
+  const [overusedThemesError, setOverusedThemesError] = useState(null);
+  
+  const [chartSummaryData, setChartSummaryData] = useState(null);
+  const [isLoadingChartSummary, setIsLoadingChartSummary] = useState(false);
+  const [chartSummaryError, setChartSummaryError] = useState(null);
 
-    const generateChartSummary = async () => {
-        setIsLoadingChartSummary(true);
-        setChartSummaryError(null);
+  const generateChartSummary = async () => {
+    setIsLoadingChartSummary(true);
+    setChartSummaryError(null);
 
-        try {
-            const response = await fetch("http://localhost:8000/api/summarise-clustering-chart/", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    clusters: clusters,
-                    top_terms: topTerms,
-                    themes: themes,
-                    selected_cluster: selectedCluster,
-                    title: `Clustering Analysis - ${selectedCluster === 'all' ? 'All Clusters' : `Cluster ${selectedCluster}`}`
-                })
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            setChartSummaryData(data);
-        } catch (error) {
-            console.error('Error generating summary:', error);
-            setChartSummaryError(error.message);
-        } finally {
-            setIsLoadingChartSummary(false);
-        }
+    const prepareClusterSummary = (clusters, selectedCluster) => {
+      if (!clusters || clusters.length === 0) return [];
+      if (selectedCluster === "all") {
+        return clusters.map((c) => ({
+          label: c.label ?? "unknown",
+          doc: c.doc ?? "",
+          words: c.words ?? [],
+          x: c.x ?? 0,
+          y: c.y ?? 0,
+        }));
+      }
+      return clusters
+        .filter((c) => c.label === Number(selectedCluster))
+        .map((c) => ({
+          label: c.label ?? "unknown",
+          doc: c.doc ?? "",
+          words: c.words ?? [],
+          x: c.x ?? 0,
+          y: c.y ?? 0,
+        }));
     };
 
-    // Auto-generate chart summary when showing chart or cluster selection changes
-    useEffect(() => {
-        if (showChart && clusters.length > 0) {
-            generateChartSummary();
-        }
-    }, [showChart, selectedCluster, clusters.length]);
+    try {
+      const clusterSummary = prepareClusterSummary(clusters, selectedCluster);
 
-    // Function for general summary (placeholder for later)
-    const generateGeneralSummary = async () => {
-    };
+      const response = await fetch("http://localhost:8000/api/summarise-clustering-chart/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cluster_summary: clusterSummary,
+          top_terms: topTerms,
+          themes: themes,
+          selected_cluster: selectedCluster,
+          title: `Clustering Analysis - ${
+            selectedCluster === "all" ? "All Clusters" : `Cluster ${selectedCluster}`
+          }`,
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      setChartSummaryData(data);
+    } catch (error) {
+      console.error("Error generating summary:", error);
+      setChartSummaryError(error.message);
+    } finally {
+      setIsLoadingChartSummary(false);
+    }
+  };
 
-    const generateThemeAnalysis = async () => {
-        setIsLoadingThemeAnalysis(true);
-        setThemeAnalysisError(null);
+  useEffect(() => {
+    if (showChart && clusters.length > 0) {
+      generateChartSummary();
+    }
+  }, [showChart, selectedCluster, clusters.length]);
 
-        try {
-            const response = await fetch("http://localhost:8000/api/analyse-themes/", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    text_documents: textDocuments,
-                    clusters: clusters,
-                    top_terms: topTerms,
-                    themes: themes,
-                    title: 'Document Collection Theme Analysis'
-                })
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            setThemeAnalysisData(data);
-        } catch (error) {
-            console.error('Error generating theme analysis:', error);
-            setThemeAnalysisError(error.message);
-        } finally {
-            setIsLoadingThemeAnalysis(false);
-        }
-    };
+  const generateGeneralSummary = async () => {};
 
-    useEffect(() => {
-        if (showThemes && !themeAnalysisData && !isLoadingThemeAnalysis && !themeAnalysisError) {
-            generateThemeAnalysis();
-        }
-    }, [showThemes]);
+  const generateThemeAnalysis = async () => {
+    setIsLoadingThemeAnalysis(true);
+    setThemeAnalysisError(null);
 
-    // Function for thematic flow analysis
-    const generateThematicFlow = async () => {
-        setIsLoadingThematicFlow(true);
-        setThematicFlowError(null);
+    try {
+      const response = await fetch("http://localhost:8000/api/analyse-themes/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text_documents: textDocuments,
+          clusters: clusters,
+          top_terms: topTerms,
+          themes: themes,
+          title: "Document Collection Theme Analysis",
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      setThemeAnalysisData(data);
+    } catch (error) {
+      console.error("Error generating theme analysis:", error);
+      setThemeAnalysisError(error.message);
+    } finally {
+      setIsLoadingThemeAnalysis(false);
+    }
+  };
 
-        try {
-            const response = await fetch('http://localhost:8000/api/analyse-thematic-flow/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    text_documents: textDocuments,
-                    clusters: clusters,
-                    top_terms: topTerms,
-                    themes: themes,
-                    title: 'Thematic Flow Analysis'
-                })
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            setThematicFlowData(data);
-        } catch (error) {
-            console.error('Error generating thematic flow:', error);
-            setThematicFlowError(error.message);
-        } finally {
-            setIsLoadingThematicFlow(false);
-        }
-    };
+  useEffect(() => {
+    if (showThemes && !themeAnalysisData && !isLoadingThemeAnalysis && !themeAnalysisError) {
+      generateThemeAnalysis();
+    }
+  }, [showThemes]);
 
-    // Auto-generate thematic flow when tab is first viewed
-    useEffect(() => {
-        if (showThematicFlow && !thematicFlowData && !isLoadingThematicFlow && !thematicFlowError) {
-            generateThematicFlow();
-        }
-    }, [showThematicFlow]);
+  const generateThematicFlow = async () => {
+    setIsLoadingThematicFlow(true);
+    setThematicFlowError(null);
 
-    // Function for overused themes analysis
-    const generateOverusedThemes = async () => {
-        setIsLoadingOverusedThemes(true);
-        setOverusedThemesError(null);
+    try {
+      const response = await fetch("http://localhost:8000/api/analyse-thematic-flow/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text_documents: textDocuments,
+          clusters: clusters,
+          top_terms: topTerms,
+          themes: themes,
+          title: "Thematic Flow Analysis",
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      setThematicFlowData(data);
+    } catch (error) {
+      console.error("Error generating thematic flow:", error);
+      setThematicFlowError(error.message);
+    } finally {
+      setIsLoadingThematicFlow(false);
+    }
+  };
 
-        try {
-            const response = await fetch('http://localhost:8000/api/analyse-overused-themes/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    text_documents: textDocuments,
-                    clusters: clusters,
-                    top_terms: topTerms,
-                    themes: themes,
-                    title: 'Overused/Underused Analysis'
-                })
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            setOverusedThemesData(data);
-        } catch (error) {
-            console.error('Error generating overused themes analysis:', error);
-            setOverusedThemesError(error.message);
-        } finally {
-            setIsLoadingOverusedThemes(false);
-        }
-    };
+  useEffect(() => {
+    if (showThematicFlow && !thematicFlowData && !isLoadingThematicFlow && !thematicFlowError) {
+      generateThematicFlow();
+    }
+  }, [showThematicFlow]);
 
-    // Auto-generate overused themes when tab is first viewed
-    useEffect(() => {
-        if (showOverusedThemes && !overusedThemesData && !isLoadingOverusedThemes && !overusedThemesError) {
-            generateOverusedThemes();
-        }
-    }, [showOverusedThemes]);
+  const generateOverusedThemes = async () => {
+    setIsLoadingOverusedThemes(true);
+    setOverusedThemesError(null);
 
-    // Unique cluster labels for dropdown
-    const clusterOptions = Array.from(new Set(clusters.map(c => c.label))).sort(
-        (a, b) => a - b
-    );
+    try {
+      const response = await fetch("http://localhost:8000/api/analyse-overused-themes/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text_documents: textDocuments,
+          clusters: clusters,
+          top_terms: topTerms,
+          themes: themes,
+          title: "Overused/Underused Analysis",
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      setOverusedThemesData(data);
+    } catch (error) {
+      console.error("Error generating overused themes analysis:", error);
+      setOverusedThemesError(error.message);
+    } finally {
+      setIsLoadingOverusedThemes(false);
+    }
+  };
 
-    // Filtered clusters based on dropdown
-    const displayedClusters =
-        selectedCluster === "all"
-            ? clusters
-            : clusters.filter(c => c.label === Number(selectedCluster));
+  useEffect(() => {
+    if (
+      showOverusedThemes &&
+      !overusedThemesData &&
+      !isLoadingOverusedThemes &&
+      !overusedThemesError
+    ) {
+      generateOverusedThemes();
+    }
+  }, [showOverusedThemes]);
 
-    const handleViewChange = (view) => {
-        setShowChart(view === 'chart');
-        setShowTopTerms(view === 'terms');
-        setShowDocuments(view === 'documents');
-        setShowThemes(view === 'themes');
-        setShowThematicFlow(view === 'flow');
-        setShowOverusedThemes(view === 'overused');
-    };
+  const clusterOptions = Array.from(new Set(clusters.map((c) => c.label))).sort((a, b) => a - b);
 
-    return (
-        <div className="clustering-results-container">
-            {/* View Controls */}
-            <div className="clustering-view-controls">
+  const displayedClusters =
+    selectedCluster === "all" ? clusters : clusters.filter((c) => c.label === Number(selectedCluster));
+
+  const handleViewChange = (view) => {
+    setShowChart(view === "chart");
+    setShowTopTerms(view === "terms");
+    setShowDocuments(view === "documents");
+    setShowThemes(view === "themes");
+    setShowThematicFlow(view === "flow");
+    setShowOverusedThemes(view === "overused");
+  };
+
+  return (
+    <main className="ttc-page">
+      <div className="ttc-container ttc-stack-lg">
+
+        {/* View Controls */}
+        <nav className="ttc-tabs" aria-label="Clustering views">
+          <button
+            className={`ttc-tab ${showChart ? "is-active" : ""}`}
+            onClick={() => handleViewChange("chart")}
+            aria-pressed={showChart}
+          >
+            Chart
+          </button>
+          <button
+            className={`ttc-tab ${showTopTerms ? "is-active" : ""}`}
+            onClick={() => handleViewChange("terms")}
+            aria-pressed={showTopTerms}
+          >
+            Top Terms
+          </button>
+          <button
+            className={`ttc-tab ${showDocuments ? "is-active" : ""}`}
+            onClick={() => handleViewChange("documents")}
+            aria-pressed={showDocuments}
+          >
+            Documents
+          </button>
+          <button
+            className={`ttc-tab ${showThemes ? "is-active" : ""}`}
+            onClick={() => handleViewChange("themes")}
+            aria-pressed={showThemes}
+          >
+            Themes
+          </button>
+          <button
+            className={`ttc-tab ${showThematicFlow ? "is-active" : ""}`}
+            onClick={() => handleViewChange("flow")}
+            aria-pressed={showThematicFlow}
+          >
+            Thematic Flow
+          </button>
+          <button
+            className={`ttc-tab ${showOverusedThemes ? "is-active" : ""}`}
+            onClick={() => handleViewChange("overused")}
+            aria-pressed={showOverusedThemes}
+          >
+            Overused / Underused
+          </button>
+        </nav>
+
+        {/* Cluster Filter */}
+        {clusters.length > 0 && (
+          <div className="ttc-stack-md">
+             <label className="homepage-label" htmlFor="clusterFilter">Filter Cluster</label>
+            <select
+              id="clusterFilter"
+              value={selectedCluster}
+              onChange={(e) => setSelectedCluster(e.target.value)}
+              className="ttc-select"
+              style={{ maxWidth: 280 }}
+            >
+              <option value="all">All Clusters</option>
+              {clusterOptions.map((label) => (
+                <option key={label} value={label}>
+                  Cluster {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Chart View + Summary */}
+        {showChart && clusters.length > 0 && (
+        <div className="ttc-stack-md">
+          {/* Chart wrapper only for the chart */}
+          <div className="charts-container">
+            <ClusteringCharts clusters={clusters} selectedCluster={selectedCluster} />
+          </div>
+      
+          {/* Panel sits OUTSIDE the charts-container */}
+          <section className="ttc-panel">
+            <div className="chart-summary-header">
+              <span className="chart-summary-badge" aria-hidden />
+              <h3 className="chart-summary-title">Chart Analysis</h3>
+              <div className="ttc-btnrow" style={{ marginLeft: "auto" }}>
                 <button
-                    className={`clustering-btn btn-chart ${showChart ? 'active' : ''}`}
-                    onClick={() => handleViewChange('chart')}
+                  className="ttc-button ttc-button-sm"
+                  onClick={generateChartSummary}
+                  disabled={isLoadingChartSummary}
+                  title="Regenerate analysis"
                 >
-                    Show Chart
+                  {isLoadingChartSummary ? "Analysing..." : "Refresh"}
                 </button>
+              </div>
+            </div>
+      
+            {isLoadingChartSummary && (
+              <div className="chart-summary-loading">
+                <div className="loading-spinner" />
+                <span>Analysing clustering results...</span>
+              </div>
+            )}
+      
+            {chartSummaryError && (
+              <div className="chart-summary-error">
+                <p style={{ margin: 0 }}>Error generating analysis: {chartSummaryError}</p>
+                <button onClick={generateChartSummary} className="ttc-button ttc-button-sm">
+                  Try Again
+                </button>
+              </div>
+            )}
+      
+            {chartSummaryData && !isLoadingChartSummary && (
+              <div className="chart-summary-body">
+                <div className="ttc-btnrow" style={{ justifyContent: "flex-start", gap: ".75rem" }}>
+                  <span>Scope: {chartSummaryData.analysis_scope}</span>
+                  <span>Documents: {chartSummaryData.total_documents}</span>
+                  <span>Clusters: {chartSummaryData.num_clusters}</span>
+                </div>
+                <pre className="ttc-pre chart-summary-text">{chartSummaryData.analysis}</pre>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
 
-                <button
-                    className={`clustering-btn btn-terms ${showTopTerms ? 'active' : ''}`}
-                    onClick={() => handleViewChange('terms')}
-                >
-                    Show Top Terms
-                </button>
+        {/* Top Terms View */}
+        {showTopTerms && Object.keys(topTerms).length > 0 && (
+          <div className="ttc-grid ttc-grid-3-lg">
+            {Object.entries(topTerms).map(([cluster, terms]) => (
+              <article key={cluster} className="ttc-panel">
+                <h3 className="ttc-title--sm" style={{ marginTop: 0 }}>Cluster {cluster}</h3>
+                <div className="ttc-sub">{terms.join(", ")}</div>
+                {themes[cluster] && (
+                  <div className="ttc-callout" style={{ marginTop: 8 }}>
+                    <span className="ttc-callout-title">Suggested theme</span>
+                    <div>{themes[cluster]}</div>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
 
-                <button
-                    className={`clustering-btn btn-documents ${showDocuments ? 'active' : ''}`}
-                    onClick={() => handleViewChange('documents')}
-                >
-                    Show Clustered Documents
-                </button>
+        {/* Documents View */}
+        {showDocuments && displayedClusters.length > 0 && (
+          <section className="ttc-stack-md">
+            <h2 className="analysis-title">
+              Clustered Documents
+            </h2>
+            <div className="ttc-stack-md">
+              {displayedClusters.map((item, idx) => (
+                <div key={idx} className="ttc-panel">
+                  <strong style={{ color: "var(--ttc-primary)", marginRight: 6 }}>
+                    Cluster {item.label}:
+                  </strong>
+                  <span style={{ color: "#374151" }}>{item.doc}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-                {/* Themes Button */}
-                <button
-                    className={`clustering-btn btn-themes ${showThemes ? 'active' : ''}`}
-                    onClick={() => handleViewChange('themes')}
-                >
-                    Themes
-                </button>
+        {/* Themes View */}
+        {showThemes && (
+          <section className="ttc-panel ttc-stack-md">
+            <div className="ttc-flex-between">
+              <h2 className="ttc-title" style={{ margin: 0 }}>Theme Analysis</h2>
+              <button
+                className="ttc-button ttc-button-sm"
+                onClick={generateThemeAnalysis}
+                disabled={isLoadingThemeAnalysis}
+              >
+                {isLoadingThemeAnalysis ? "Analysing..." : "Regenerate"}
+              </button>
+            </div>
+        
+            {isLoadingThemeAnalysis && (
+              <div className="loading-inline">
+                <div className="loading-spinner" />
+                <span>Analysing themes and topics in your document collection...</span>
+              </div>
+            )}
+        
+            {themeAnalysisError && (
+              <div className="ttc-banner ttc-banner--error">
+                <p style={{ margin: 0 }}>Error generating theme analysis: {themeAnalysisError}</p>
+                <button onClick={generateThemeAnalysis} className="ttc-button ttc-button-sm">Try Again</button>
+              </div>
+            )}
+        
+            {themeAnalysisData && !isLoadingThemeAnalysis && (
+              <div className="ttc-stack-md">
+                <div className="ttc-btnrow" style={{ justifyContent: "flex-start" }}>
+                  <span>Data Source: {themeAnalysisData.data_source}</span>
+                  <span>Total Documents: {themeAnalysisData.total_documents}</span>
+                  <span>Analysed: {themeAnalysisData.documents_analysed}</span>
+                  {themeAnalysisData.has_clustering_context && <span>Clustering Context: Available</span>}
+                </div>
+                <pre className="ttc-pre">{themeAnalysisData.analysis}</pre>
+              </div>
+            )}
+        
+            {!themeAnalysisData && !themeAnalysisError && !isLoadingThemeAnalysis && (
+              <div className="ttc-callout">
+                <p className="ttc-callout-title">Heads up</p>
+                <p style={{ margin: 0 }}>
+                  Theme analysis will automatically generate when you first view this tab…
+                </p>
+              </div>
+            )}
+          </section>
+        )}
 
-                {/* Thematic Flow Button */}
-                <button
-                    className={`clustering-btn btn-flow ${showThematicFlow ? 'active' : ''}`}
-                    onClick={() => handleViewChange('flow')}
-                >
-                    Thematic Flow
-                </button>
-
-                {/* Overused Themes Button */}
-                <button
-                    className={`clustering-btn btn-overused ${showOverusedThemes ? 'active' : ''}`}
-                    onClick={() => handleViewChange('overused')}
-                >
-                    Overused Themes
-                </button>
+        {/* Thematic Flow View */}
+        {showThematicFlow && (
+          <section className="ttc-panel ttc-stack-md">
+            <div className="ttc-flex-between">
+              <h2 className="ttc-title" style={{ margin: 0 }}>
+                Thematic Flow Analysis
+              </h2>
+              <button
+                className="ttc-button ttc-button-sm"
+                onClick={generateThematicFlow}
+                disabled={isLoadingThematicFlow}
+              >
+                {isLoadingThematicFlow ? "Analysing..." : "Regenerate"}
+              </button>
             </div>
 
-            {/* Cluster Filter */}
-            {clusters.length > 0 && (
-                <div className="cluster-filter-section">
-                    <label className="cluster-filter-label">Filter Cluster:</label>
-                    <select
-                        value={selectedCluster}
-                        onChange={e => setSelectedCluster(e.target.value)}
-                        className="cluster-filter-select"
-                    >
-                        <option value="all">All Clusters</option>
-                        {clusterOptions.map(label => (
-                            <option key={label} value={label}>
-                                Cluster {label}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+            {isLoadingThematicFlow && (
+              <div className="loading-inline">
+                <div className="loading-spinner" />
+                <span>Analysing thematic relationships and flow patterns...</span>
+              </div>
             )}
 
-            {/* Chart View with integrated summary */}
-            {showChart && clusters.length > 0 && (
-                <div className="chart-section">
-                    <ClusteringCharts
-                        clusters={clusters}
-                        selectedCluster={selectedCluster}
-                    />
-
-                    {/* Chart Summary Section */}
-                    <div className="chart-summary-section">
-                        <div className="chart-summary-header">
-                            <h3 className="chart-summary-title">Chart Analysis</h3>
-                            <button
-                                className={`clustering-btn btn-refresh-small ${isLoadingChartSummary ? 'loading' : ''}`}
-                                onClick={generateChartSummary}
-                                disabled={isLoadingChartSummary}
-                                title="Regenerate analysis"
-                            >
-                                {isLoadingChartSummary ? '⟳' : '↻'}
-                            </button>
-                        </div>
-
-                        {isLoadingChartSummary && (
-                            <div className="chart-summary-loading">
-                                <div className="loading-spinner"></div>
-                                <p>Analysing clustering results...</p>
-                            </div>
-                        )}
-
-                        {chartSummaryError && (
-                            <div className="chart-summary-error">
-                                <p>Error generating analysis: {chartSummaryError}</p>
-                                <button onClick={generateChartSummary} className="clustering-btn btn-small">
-                                    Try Again
-                                </button>
-                            </div>
-                        )}
-
-                        {chartSummaryData && !isLoadingChartSummary && (
-                            <div className="chart-summary-content">
-                                <div className="chart-summary-meta">
-                                    <span>Scope: {chartSummaryData.analysis_scope}</span>
-                                    <span>Documents: {chartSummaryData.total_documents}</span>
-                                    <span>Clusters: {chartSummaryData.num_clusters}</span>
-                                </div>
-                                <div className="chart-summary-text">
-                                    <pre>{chartSummaryData.analysis}</pre>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
+            {thematicFlowError && (
+              <div className="ttc-banner ttc-banner--error">
+                <p style={{ margin: 0 }}>Error generating thematic flow analysis: {thematicFlowError}</p>
+                <button onClick={generateThematicFlow} className="ttc-button ttc-button-sm">
+                  Try Again
+                </button>
+              </div>
             )}
 
-            {/* Top Terms View */}
-            {showTopTerms && Object.keys(topTerms).length > 0 && (
-                <div className="top-terms-grid">
-                    {Object.entries(topTerms).map(([cluster, terms]) => (
-                        <div key={cluster} className="cluster-term-card">
-                            <h3 className="cluster-term-title">
-                                Cluster {cluster}
-                            </h3>
-                            <div className="cluster-terms-list">
-                                {terms.join(", ")}
-                            </div>
-                            {themes[cluster] && (
-                                <div className="cluster-theme">
-                                    Suggested theme: {themes[cluster]}
-                                </div>
-                            )}
-                        </div>
-                    ))}
+            {thematicFlowData && !isLoadingThematicFlow && (
+              <div className="ttc-stack-md">
+                <div className="ttc-btnrow" style={{ justifyContent: "flex-start" }}>
+                  <span>Data Source: {thematicFlowData.data_source}</span>
+                  <span>Total Documents: {thematicFlowData.total_documents}</span>
+                  <span>Analysed: {thematicFlowData.documents_analysed}</span>
+                  {thematicFlowData.has_clustering_context && <span>Clustering Context: Available</span>}
                 </div>
+                <pre className="ttc-pre">{thematicFlowData.analysis}</pre>
+              </div>
             )}
 
-            {/* Documents View */}
-            {showDocuments && displayedClusters.length > 0 && (
-                <div className="documents-section">
-                    <h2 className="documents-title">Clustered Documents</h2>
-                    <div className="documents-list">
-                        {displayedClusters.map((item, idx) => (
-                            <div key={idx} className="document-item">
-                                <span className="document-cluster-label">
-                                    Cluster {item.label}:
-                                </span>
-                                <span className="document-text">
-                                    {item.doc}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            {!thematicFlowData && !thematicFlowError && !isLoadingThematicFlow && (
+              <div className="ttc-callout">
+                <p className="ttc-callout-title">Quick tip</p>
+                <p style={{ margin: 0 }}>
+                  Thematic flow analysis will automatically generate when you first view this tab. It examines how
+                  themes interconnect, develop, and flow throughout your documents.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Overused Themes View */}
+        {showOverusedThemes && (
+          <section className="ttc-panel ttc-stack-md">
+            <div className="ttc-flex-between">
+              <h2 className="ttc-title" style={{ margin: 0 }}>
+                Overused/Underused Analysis
+              </h2>
+              <button
+                className="ttc-button ttc-button-sm"
+                onClick={generateOverusedThemes}
+                disabled={isLoadingOverusedThemes}
+              >
+                {isLoadingOverusedThemes ? "Analysing..." : "Regenerate"}
+              </button>
+            </div>
+
+            {isLoadingOverusedThemes && (
+              <div className="loading-inline">
+                <div className="loading-spinner" />
+                <p style={{ margin: 0 }}>Analysing patterns of overuse and underuse...</p>
+              </div>
             )}
 
-            {/* Themes View */}
-            {showThemes && (
-                <div className="themes-section">
-                    <div className="themes-header">
-                        <h2 className="themes-title">Theme Analysis</h2>
-                        <button
-                            className={`clustering-btn btn-refresh ${isLoadingThemeAnalysis ? 'loading' : ''}`}
-                            onClick={generateThemeAnalysis}
-                            disabled={isLoadingThemeAnalysis}
-                        >
-                            {isLoadingThemeAnalysis ? 'Analysing...' : 'Regenerate'}
-                        </button>
-                    </div>
-
-                    {isLoadingThemeAnalysis && (
-                        <div className="themes-loading">
-                            <div className="loading-spinner"></div>
-                            <p>Analysing themes and topics in your document collection...</p>
-                        </div>
-                    )}
-
-                    {themeAnalysisError && (
-                        <div className="themes-error">
-                            <p>Error generating theme analysis: {themeAnalysisError}</p>
-                            <button onClick={generateThemeAnalysis} className="clustering-btn">
-                                Try Again
-                            </button>
-                        </div>
-                    )}
-
-                    {themeAnalysisData && !isLoadingThemeAnalysis && (
-                        <div className="themes-content">
-                            <div className="themes-meta">
-                                <span>Data Source: {themeAnalysisData.data_source}</span>
-                                <span>Total Documents: {themeAnalysisData.total_documents}</span>
-                                <span>Analysed: {themeAnalysisData.documents_analysed}</span>
-                                {themeAnalysisData.has_clustering_context && (
-                                    <span>Clustering Context: Available</span>
-                                )}
-                            </div>
-                            <div className="themes-analysis">
-                                <pre>{themeAnalysisData.analysis}</pre>
-                            </div>
-                        </div>
-                    )}
-
-                    {!themeAnalysisData && !themeAnalysisError && !isLoadingThemeAnalysis && (
-                        <div className="themes-placeholder">
-                            <p>Theme analysis will automatically generate when you first view this tab.</p>
-                            <p>This analysis identifies dominant themes, topics, and conceptual patterns in your document collection.</p>
-                        </div>
-                    )}
-                </div>
+            {overusedThemesError && (
+              <div className="ttc-banner ttc-banner--error">
+                <p style={{ margin: 0 }}>Error generating overused themes analysis: {overusedThemesError}</p>
+                <button onClick={generateOverusedThemes} className="ttc-button ttc-button-sm">
+                  Try Again
+                </button>
+              </div>
             )}
 
-            {/* Thematic Flow View */}
-            {showThematicFlow && (
-                <div className="flow-section">
-                    <div className="flow-header">
-                        <h2 className="flow-title">Thematic Flow Analysis</h2>
-                        <button
-                            className={`clustering-btn btn-refresh ${isLoadingThematicFlow ? 'loading' : ''}`}
-                            onClick={generateThematicFlow}
-                            disabled={isLoadingThematicFlow}
-                        >
-                            {isLoadingThematicFlow ? 'Analysing...' : 'Regenerate'}
-                        </button>
-                    </div>
-
-                    {isLoadingThematicFlow && (
-                        <div className="flow-loading">
-                            <div className="loading-spinner"></div>
-                            <p>Analysing thematic relationships and flow patterns...</p>
-                        </div>
-                    )}
-
-                    {thematicFlowError && (
-                        <div className="flow-error">
-                            <p>Error generating thematic flow analysis: {thematicFlowError}</p>
-                            <button onClick={generateThematicFlow} className="clustering-btn">
-                                Try Again
-                            </button>
-                        </div>
-                    )}
-
-                    {thematicFlowData && !isLoadingThematicFlow && (
-                        <div className="flow-content">
-                            <div className="flow-meta">
-                                <span>Data Source: {thematicFlowData.data_source}</span>
-                                <span>Total Documents: {thematicFlowData.total_documents}</span>
-                                <span>Analysed: {thematicFlowData.documents_analysed}</span>
-                                {thematicFlowData.has_clustering_context && (
-                                    <span>Clustering Context: Available</span>
-                                )}
-                            </div>
-                            <div className="flow-analysis">
-                                <pre>{thematicFlowData.analysis}</pre>
-                            </div>
-                        </div>
-                    )}
-
-                    {!thematicFlowData && !thematicFlowError && !isLoadingThematicFlow && (
-                        <div className="flow-placeholder">
-                            <p>Thematic flow analysis will automatically generate when you first view this tab.</p>
-                            <p>This analysis examines how themes interconnect, develop, and flow throughout your documents.</p>
-                        </div>
-                    )}
+            {overusedThemesData && !isLoadingOverusedThemes && (
+              <div className="ttc-stack-md">
+                <div className="ttc-btnrow" style={{ justifyContent: "flex-start" }}>
+                  <span>Data Source: {overusedThemesData.data_source}</span>
+                  <span>Total Documents: {overusedThemesData.total_documents}</span>
+                  <span>Analysed: {overusedThemesData.documents_analysed}</span>
+                  {overusedThemesData.has_clustering_context && <span>Clustering Context: Available</span>}
                 </div>
+                <pre className="ttc-pre">{overusedThemesData.analysis}</pre>
+              </div>
             )}
 
-            {/* Overused Themes View */}
-            {showOverusedThemes && (
-                <div className="overused-section">
-                    <div className="overused-header">
-                        <h2 className="overused-title">Overused/Underused Analysis</h2>
-                        <button
-                            className={`clustering-btn btn-refresh ${isLoadingOverusedThemes ? 'loading' : ''}`}
-                            onClick={generateOverusedThemes}
-                            disabled={isLoadingOverusedThemes}
-                        >
-                            {isLoadingOverusedThemes ? 'Analysing...' : 'Regenerate'}
-                        </button>
-                    </div>
-
-                    {isLoadingOverusedThemes && (
-                        <div className="overused-loading">
-                            <div className="loading-spinner"></div>
-                            <p>Analysing patterns of overuse and underuse...</p>
-                        </div>
-                    )}
-
-                    {overusedThemesError && (
-                        <div className="overused-error">
-                            <p>Error generating overused themes analysis: {overusedThemesError}</p>
-                            <button onClick={generateOverusedThemes} className="clustering-btn">
-                                Try Again
-                            </button>
-                        </div>
-                    )}
-
-                    {overusedThemesData && !isLoadingOverusedThemes && (
-                        <div className="overused-content">
-                            <div className="overused-meta">
-                                <span>Data Source: {overusedThemesData.data_source}</span>
-                                <span>Total Documents: {overusedThemesData.total_documents}</span>
-                                <span>Analysed: {overusedThemesData.documents_analysed}</span>
-                                {overusedThemesData.has_clustering_context && (
-                                    <span>Clustering Context: Available</span>
-                                )}
-                            </div>
-                            <div className="overused-analysis">
-                                <pre>{overusedThemesData.analysis}</pre>
-                            </div>
-                        </div>
-                    )}
-
-                    {!overusedThemesData && !overusedThemesError && !isLoadingOverusedThemes && (
-                        <div className="overused-placeholder">
-                            <p>Overused/underused analysis will automatically generate when you first view this tab.</p>
-                            <p>This analysis identifies repetitive patterns, overused words/phrases, and areas needing more development.</p>
-                        </div>
-                    )}
-                </div>
+            {!overusedThemesData && !overusedThemesError && !isLoadingOverusedThemes && (
+              <div className="ttc-callout">
+                <p className="ttc-callout-title">Note</p>
+                <p style={{ margin: 0 }}>
+                  Overused/underused analysis will automatically generate when you first view this tab. It identifies
+                  repetitive patterns, overused words/phrases, and areas needing more development.
+                </p>
+              </div>
             )}
-        </div>
-    );
+          </section>
+        )}
+      </div>
+    </main>
+  );
 };
 
 export default CreativeClusteringAnalysis;
-

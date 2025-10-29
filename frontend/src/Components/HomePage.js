@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import CreativeKeynessResults from "./Keyness/CreativeKeynessResults";
 import GenreCorpusSelector from "./GenreCorpusSelector";
-import "./HomePage.css";
+import PrivacyTile from "./PrivacyNote";
 
 const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
   const [corpora, setCorpora] = useState([]);
@@ -18,6 +18,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
     if (!analysisType) return;
     if (analysisType === "keyness" && comparisonMode === "user_text") {
       setLoading(false);
+      setErr("");
       return;
     }
 
@@ -91,7 +92,6 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
     });
   }, [analysisType, comparisonMode, corpora]);
 
-
   const formatDisplayName = (file) => {
     let displayName = file.replace(/_keyness$/, "").replace(/\.json$/, "");
     displayName = displayName.replace(/_/g, " ");
@@ -106,76 +106,76 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
     }
   };
 
-
   return (
-    <div className="homepage-container">
-      <div className="homepage-card">
-        <h1 className="homepage-title">Welcome to TTC Writing Analysis</h1>
+    <div className="ttc-page">
+      <div className="ttc-container">
+        <div className="ttc-card">
+          <h1>Welcome to TTC Writing Analysis</h1>
 
-        {/* Analysis Selection */}
-        <div className="homepage-section">
-          <label className="homepage-label">
-            What type of analysis would you like to do?
-          </label>
-          <select
-            onChange={handleAnalysisChange}
-            value={analysisType}
-            className="homepage-select"
-          >
-            <option value="" disabled>
-              Select analysis type…
-            </option>
-            <option value="keyness">Keyness</option>
-            <option value="sentiment">Sentiment</option>
-            <option value="clustering">Clustering</option>
-            <option value="sensorimotor">Sensorimotor Norms</option>
-          </select>
-        </div>
-
-        {/* Comparison Mode Selection (only for keyness) */}
-        {analysisType === "keyness" && (
+          {/* Analysis Selection */}
           <div className="homepage-section">
             <label className="homepage-label">
-              Compare your text against:
+              What type of analysis would you like to do?
             </label>
             <select
-              onChange={handleComparisonModeChange}
-              value={comparisonMode}
-              className="homepage-select"
+              onChange={handleAnalysisChange}
+              value={analysisType}
+              className="ttc-select"
             >
-              <option value="">-- Select comparison mode --</option>
-              <option value="corpus">Texts from a genre corpus</option>
-              <option value="user_text">
-                Another of Your Texts (Two-File Upload)
+              <option value="" disabled>
+                Select analysis type…
               </option>
+              <option value="keyness">Keyness</option>
+              <option value="sentiment">Sentiment</option>
+              <option value="clustering">Clustering</option>
+              <option value="sensorimotor">Sensorimotor Norms</option>
             </select>
-
-            {comparisonMode === "user_text" && (
-              <div className="info-message">
-                ℹ️ You'll upload two texts in the next step:
-                <ul>
-                  <div>
-                    A <strong>Reference text</strong>: The text to compare against; and
-                  </div>
-                  <div>
-                    A <strong>Target text</strong>: The text being analysed
-                  </div>
-                </ul>
-                <em>
-                  Note: Texts are not stored and will be lost when you close the
-                  page.
-                </em>
-              </div>
-            )}
           </div>
-        )}
 
-        {/* Genre selector + button for corpus-based analyses */}
-        {(
-          (analysisType === "keyness" && comparisonMode === "corpus") ||
-          analysisType === "sentiment" ||
-          analysisType === "sensorimotor"
-        ) && (
+          {/* Comparison Mode Selection (only for keyness) */}
+          {analysisType === "keyness" && (
+            <div className="homepage-section">
+              <label className="homepage-label">
+                Compare your text against:
+              </label>
+              <select
+                onChange={handleComparisonModeChange}
+                value={comparisonMode}
+                className="ttc-select"
+              >
+                <option value="">-- Select comparison mode --</option>
+                <option value="corpus">Texts from a genre corpus</option>
+                <option value="user_text">
+                  Another of Your Texts (Two-File Upload)
+                </option>
+              </select>
+
+              {comparisonMode === "user_text" && (
+                <div className="info-message">
+                  ℹ️ You'll upload two texts in the next step:
+                  <ul>
+                    <div>
+                      A <strong>Reference text</strong>: The text to compare against; and
+                    </div>
+                    <div>
+                      A <strong>Target text</strong>: The text being analysed
+                    </div>
+                  </ul>
+                  <em>
+                    Note: Texts are not stored and will be lost when you close the
+                    page. Please refer to our Privacy Policy for more details.
+                  </em>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Genre selector + button for corpus-based analyses */}
+          {(
+            (analysisType === "keyness" && comparisonMode === "corpus") ||
+            analysisType === "sentiment" ||
+            analysisType === "sensorimotor"
+          ) && (
             <>
               <GenreCorpusSelector
                 loading={loading}
@@ -186,6 +186,9 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
                 formatDisplayName={formatDisplayName}
               />
 
+              {/* Privacy Tile */}
+              <PrivacyTile style={{ marginBottom: 16 }} />
+
               <button
                 onClick={() => {
                   onProceed({
@@ -195,7 +198,7 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
                   });
                   setAnalysisDone(true);
                 }}
-                className="homepage-button"
+                className="ttc-button ttc-button-lg"
                 disabled={!localGenre || loading || !!err}
               >
                 Go to{" "}
@@ -205,43 +208,50 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
             </>
           )}
 
-        {/* Special case: Keyness with user_text (no genre needed) */}
-        {analysisType === "keyness" && comparisonMode === "user_text" && (
-          <button
-            onClick={() => {
-              onProceed({
-                analysisType: "keyness",
-                genre: null,           
-                comparisonMode: comparisonMode
-              });
-            }}
-            className="homepage-button"
-            disabled={loading || !!err} 
-          >
-            Go to Keyness Analysis
-          </button>
-        )}
+          {/* Special case: Keyness with user_text (no genre needed) */}
+          {analysisType === "keyness" && comparisonMode === "user_text" && (
+            <button
+              onClick={() => {
+                onProceed({
+                  analysisType: "keyness",
+                  genre: null,
+                  comparisonMode: comparisonMode
+                });
+              }}
+              className="ttc-button ttc-button-lg"
+              disabled={loading || !!err}
+            >
+              Go to Keyness Analysis
+            </button>
+          )}
 
-        {/* Clustering button */}
-        {analysisType === "clustering" && (
-          <button
-            onClick={() => onProceed({ analysisType })}
-            className="homepage-button"
-          >
-            Go to Clustering Analysis
-          </button>
+          {/* Clustering button */}
+          {analysisType === "clustering" && (
+            <>
+             {/* Privacy Tile */}
+              <PrivacyTile style={{ marginBottom: 16 }} />
+            
+            <button
+              onClick={() => onProceed({ analysisType })}
+              className="ttc-button ttc-button-lg"
+            >
+              Go to Clustering Analysis
+            </button>
+                </>
+          )}
+
+        </div>
+
+        {/* Render CreativeKeynessResults below the selection UI (only for corpus mode) */}
+        {analysisDone && localGenre && comparisonMode === "corpus" && (
+          <CreativeKeynessResults
+            genre={localGenre}
+            onSelect={onSelect}
+            selectedGenre={localGenre}
+            onProceed={onProceed}
+          />
         )}
       </div>
-
-      {/* Render CreativeKeynessResults below the selection UI (only for corpus mode) */}
-      {analysisDone && localGenre && comparisonMode === "corpus" && (
-        <CreativeKeynessResults
-          genre={localGenre}
-          onSelect={onSelect}
-          selectedGenre={localGenre}
-          onProceed={onProceed}
-        />
-      )}
     </div>
   );
 };

@@ -11,27 +11,62 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 import nltk
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables from .env file
+load_dotenv()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 
 # === HTTPS, CORS/CSRF, Sessions, and Logging (consolidated) ===
-import os
 
-# Toggle via env: DJANGO_DEBUG=1 for local dev
+# --- Debug toggle -----------------------------------------------------------
+# Never run with DEBUG=True in production.
+# Local dev: set DJANGO_DEBUG=1 (in your shell or .env).
+# Render: leave DJANGO_DEBUG unset (or set to 0) so DEBUG=False.
 DEBUG = os.environ.get("DJANGO_DEBUG", "") == "1"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "your.production.domain"]
+# NLTK_DATA=/opt/render/nltk_data ensures required corpora at startup (punkt, punkt_tab, averaged_perceptron_tagger_eng).
+os.environ.setdefault("NLTK_DATA", "/opt/render/nltk_data")
+os.makedirs(os.environ["NLTK_DATA"], exist_ok=True)
+
+def ensure(path, download_name):
+    try:
+        nltk.data.find(path)
+    except LookupError:
+        nltk.download(download_name, download_dir=os.environ["NLTK_DATA"], quiet=True)
+
+# Tokenizers (support old/new layouts)
+ensure("tokenizers/punkt", "punkt")
+ensure("tokenizers/punkt_tab", "punkt_tab")
+
+# Taggers (support old/new names)
+ensure("taggers/averaged_perceptron_tagger", "averaged_perceptron_tagger")
+ensure("taggers/averaged_perceptron_tagger_eng", "averaged_perceptron_tagger_eng")
+
+# --- Hosts (backend origin) ------------------------------------------------
+# Allow localhost for dev and the Render hostname in prod.
+# Render usually provides RENDER_EXTERNAL_HOSTNAME.
+RENDER_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".onrender.com", "nlp-insights-capstone-ljvw.onrender.com"]
+if RENDER_HOST and RENDER_HOST not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_HOST)
+
+# Frontend origin (Vercel) for CORS/CSRF
+FRONTEND_ORIGIN = os.environ.get(
+    "FRONTEND_ORIGIN",
+    "https://nlp-insights-capstone.vercel.app").rstrip("/")
 
 # HTTPS and cookies
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT = not DEBUG
+SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
@@ -50,15 +85,43 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://your.production.domain",
-]
+    FRONTEND_ORIGIN,
+    "https://nlp-insights-capstone-ljvw.onrender.com",
+    ]
+if RENDER_HOST:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_HOST}")
+CSRF_TRUSTED_ORIGINS += ["https://*.vercel.app"]
+
 CORS_ALLOW_ALL_ORIGINS = False
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://your.production.domain",
+    FRONTEND_ORIGIN,
 ]
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.vercel\.app$"]
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 # Conservative logging: no request bodies / file contents
 LOGGING = {
@@ -81,11 +144,6 @@ LOGGING = {
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-@!dq1k%%v2-1v2hr_w_tev7e&xjlet1a=e4%*8kijxpj$6yi%('
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
 try:
     nltk.data.find("taggers/averaged_perceptron_tagger_eng")
 except LookupError:
@@ -101,13 +159,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'api',
+    'api.apps.ApiConfig',
     'corsheaders',
 ]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -181,46 +240,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = { ##WhiteNoise on Django 5 — prefer STORAGES over STATICFILES_STORAGE
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-]
-
-CORS_ALLOW_ALL_ORIGINS = False
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-CORS_ALLOW_CREDENTIALS = True
-
-# Session configuration
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database sessions
-SESSION_COOKIE_AGE = 7 * 24 * 60 * 60  # 7 days
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = True  # Set to True in production with HTTPS
-SESSION_SAVE_EVERY_REQUEST = True  # Update session on every request
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'loggers': {
-        'your_app_name': {  # Replace with your actual app name
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
-    },
-}

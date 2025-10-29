@@ -1,5 +1,4 @@
 import React from "react";
-import "./KeynessResultsGrid.css";
 
 const KeynessResultsGrid = ({ results = [], method, onWordDetail, word }) => {
   if (!results || results.length === 0) return <p>No results available.</p>;

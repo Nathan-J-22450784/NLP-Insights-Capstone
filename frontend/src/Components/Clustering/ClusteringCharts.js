@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Plot from "react-plotly.js";
-import "./ClusteringCharts.css";
+
 
 const ClusteringCharts = ({ clusters, selectedCluster = "all" }) => {
   const [maxWords, setMaxWords] = useState(5);
@@ -164,7 +164,7 @@ const ClusteringCharts = ({ clusters, selectedCluster = "all" }) => {
   };
 
   return (
-    <div className="clustering-charts-container">
+    <div className="charts-container">
       {/* Controls */}
       <div className="controls-section">
         <div className="control-group">

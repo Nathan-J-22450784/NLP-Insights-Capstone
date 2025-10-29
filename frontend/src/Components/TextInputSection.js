@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { CheckCircle, AlertCircle, Upload, X } from "lucide-react";
-import "./Keyness/KeynessLanding.css";
 
 const TextInputSection = ({
   pastedText,
@@ -23,88 +22,19 @@ const TextInputSection = ({
   const [uploadSuccess, setUploadSuccess] = useState([]);
   const [draggedFileName, setDraggedFileName] = useState("");
   const dropzoneRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  // Handle files (user_text or corpus)
-  const handleFiles = (files) => {
-    const fileArray = Array.from(files);
-
-    // Detect duplicates by name
-    const existingNames = new Set(selectedFiles.map((f) => f.name));
-    const duplicateNames = fileArray.filter((f) => existingNames.has(f.name)).map(f => f.name);
-
-    if (duplicateNames.length > 0) {
-      setUploadErrors([
-        `File(s) not uploaded: ${duplicateNames.join(", ")}. A file with the same name has already been uploaded.`
-      ]);
-      setUploadSuccess([]); // Clear previous success messages
-      return;
-    }
-
-    // Filter out files that are already selected (by name and size)
-    const existing = new Set(selectedFiles.map((f) => `${f.name}-${f.size}`));
-    const newFiles = fileArray.filter((f) => !existing.has(`${f.name}-${f.size}`));
-
-    // Check file count limit
-    if (selectedFiles.length + newFiles.length > 5) {
-      setUploadErrors([
-        `You can upload a maximum of 5 files. You already have ${selectedFiles.length} selected and tried to add ${newFiles.length} more.`,
-      ]);
-      setUploadSuccess([]); // Clear previous success messages
-      return;
-    }
-
-    // Validate types for all new files
-    const invalidTypes = newFiles.filter(
-      (f) => !f.name.toLowerCase().match(/\.(txt|doc|docx)$/)
-    );
-    if (invalidTypes.length > 0) {
-      setUploadErrors([
-        `Invalid file types: ${invalidTypes.map((f) => f.name).join(", ")}. Only .txt, .doc, and .docx are allowed.`,
-      ]);
-      setUploadSuccess([]); // Clear previous success messages
-      return;
-    }
-
-    // Validate size for all new files
-    const oversized = newFiles.filter((f) => f.size > 5 * 1024 * 1024);
-    if (oversized.length > 0) {
-      setUploadErrors([
-        `Files too large (max 5MB): ${oversized.map((f) => f.name).join(", ")}`,
-      ]);
-      setUploadSuccess([]); // Clear previous success messages
-      return;
-    }
-
-    // For user_text mode, only allow exactly two files
-    if (comparisonMode === "user_text") {
-      const combinedFiles = [...selectedFiles, ...newFiles];
-      if (combinedFiles.length > 2) {
-        setUploadErrors(["Please select exactly two files (target + reference)."]);
-        setUploadSuccess([]); // Clear previous success messages
-        return;
-      }
-      setUploadErrors([]); // Clear previous error messages
-      setUploadSuccess([]); // Clear previous success messages
-      if (combinedFiles.length === 2) {
-        uploadUserTextFiles(combinedFiles);
-      }
-      return;
-    }
-
-    // For corpus mode, append new files to selectedFiles
-    const updatedFiles = [...selectedFiles, ...newFiles];
-    setSelectedFiles(updatedFiles);
-    setUploadErrors([]); // Clear previous error messages
-    setUploadSuccess([]); // Clear previous success messages
-    if (newFiles.length > 0) {
-      uploadCorpusFiles(newFiles);
-    }
-  };
+  const clickFilePicker = () => fileInputRef.current?.click();
 
   const uploadUserTextFiles = async (files) => {
+    // Must be exactly two files
     if (files.length !== 2) {
       setUploadErrors(["Please select exactly two files."]);
-      setUploadSuccess([]); // Clear previous success messages
+      return;
+    }
+    const [file1, file2] = files;
+    if (file1.name === file2.name && file1.size === file2.size) {
+      setUploadErrors(["Please select two different files."]);
       return;
     }
 
@@ -114,8 +44,8 @@ const TextInputSection = ({
     setUploadProgress(0);
 
     const formData = new FormData();
-    formData.append("target_file", files[0]);
-    formData.append("reference_file", files[1]);
+    formData.append("target_file", file1);
+    formData.append("reference_file", file2);
     formData.append("comparison_mode", "user_text");
 
     try {
@@ -128,7 +58,6 @@ const TextInputSection = ({
 
       if (!data.success) {
         setUploadErrors([data.error || "Upload failed"]);
-        setUploadSuccess([]); // Clear previous success messages
         return;
       }
 
@@ -151,23 +80,66 @@ const TextInputSection = ({
 
       setSelectedFiles(updatedFiles);
       setUploadSuccess([
-        `Target: ${updatedFiles[0].name} (${updatedFiles[0].wordCount} words)`,
-        `Reference: ${updatedFiles[1].name} (${updatedFiles[1].wordCount} words)`,
+        `✓ Target: ${updatedFiles[0].name} (${updatedFiles[0].wordCount} words)`,
+        `✓ Reference: ${updatedFiles[1].name} (${updatedFiles[1].wordCount} words)`,
       ]);
-      setUploadErrors([]); // Clear previous error messages
 
-      onFilesUploaded &&
-        onFilesUploaded(
-          updatedFiles.map((f) => f.textContent).join("\n\n--- Next File ---\n\n"),
-          updatedFiles
-        );
+      onFilesUploaded?.(
+        updatedFiles.map((f) => f.textContent).join("\n\n--- Next File ---\n\n"),
+        updatedFiles
+      );
     } catch (err) {
       setUploadErrors([err.message || "Network error"]);
-      setUploadSuccess([]); // Clear previous success messages
     } finally {
       setUploading(false);
       setUploadProgress(0);
     }
+  };
+
+  const handleFiles = (files) => {
+    const fileArray = Array.from(files);
+
+    if (comparisonMode === "user_text") {
+      const newFiles = [...selectedFiles, ...fileArray];
+
+      if (newFiles.length > 2) {
+        setUploadErrors(["Please select exactly two files (target + reference)."]);
+        return;
+      }
+
+      const oversized = newFiles.filter((f) => f.size > 5 * 1024 * 1024);
+      if (oversized.length > 0) {
+        setUploadErrors([
+          `Files too large (max 5MB): ${oversized.map((f) => f.name).join(", ")}`,
+        ]);
+        return;
+      }
+
+      const invalidTypes = newFiles.filter(
+        (f) => !f.name.toLowerCase().match(/\.(txt|doc|docx)$/)
+      );
+      if (invalidTypes.length > 0) {
+        setUploadErrors([
+          `Invalid file types: ${invalidTypes.map((f) => f.name).join(", ")}`,
+        ]);
+        return;
+      }
+
+      setSelectedFiles(newFiles);
+      setUploadErrors([]);
+      setUploadSuccess([]);
+
+      if (newFiles.length === 2) uploadUserTextFiles(newFiles);
+      return;
+    }
+
+    // Corpus mode
+    const existing = new Set(selectedFiles.map((f) => `${f.name}-${f.size}`));
+    const newCorpusFiles = fileArray.filter((f) => !existing.has(`${f.name}-${f.size}`));
+    if (!newCorpusFiles.length) return;
+
+    setSelectedFiles([...selectedFiles, ...newCorpusFiles]);
+    uploadCorpusFiles(newCorpusFiles);
   };
 
   const uploadCorpusFiles = async (files) => {
@@ -189,7 +161,6 @@ const TextInputSection = ({
 
       if (!data.success) {
         setUploadErrors([data.error || "Upload failed"]);
-        setUploadSuccess([]); // Clear previous success messages
         return;
       }
 
@@ -201,47 +172,28 @@ const TextInputSection = ({
         processed: true,
       }));
 
-      setSelectedFiles(prev => {
-        // Remove duplicates by name and size
-        const existing = new Set();
-        const allFiles = [...prev, ...uploadedFiles];
-        const uniqueFiles = [];
-        for (const f of allFiles) {
-          const key = `${f.name}-${f.size}`;
-          if (!existing.has(key)) {
-            existing.add(key);
-            uniqueFiles.push(f);
-          }
-        }
-        return uniqueFiles;
-      });
+      setSelectedFiles(uploadedFiles);
       setUploadSuccess(
-        uploadedFiles.map(
-          (f, i) => `Successfully uploaded ${f.name} (${f.wordCount} words)`
-        )
+        uploadedFiles.map((f, i) => `✓ ${i + 1}: ${f.name} (${f.wordCount} words)`)
       );
-      setUploadErrors([]); // Clear previous error messages
 
-      onFilesUploaded &&
-        onFilesUploaded(
-          uploadedFiles.map((f) => f.textContent).join("\n\n--- Next File ---\n\n"),
-          uploadedFiles
-        );
+      onFilesUploaded?.(
+        uploadedFiles.map((f) => f.textContent).join("\n\n--- Next File ---\n\n"),
+        uploadedFiles
+      );
     } catch (err) {
       setUploadErrors([err.message || "Network error"]);
-      setUploadSuccess([]); // Clear previous success messages
     } finally {
       setUploading(false);
       setUploadProgress(0);
     }
   };
 
-  // Remove / clear files
   const removeFile = (index) => {
     const newFiles = selectedFiles.filter((_, i) => i !== index);
     setSelectedFiles(newFiles);
     if (newFiles.length === 0) {
-      onFilesUploaded && onFilesUploaded("", []);
+      onFilesUploaded?.("", []);
       setUploadSuccess([]);
       setUploadErrors([]);
     }
@@ -251,10 +203,10 @@ const TextInputSection = ({
     setSelectedFiles([]);
     setUploadSuccess([]);
     setUploadErrors([]);
-    onFilesUploaded && onFilesUploaded("", []);
+    onFilesUploaded?.("", []);
   };
 
-  // Drag & drop handlers
+  // DnD
   const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -268,12 +220,12 @@ const TextInputSection = ({
     e.preventDefault();
     e.stopPropagation();
     setDragCounter((prev) => {
-      const newCounter = prev - 1;
-      if (newCounter === 0) {
+      const next = prev - 1;
+      if (next === 0) {
         setHover(false);
         setDraggedFileName("");
       }
-      return newCounter;
+      return next;
     });
   };
   const handleDragOver = (e) => {
@@ -319,68 +271,97 @@ const TextInputSection = ({
     };
   }, []);
 
-  const getComparisonLabel = () => {
-    if (comparisonMode === "user_text") {
-      return referenceTextName
+  const comparisonLabel =
+    comparisonMode === "user_text"
+      ? referenceTextName
         ? `Comparing against: ${referenceTextName}`
-        : "Comparing against your selected text";
-    }
-    return null;
-  };
+        : "Comparing against your selected text"
+      : null;
 
   return (
-    <div className="text-input-container">
-      {/* Paste textarea */}
-      <div className="paste-section">
-        <label className="input-label">Paste Your Text</label>
+    <div className="ttc-stack-md">
+      {/* Helper callout */}
+      <div className="ttc-callout">
+        <p className="ttc-callout-title">Paste or upload your text</p>
+        <p style={{ margin: 0 }}>
+          Paste below or drag in a few files. We’ll show a quick preview and word count before you continue.
+        </p>
+      </div>
+
+      {/* Paste area */}
+      <div className="ttc-panel">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 8,
+          }}
+        >
+          <label className="homepage-label" style={{ color: "#1f2937", margin: 0 }}>
+            Your Text
+          </label>
+          <span style={{ color: "#64748b", fontSize: ".9rem" }}>
+            {pastedWordCount > 0 ? `${pastedWordCount} words` : "0 words"}
+          </span>
+        </div>
+
         <textarea
           value={pastedText}
           onChange={handleTextPaste}
-          className="keyness-textarea"
-          placeholder="Paste your text here..."
+          className="ttc-textarea"
+          placeholder="Paste your text here…"
         />
-        {pastedText && <div className="word-count">Word count: {pastedWordCount}</div>}
       </div>
 
-      {/* Drag & drop upload */}
+      {/* Dropzone */}
       <div
         ref={dropzoneRef}
-        className={`keyness-dropzone ${hover ? "hover" : ""} ${uploading ? "uploading" : ""
-          }`}
+        className={`ttc-dropzone${hover ? " is-dragover" : ""} ${uploading ? " uploading" : ""}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onClick={clickFilePicker}
+        role="button"
+        tabIndex={0}
       >
-        <div className="dropzone-content">
-          {uploading ? (
-            <div className="upload-progress">
-              <Upload className="upload-icon" size={24} />
+        {!uploading ? (
+          <div>
+            <Upload size={28} style={{ verticalAlign: "middle", marginRight: 8 }} />
+            <div style={{ fontWeight: 700, marginTop: 6 }}>Drag & drop files here</div>
+            {hover && draggedFileName && (
+              <div style={{ marginTop: 4 }}>
+                Release to upload: <strong>{draggedFileName}</strong>
+              </div>
+            )}
+            <div style={{ marginTop: 6, color: "#475569" }}>
+              Supported: <code>.txt</code>, <code>.doc</code>, <code>.docx</code> (max 5MB each). Max 5 files.
+            </div>
+            <div className="ttc-center-row" style={{ marginTop: 12 }}>
+              <button type="button" className="ttc-button" onClick={clickFilePicker}>
+                Select Files from Computer
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ width: "100%" }}>
+            <div className="ttc-center-row" style={{ gap: 8, marginBottom: 10 }}>
+              <Upload size={22} />
               <div>Uploading… {uploadProgress}%</div>
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
             </div>
-          ) : (
-            <div className="dropzone-idle">
-              <Upload className="upload-icon" size={32} />
-              <div className="dropzone-text">Drag & drop files here</div>
-              {hover && draggedFileName && (
-                <div className="drag-feedback">
-                  Release to upload: <strong>{draggedFileName}</strong>
-                </div>
-              )}
-              <div className="file-info">
-                Supported: .txt, .doc, .docx (max 5MB each). Max 5 files.
-              </div>
+            <div className="ttc-progress">
+              <div
+                className="ttc-progress__fill"
+                style={{ width: `${uploadProgress}%` }}
+              />
+              <div className="progress-text">{uploadProgress}%</div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
         <input
-          id="fileInput"
+          ref={fileInputRef}
           type="file"
           multiple
           className="hidden-file-input"
@@ -390,32 +371,21 @@ const TextInputSection = ({
         />
       </div>
 
-      {/* Select Files Button */}
-      <div className="select-button-container">
-        <button
-          type="button"
-          onClick={() => !uploading && document.getElementById("fileInput").click()}
-          className="select-files-button"
-          disabled={uploading}
-        >
-          Select Files from Computer
-        </button>
-      </div>
-
-      {/* Selected files section */}
+      {/* Selected files */}
       {selectedFiles.length > 0 && (
-        <div className="selected-files-section">
-          <div className="files-header">
-            <h4>Selected Files:</h4>
-            <button onClick={clearAllFiles} className="clear-all-button">
+        <div className="ttc-files-section">
+          <div className="ttc-files-header">
+            <h4 className="ttc-title--sm" style={{ margin: 0 }}>Selected Files</h4>
+            <button onClick={clearAllFiles} className="ttc-button ttc-button-sm">
               Clear All
             </button>
           </div>
-          <div className="files-list">
+
+          <div className="ttc-files-list">
             {selectedFiles.map((file, index) => (
-              <div key={`${file.name}-${index}`} className="file-item">
-                <div className="file-info-row">
-                  <CheckCircle size={16} className="file-check" />
+              <div key={`${file.name}-${index}`} className="ttc-file-item">
+                <div className="ttc-filemeta">
+                  <CheckCircle size={16} />
                   <span className="file-details">
                     {file.name} ({Math.round(file.size / 1024)}KB)
                     {file.wordCount && (
@@ -425,7 +395,8 @@ const TextInputSection = ({
                 </div>
                 <button
                   onClick={() => removeFile(index)}
-                  className="remove-file-button"
+                  className="ttc-remove"
+                  title="Remove file"
                 >
                   <X size={16} />
                 </button>
@@ -436,93 +407,76 @@ const TextInputSection = ({
       )}
 
       {/* Uploaded Text Preview */}
-      {comparisonMode === "user_text" && selectedFiles.length === 2 && (
-        <div className="preview-box">
-          <h3 className="preview-title">Uploaded Text Preview:</h3>
-          <div className="preview-content">
-            <div className="file-preview">
-              <strong>Target: {selectedFiles[0].name}</strong>
-              <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>
-                {selectedFiles[0].textContent
-                  ? selectedFiles[0].textContent.split("\n").slice(0, 4).join("\n")
-                  : "(No preview available)"}
-              </pre>
-            </div>
-            <hr />
-            <div className="file-preview">
-              <strong>Reference: {selectedFiles[1].name}</strong>
-              <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>
-                {selectedFiles[1].textContent
-                  ? selectedFiles[1].textContent.split("\n").slice(0, 4).join("\n")
-                  : "(No preview available)"}
-              </pre>
-            </div>
-          </div>
+      {comparisonMode === "user_text" && selectedFiles.length > 1 && (
+        <div className="ttc-panel">
+          <h3 className="ttc-title--sm" style={{ marginTop: 0 }}>Uploaded Text Preview</h3>
+          <pre className="ttc-pre">
+            {selectedFiles.slice(1).map((file, index) => {
+              const previewText = file.textContent
+                ? file.textContent.split("\n").slice(0, 4).join("\n")
+                : "";
+              return `${file.name}\n${previewText}${index < selectedFiles.slice(1).length - 1 ? "\n---\n" : ""}`;
+            })}
+          </pre>
         </div>
       )}
 
       {comparisonMode === "corpus" && selectedFiles.length > 0 && (
-        <div className="preview-box">
-          <h3 className="preview-title">Uploaded Text Preview:</h3>
-          <div className="preview-content">
-            {selectedFiles.map((file, index) => {
-              const previewText = file.textContent
-                ? file.textContent.split("\n").slice(0, 4).join("\n")
-                : "";
-              return (
-                <div key={index} className="file-preview">
-                  <strong>{file.name}</strong>
-                  {"\n"}
-                  {previewText}
-                </div>
-              );
-            })}
-          </div>
+        <div className="ttc-panel">
+          <h3 className="ttc-title--sm" style={{ marginTop: 0 }}>Uploaded Text Preview</h3>
+          <pre className="ttc-pre">
+            {selectedFiles
+              .map((file) => {
+                const previewText = file.textContent
+                  ? file.textContent.split("\n").slice(0, 4).join("\n")
+                  : "";
+                return `${file.name}\n${previewText}`;
+              })
+              .join("\n")}
+          </pre>
         </div>
       )}
 
       {/* Corpus / Reference Preview */}
       {corpusPreview && (
-        <div className="preview-box">
-          <h3 className="preview-title">
-            {comparisonMode === "user_text" ? "Reference Text Preview:" : "Corpus Preview:"}
+        <div className="ttc-panel">
+          <h3 className="ttc-title--sm" style={{ marginTop: 0 }}>
+            {comparisonMode === "user_text" ? "Reference Text Preview" : "Corpus Preview"}
           </h3>
-          <div className="preview-content">{corpusPreview}</div>
+          <pre className="ttc-pre">{corpusPreview}</pre>
         </div>
       )}
 
-      {/* Success messages */}
+      {/* Success / Error banners */}
       {uploadSuccess.length > 0 && (
-        <div className="success-messages">
-          {uploadSuccess.map((msg, i) => (
-            <div key={i} className="success-item">
-              <CheckCircle size={16} />
-              {msg}
-            </div>
-          ))}
+        <div className="ttc-banner ttc-banner--success" role="status">
+          <div>
+            {uploadSuccess.map((msg, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <CheckCircle size={16} /> {msg}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Error messages */}
       {uploadErrors.length > 0 && (
-        <div className="error-messages">
-          {uploadErrors.map((err, i) => (
-            <div key={i} className="error-item">
-              <AlertCircle size={16} />
-              {err}
-            </div>
-          ))}
+        <div className="ttc-banner ttc-banner--error" role="alert">
+          <div>
+            {uploadErrors.map((msg, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <AlertCircle size={16} /> {msg}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* General error */}
       {error && (
-        <div className="general-error">
-          <AlertCircle size={16} />
-          {error}
+        <div className="ttc-banner ttc-banner--error" role="alert">
+          <AlertCircle size={16} /> {error}
         </div>
       )}
-
     </div>
   );
 };

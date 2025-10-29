@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { BarChart3, BookOpen, X, Info } from "lucide-react";
-import "./ResultsSummary.css";
 
 const ResultsSummary = ({ stats, selectedMethod, comparisonResults, genre }) => {
   const [showCorpusModal, setShowCorpusModal] = useState(false);
@@ -51,7 +50,7 @@ const ResultsSummary = ({ stats, selectedMethod, comparisonResults, genre }) => 
         <div className="summary-header">
           <h3 className="summary-title">
             <BarChart3 className="summary-icon" />
-            {selectedMethod ? `${selectedMethod} Keyness Analysis Results` : "Keyness Analysis Results"}
+            {selectedMethod ? `${selectedMethod.toUpperCase()} Keyness Analysis Results` : "Keyness Analysis Results"}
           </h3>
         </div>
 

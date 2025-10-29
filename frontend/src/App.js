@@ -8,6 +8,7 @@ import SensorimotorLanding from "./Components/Sensorimotor/SensorimotorLanding";
 import useUnloadCleanup from "./Hooks/useUnloadCleanup";
 import KeynessWordDetail from "./Components/Keyness/KeynessWordDetail";
 import CreativeKeynessResults from "./Components/Keyness/CreativeKeynessResults";
+import "./styles/ttc.css";
 
 function App() {
     const [activePage, setActivePage] = useState("home");
@@ -85,7 +86,7 @@ function App() {
     useUnloadCleanup();
 
     return (
-        <div className="App p-6">
+        <div className="p-6">
             {activePage === "home" && (
                 <HomePage
                     onSelect={setActivePage}

@@ -1,48 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import TextInputSection from "../TextInputSection";
 import SensorimotorAnalyser from "./SensorimotorAnalyser";
-// import "./SensorimotorLanding.css";
+import PrivacyTile from "../PrivacyNote";
+
+// same tokenizer style across tools
+const tokenize = (text) =>
+  (text || "").toLowerCase().split(/[^a-zA-Z']+/).filter(Boolean);
 
 const SensorimotorLanding = ({ onBack }) => {
   const [pastedText, setPastedText] = useState("");
   const [uploadedText, setUploadedText] = useState("");
   const [uploadedPreview, setUploadedPreview] = useState("");
-  const [activeInput, setActiveInput] = useState("");
   const [error, setError] = useState("");
   const [analysisStarted, setAnalysisStarted] = useState(false);
-  const [corpusPreview, setCorpusPreview] = useState("");
   const [pastedWordCount, setPastedWordCount] = useState(0);
-
-  useEffect(() => {
-    const fetchCorpusPreview = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/corpus-preview/");
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        setCorpusPreview(data.preview.split("\n").slice(0, 4).join("\n"));
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchCorpusPreview();
-  }, []);
 
   const handleTextPaste = (e) => {
     const text = e.target.value;
     setPastedText(text);
     setUploadedText(text);
     setUploadedPreview(text.split("\n").slice(0, 4).join("\n"));
-    setActiveInput("text");
-
-    const words = text.trim().split(/\s+/).filter(Boolean);
-    setPastedWordCount(words.length);
+    setPastedWordCount(tokenize(text).length);
   };
 
-  const handleFilesUploaded = (combinedText, files) => {
+  const handleFilesUploaded = (combinedText) => {
     setUploadedText(combinedText);
     setUploadedPreview(combinedText.split("\n").slice(0, 4).join("\n"));
-    setActiveInput("file");
     setError("");
+    setPastedWordCount(tokenize(combinedText).length);
   };
 
   const handleContinue = () => {
@@ -56,46 +41,53 @@ const SensorimotorLanding = ({ onBack }) => {
   if (analysisStarted) {
     return (
       <SensorimotorAnalyser
-        uploadedText={uploadedText}
-        uploadedPreview={uploadedPreview}
-        corpusPreview={corpusPreview}
+        words={tokenize(uploadedText)}      // privacy: send tokens only
+        uploadedPreview={uploadedPreview}   // matches other tools’ UX
         onBack={() => setAnalysisStarted(false)}
       />
     );
   }
 
   return (
-    <div>
-      <button
-        onClick={onBack}
-        className="mb-6 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded shadow"
-      >
-        ← Back
-      </button>
+    <main className="ttc-page">
+      <div className="ttc-container ttc-stack-lg">
+        {/* Back */}
+        <button type="button" onClick={onBack} className="ttc-button">← Back</button>
 
-      <h1 className="text-3xl font-bold mb-6">Sensorimotor Analysis</h1>
+        {/* Title */}
+        <section className="ttc-panel ttc-stack-md">
+          <h1 className="analysis-title">Sensorimotor Analysis</h1>
+          <p className="ttc-subtitle">See which senses and actions your text evokes.</p>
+        </section>
 
-      <div className="sensorimotor-container">
-        <TextInputSection
-          pastedText={pastedText}
-          handleTextPaste={handleTextPaste}
-          pastedWordCount={pastedWordCount}
-          uploadedPreview={uploadedPreview}
-          corpusPreview={corpusPreview}
-          error={error}
-          onFilesUploaded={handleFilesUploaded}
-        />
+        {/* Input + actions */}
+        <section className="ttc-panel ttc-stack-md">
+          <TextInputSection
+            pastedText={pastedText}
+            handleTextPaste={handleTextPaste}
+            pastedWordCount={pastedWordCount}
+            uploadedPreview={uploadedPreview}
+            corpusPreview={""}
+            error={error}
+            onFilesUploaded={handleFilesUploaded}
+          />
 
-        <div className="text-center">
-          <button
-            onClick={handleContinue}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-lg shadow-lg hover:from-purple-700 hover:to-blue-700 transform hover:-translate-y-1 transition-all"
-          >
-            Continue to Analysis →
-          </button>
-        </div>
+         <PrivacyTile />
+            
+          {error && <div className="ttc-banner ttc-banner--error">{error}</div>}
+
+          <div className="analysis-actions">
+            <button
+              onClick={handleContinue}
+              className="analysis-button"
+              disabled={!uploadedText.trim()}   // ✅ remove undefined vars
+            >
+              Continue to Analysis →
+            </button>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 };
 

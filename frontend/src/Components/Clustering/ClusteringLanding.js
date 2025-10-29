@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import TextInputSection from "../TextInputSection";
 import ClusteringAnalyser from "./ClusteringAnalyser";
-import "./ClusteringLanding.css";
+import PrivacyTile from "../PrivacyNote";
 
 const ClusteringLanding = ({ onBack }) => {
   const [pastedText, setPastedText] = useState("");
@@ -18,7 +18,6 @@ const ClusteringLanding = ({ onBack }) => {
     setUploadedText(text);
     setUploadedPreview(text.split("\n").slice(0, 4).join("\n"));
     setActiveInput("text");
-
     const words = text.trim().split(/\s+/).filter(Boolean);
     setPastedWordCount(words.length);
   };
@@ -49,23 +48,20 @@ const ClusteringLanding = ({ onBack }) => {
   }
 
   return (
-    <div className="Clustering-landing-wrapper">
-      <button
-        onClick={onBack}
-        className="Clustering-back-button"
-      >
-        ← Back
-      </button>
+    <main className="ttc-page">
+      <div className="ttc-container ttc-stack-lg">
+        <button onClick={onBack} className="ttc-button ttc-button-sm">
+          ← Back
+        </button>
 
-      <div className="Clustering-header">
-        <h1 className="Clustering-title">Clustering Analysis</h1>
-        <p className="Clustering-subtitle">
+      <header className="ttc-stack-md">
+          <h1 className="analysis-title">Clustering Analysis</h1>
+        <p className="ttc-subtitle">
           See how your words naturally group together into clusters, highlighting the themes, styles, and repeated ideas that shape your writing.
         </p>
-      </div>
+      </header>
 
-      <div className="Clustering-container">
-        <div className="Clustering-content-card">
+      <section className="ttc-panel ttc-stack-md">
           <TextInputSection
             pastedText={pastedText}
             handleTextPaste={handleTextPaste}
@@ -75,27 +71,28 @@ const ClusteringLanding = ({ onBack }) => {
             onFilesUploaded={handleFilesUploaded}
           />
 
+         <PrivacyTile />
+            
           {error && (
-            <div className="Clustering-error-message">
+            <div className="ttc-banner ttc-banner--error">
               {error}
             </div>
           )}
 
-          <div className="Clustering-continue-section">
+      
+      <div className="analysis-actions">
             <button
               onClick={handleContinue}
-              className="Clustering-continue-button"
+              className="analysis-button"
               disabled={!uploadedText.trim()}
             >
               Continue to Analysis →
-            </button>
+                  </button>
           </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 };
 
 export default ClusteringLanding;
-
-

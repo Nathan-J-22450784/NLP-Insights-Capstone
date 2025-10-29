@@ -10,6 +10,8 @@
     "axios": "^1.11.0",
     "lucide-react": "^0.541.0",
     "papaparse": "^5.5.3",
+    "react-plotly.js": "^2.6.0",
+    "plotly.js": "^2.35.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2",
@@ -20,7 +22,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "npm install react-plotly.js plotly.js && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -43,4 +45,3 @@
     ]
   }
 }
-

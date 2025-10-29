@@ -51,6 +51,15 @@ LEXICON_PATH = Path(__file__).resolve().parent / "sentiart_lexicon.csv"
 # more emotions to the CSV later, add the new headers here as well.
 EMOTIONS = ["joy", "sadness", "anger", "fear", "disgust"]
 
+# Context cues for simple composition
+NEGATORS = {"not", "no", "never", "n't", "without", "hardly", "scarcely", "barely"}
+INTENSIFIERS = {
+    "extremely": 2.0, "very": 1.5, "really": 1.2, "quite": 1.2, "so": 1.2, "too": 1.2,
+    "slightly": 0.8, "somewhat": 0.85, "hardly": 0.7, "barely": 0.7
+}
+NEGATION_WINDOW = 3   # how many tokens back a negator can influence
+INTENS_WINDOW   = 2   # how many tokens back an intensifier can influence
+
 # Tokenization:
 # - WORD_PATTERN tries to catch "word-like" sequences:
 #   - must start with a letter or digit (so we don't capture stray punctuation)
@@ -249,71 +258,15 @@ def load_lexicon() -> Dict[str, Dict[str, float]]:
 # ──────────────────────────────────────────────────────────────────────────────
 # STEP 3: ANALYSIS
 # ──────────────────────────────────────────────────────────────────────────────
-def _is_good_oov(token: str) -> bool:
-    """
-    Filter for display-worthy OOV tokens:
-    - alphabetic only (drops numbers/punctuation fragments)
-    - length >= 3 (drops very short noise)
-    - not in STOPWORDS
-    """
-    w = token.lower()
-    return w.isalpha() and len(w) >= 3 and w not in STOPWORDS
 
 def analyze_text(text: str) -> dict:
     """
     Main entry point for callers.
 
-    Args:
-        text: any string-like object containing the text to analyse (str() is applied).
-
-    Returns:
-        A dictionary with four top-level keys:
-
-        {
-          "summary": {
-             "sentiment_score_mean": float,   # average sentiment over matched tokens
-             "polarity": -1|0|1,              # direction only (negative, neutral, positive)
-             "magnitude": float,              # total strength regardless of sign
-             "stddev": float,                 # variability of token sentiment scores
-             "token_count": int,              # total tokens we saw
-             "matched_token_count": int,      # tokens that had a lexicon entry
-             "coverage": float,               # matched_token_count / token_count
-             "positive_ratio": float,         # share of matched tokens with score > +0.05
-             "negative_ratio": float,         # share with score < -0.05
-             "neutral_ratio":  float,         # share neither > +0.05 nor < -0.05
-             "oov_examples": [(str,int)],     # top 10 unknown words and their counts
-             "lexicon_rows": int              # number of entries in the loaded lexicon
-          },
-
-          "emotions": {
-             "joy": float, "sadness": float, "anger": float, "fear": float, "disgust": float
-          },
-
-          "top_contributors": {
-             "positive": [token_rows...],     # top 10 by positive contribution (score * count)
-             "negative": [token_rows...],     # top 10 by negative contribution
-             "by_emotion": {
-                "joy": [token_rows...], ...   # top 10 tokens per emotion by |emotion_score| * count
-             }
-          },
-
-          "tokens": [
-             {
-               "word": str,
-               "count": int,
-               "sentiment_score": float,      # raw per-token score from lexicon
-               "contribution": float,         # sentiment_score * count (signed)
-               "emotions": {e: float for e in EMOTIONS}
-             },
-             ...
-          ]
-        }
-
-    Notes:
-      - A "token" here is a casefolded word-like string or one of our simple emoticons.
-      - Only tokens that exist in the lexicon appear in "tokens"; unknown tokens are
-        summarized in "oov_examples".
-      - All averages are weighted by token count: frequent words move the needle more.
+    Returns the same shape as before. Key semantics:
+    - sentiment_score (per token): raw lexicon rating (unchanged)
+    - contribution (per token): context-adjusted sum over occurrences
+      (negation flips sign; intensifiers/downtoners scale weight)
     """
     # Tokenize input. total_tokens is all tokens we saw; some may be OOV (unknown).
     tokens = tokenize(text)
@@ -322,88 +275,140 @@ def analyze_text(text: str) -> dict:
     # Load (or reuse) the lexicon from CSV; caching makes this fast if repeated.
     lexicon = load_lexicon()
 
-    # Frequency of each token in the document. Counter returns dict-like counts.
+    # Frequency of each token in the document (still useful for coverage/ratios stddev).
     freq = Counter(tokens)
 
-    # We'll maintain two lists of (word, count) for matched vs unmatched tokens.
+    # Keep (word, count) for matched vs unmatched tokens (coverage & ratios use these).
     matched_tokens: List[Tuple[str, int]] = []
     unmatched_tokens: List[Tuple[str, int]] = []
 
-    # Aggregates for sentiment:
-    total_sentiment = 0.0  # sum of (token_score * token_count)
-    total_weight = 0       # total matched token instances (denominator for averages)
+    # Aggregates (context-aware for sentiment/magnitude):
+    total_sentiment = 0.0   # sum of adjusted per-occurrence scores
+    total_weight   = 0      # matched occurrences (not unique types)
+    magnitude      = 0.0    # sum of |adjusted score| per occurrence
 
-    # Per-emotion accumulators (weighted by token count).
+    # Per-emotion accumulators (kept un-negated; we average later).
     emotion_sums = defaultdict(float)
 
-    # Per-token rows for transparency/debugging; each corresponds to one unique word.
-    tokens_output: List[Dict] = []
+    # Per-unique-token aggregation after context adjustments
+    per_token = defaultdict(lambda: {"count": 0, "contribution": 0.0})
 
-    # Iterate unique tokens and their counts (not every occurrence).
-    for word, count in freq.items():
-        entry = lexicon.get(word)
+    # --- lightweight “lemmatization” helpers ---
+    def _norm_candidate(w: str) -> str:
+        """
+        Return a lexicon key if we can map w to a plausible base form; else ''.
+        Tries a few common English inflection patterns conservatively.
+        """
+        if w in lexicon:
+            return w
 
+        # irregular comparatives/superlatives that commonly appear in sentiment
+        IRREG = {
+            "better": "good", "best": "good",
+            "worse": "bad",   "worst": "bad",
+            "happier": "happy", "happiest": "happy",
+            "sadder": "sad",     "saddest": "sad",
+            "angrier": "angry",  "angriest": "angry",
+            "funnier": "funny",  "funniest": "funny",
+        }
+        if w in IRREG and IRREG[w] in lexicon:
+            return IRREG[w]
+
+        cands: List[str] = []
+        # split hyphenated compounds into plausible parts
+        if "-" in w:
+            cands += [p for p in w.split("-") if len(p) >= 3]
+        # common morphology
+        if w.endswith("ies") and len(w) > 4: cands += [w[:-3] + "y"]
+        if w.endswith("iest") and len(w) > 5: cands += [w[:-4] + "y"]
+        if w.endswith("ier") and len(w) > 4:  cands += [w[:-3] + "y"]
+        if w.endswith("ing") and len(w) > 5: cands += [w[:-3], w[:-3] + "e"]
+        if w.endswith("ed")  and len(w) > 4: cands += [w[:-2], w[:-1]]
+        if w.endswith("s")   and len(w) > 3: cands += [w[:-1]]
+        if w.endswith("er")  and len(w) > 4: cands += [w[:-2], w[:-2] + "e"]
+        if w.endswith("est") and len(w) > 5: cands += [w[:-3], w[:-3] + "e"]
+
+        for c in cands:
+            if c in lexicon:
+                return c
+        return ""
+
+    # Walk the sequence to apply negation/intensifiers per occurrence
+    # NOTE: We only use preceding WORD tokens as modifiers. Emoticons (if any)
+    #       are not considered negators/intensifiers and won’t affect context.
+    for i, raw in enumerate(tokens):
+        w = raw
+        entry = lexicon.get(w)
         if entry is None:
-            # OOV: no lexicon entry — we can't assign a sentiment score.
-            unmatched_tokens.append((word, count))
-            continue
+            key = _norm_candidate(w) if w.isalpha() else ""
+            entry = lexicon.get(key) if key else None
+            if entry is None:
+                unmatched_tokens.append((w, 1))
+                continue
+            w = key  # use normalized lexicon key
 
-        # Matched token: keep for ratios and aggregates
-        matched_tokens.append((word, count))
+        # Context windows
+        left  = tokens[max(0, i - NEGATION_WINDOW): i]
+        left2 = tokens[max(0, i - INTENS_WINDOW): i]
 
-        # Raw per-token score from lexicon (could be negative, zero, or positive).
-        score = entry["sentiment_score"]
+        # Negation: also handle glued contractions like "isn't"
+        negated = any(
+            (tok in NEGATORS) or (tok.endswith("n't"))
+            for tok in left
+        )
 
-        # "Contribution" is how much THIS unique token contributes to the total.
-        # If "good" appears 5 times with score +0.3, contribution = +1.5.
-        # If "terrible" appears 2 times with score -0.9, contribution = -1.8.
-        contribution = score * count
+        # Intensifier/downtoner: take strongest one in the short window
+        mults = [INTENSIFIERS[tok] for tok in left2 if tok in INTENSIFIERS]
+        intens = max(mults) if mults else 1.0
 
-        # Add to running totals for average calculation and magnitude.
-        total_sentiment += contribution
-        total_weight += count
+        factor = (-1.0 if negated else 1.0) * float(intens)
 
-        # Emotion sums: also weighted by how often the word appears.
+        base_score = entry["sentiment_score"]
+        adj_score  = base_score * factor
+
+        total_sentiment += adj_score
+        total_weight    += 1
+        magnitude       += abs(adj_score)
+
+        per_token[w]["count"]        += 1
+        per_token[w]["contribution"] += adj_score
+
+        # matched list is used later for pos/neg/neutral ratios (based on RAW scores)
+        matched_tokens.append((w, 1))
+
+        # Emotions: keep un-negated (optionally: multiply by intens if you want)
         for e in EMOTIONS:
-            emotion_sums[e] += entry[e] * count
+            emotion_sums[e] += entry[e]
 
-        # Record a detailed token row for explainability and "top" lists.
+    # Build tokens_output for transparency lists
+    tokens_output: List[Dict] = []
+    for w, agg in per_token.items():
+        entry = lexicon[w]
         tokens_output.append({
-            "word": word,
-            "count": count,
-            "sentiment_score": score,
-            "contribution": contribution,  # signed (positive or negative)
+            "word": w,
+            "count": agg["count"],
+            "sentiment_score": entry["sentiment_score"],  # raw rating
+            "contribution": agg["contribution"],          # context-adjusted
             "emotions": {e: entry[e] for e in EMOTIONS}
         })
 
-    # Compute the mean sentiment score across matched tokens (weighted).
-    # If there were no matches, avoid ZeroDivision by returning 0.0 (neutral).
+    # Means/ratios/stddev match previous API, using RAW scores for interpretability
     sentiment_score_mean = (total_sentiment / total_weight) if total_weight else 0.0
 
-    # Ratios of positive / negative / neutral matched tokens.
-    # We use small thresholds (±0.05) to avoid counting near-zero "noise" as signal.
-    pos_tokens = sum(c for (w, c) in matched_tokens if lexicon[w]["sentiment_score"] > 0.05)
-    neg_tokens = sum(c for (w, c) in matched_tokens if lexicon[w]["sentiment_score"] < -0.05)
-    neu_tokens = total_weight - pos_tokens - neg_tokens
+    # Ratios by raw lexicon sign (thresholded), weighted by occurrences
+    POS_T, NEG_T = 0.05, -0.05
+    # aggregate counts per unique then expand by count
+    pos_tokens = sum(t["count"] for t in tokens_output if t["sentiment_score"] > POS_T)
+    neg_tokens = sum(t["count"] for t in tokens_output if t["sentiment_score"] < NEG_T)
+    neu_tokens = max(0, total_weight - pos_tokens - neg_tokens)
 
-    # Convert these counts into ratios in [0,1]; again, guard for empty matched set.
     positive_ratio = (pos_tokens / total_weight) if total_weight else 0.0
     negative_ratio = (neg_tokens / total_weight) if total_weight else 0.0
     neutral_ratio  = (neu_tokens  / total_weight) if total_weight else 0.0
 
-    # "Coverage" tells you how much of the text the lexicon could actually score.
-    # 1.0 == everything matched; 0.0 == nothing matched. Helpful for confidence.
     coverage = (total_weight / total_tokens) if total_tokens else 0.0
 
-    # "Magnitude" reflects overall intensity regardless of sign:
-    # sum over tokens of |score| * count. This highlights strongly-opinionated texts
-    # even if positives and negatives cancel in the mean.
-    magnitude = sum(abs(t["contribution"]) for t in tokens_output)
-
-    # Standard deviation (weighted) of token sentiment scores. A high stddev means
-    # the document mixes strongly positive and strongly negative words; a low stddev
-    # means the sentiment is more consistent. We compute variance as:
-    #   sum(count * (score - mean)^2) / total_weight
+    # Stddev over RAW scores, weighted by counts
     if total_weight:
         var = sum(t["count"] * ((t["sentiment_score"] - sentiment_score_mean) ** 2)
                   for t in tokens_output) / total_weight
@@ -411,23 +416,18 @@ def analyze_text(text: str) -> dict:
     else:
         stddev = 0.0
 
-    # Per-emotion averages: divide weighted sums by total matched token instances.
-    # If nothing matched, all emotion averages are 0.0.
+    # Per-emotion averages (weighted by occurrences)
     emotion_avgs = {e: (emotion_sums[e] / total_weight) if total_weight else 0.0
                     for e in EMOTIONS}
 
-    # "Top contributors" by absolute signed contribution. This surfaces the words that
-    # actually moved the final score the most due to both strength and frequency.
+    # Top contributors by absolute contribution (already context-adjusted)
     tokens_output_sorted = sorted(tokens_output,
                                   key=lambda x: abs(x["contribution"]),
                                   reverse=True)
-    # Positive movers: contributions > 0, take top 10
     top_positive = [t for t in tokens_output_sorted if t["contribution"] > 0][:10]
-    # Negative movers: contributions < 0, take top 10
     top_negative = [t for t in tokens_output_sorted if t["contribution"] < 0][:10]
 
-    # For "top by emotion", we rank by |emotion_score| * count to surface frequent
-    # and strongly-emotive words for each emotion separately.
+    # Top by emotion (use |emotion_score| * count); unchanged
     top_by_emotion = {}
     for e in EMOTIONS:
         unique = sorted(
@@ -437,13 +437,7 @@ def analyze_text(text: str) -> dict:
         )[:10]
         top_by_emotion[e] = unique
 
-    # OOV (out-of-vocabulary) examples: top 10 unknown words by frequency.
-    # Useful for: expanding the lexicon, debugging domain-specific terms, etc.
-    oov_filtered = [(w, c) for (w, c) in unmatched_tokens if _is_good_oov(w)]
-    oov_examples = sorted(oov_filtered, key=lambda x: x[1], reverse=True)[:10]
-
-    # "Polarity" collapses direction to {-1, 0, +1} based on the mean sentiment.
-    # This is often handy for quick UI indicators (thumbs up/down/neutral).
+    # Polarity sign of the mean (unchanged)
     if sentiment_score_mean > 0.0:
         polarity = 1
     elif sentiment_score_mean < 0.0:
@@ -451,41 +445,31 @@ def analyze_text(text: str) -> dict:
     else:
         polarity = 0
 
-    # Return a single, self-contained dictionary so callers can serialize to JSON,
-    # persist to a DB, or render in a UI without further work.
+    # Return (note: if you previously disabled OOV display, keep it as [])
     return {
         "summary": {
-            # Core aggregates
             "sentiment_score_mean": sentiment_score_mean,
-            "polarity": polarity,             # -1 negative, 0 neutral, +1 positive
-            "magnitude": magnitude,           # intensity regardless of sign
-            "stddev": stddev,                 # variability of token sentiment
+            "polarity": polarity,
+            "magnitude": magnitude,
+            "stddev": stddev,
 
-            # Diagnostics
             "token_count": total_tokens,
             "matched_token_count": total_weight,
             "coverage": coverage,
 
-            # Composition of matched tokens by sign
             "positive_ratio": positive_ratio,
             "negative_ratio": negative_ratio,
             "neutral_ratio": neutral_ratio,
 
-            # Visibility into unknown tokens + lexicon size (for sanity checks)
-            "oov_examples": oov_examples,     # e.g., [("word1", 7), ("word2", 5), ...]
+            # Leave as [] if you’ve removed OOV from UI; else compute separately.
+            "oov_examples": [],
             "lexicon_rows": len(load_lexicon())
         },
-
-        # Average emotion strengths (weighted by token counts)
         "emotions": emotion_avgs,
-
-        # What moved the needle most (positive, negative), plus emotional exemplars
         "top_contributors": {
             "positive": top_positive,
             "negative": top_negative,
             "by_emotion": top_by_emotion
         },
-
-        # Per-token transparency (only tokens present in lexicon)
         "tokens": tokens_output
     }
