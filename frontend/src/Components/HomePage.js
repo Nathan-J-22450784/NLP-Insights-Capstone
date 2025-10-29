@@ -149,7 +149,7 @@ const labelByType = {
                     ? `keyness:${comparisonMode}`
                     : analysisType
                 }
-                title={`How it works — ${labelByType[analysisType]}`}
+                title={`How ${labelByType[analysisType]} works`}
               >
                 {/* Extra note for the keyness two-file mode */}
                 {analysisType === "keyness" && comparisonMode === "user_text" && (
