@@ -193,13 +193,78 @@ h1, .ttc-title-xl,
          1.2) Breadcrumbs
          ================= */
 
-.ttc-breadcrumbs .ttc-crumb-link:hover { text-decoration: underline; }
+/* Sticky bar that holds Back + Breadcrumbs */
+.ttc-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--ttc-accent, #edeaf2); /* light purple */
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--ttc-border, #e5e7eb);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+}
 
-.ttc-breadcrumbs .ttc-crumb-current { color: var(--ttc-accent-foreground, #24163c); }
+/* Let breadcrumbs breathe inside the bar */
+.ttc-topbar .ttc-breadcrumbs {
+  margin: 0;             /* override any external margins */
+}
 
-.ttc-btn--ghost { background: transparent; border: 1px solid var(--ttc-border, #e5e7eb); cursor: pointer; }
+/* Breadcrumbs container inside the top bar */
+.ttc-breadcrumbs { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+}
 
-.ttc-btn--ghost:hover { background: var(--ttc-accent, #edeaf2); }
+/* Nav and list layout */
+.ttc-breadcrumbs__nav { 
+  overflow-x: auto; 
+}
+.ttc-breadcrumbs__list { 
+  display: flex; 
+  gap: 8px; 
+  list-style: none; 
+  padding: 0; 
+  margin: 0; 
+}
+.ttc-breadcrumbs__item { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  white-space: nowrap; 
+}
+.ttc-breadcrumbs__sep { 
+  opacity: 0.7; 
+}
+
+/* Link + current */
+.ttc-breadcrumbs__link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--ttc-primary, #492c79);
+  text-decoration: none;
+}
+.ttc-breadcrumbs__link:hover { 
+  text-decoration: underline; 
+}
+.ttc-breadcrumbs__link:focus-visible {
+  outline: 2px solid var(--ttc-ring, rgba(73, 44, 121, 0.55));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.ttc-breadcrumbs__current { 
+  font-weight: 700; 
+  color: var(--ttc-accent-foreground, #24163c); 
+}
+
 
 /* ==========================================================================
    2) BUTTONS (unified base + variants)
