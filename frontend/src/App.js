@@ -15,7 +15,6 @@ function App() {
     const [activePage, setActivePage] = useState("home");
     const [selectedGenre, setSelectedGenre] = useState("");
     const [wordDetailData, setWordDetailData] = useState(null);
-    const handleBack = () => setActivePage("home");
     const [creativeKeynessData, setCreativeKeynessData] = useState(null);
     const [method, setMethod] = useState(""); 
     const [uploadedText, setUploadedText] = useState("");
@@ -27,12 +26,30 @@ function App() {
     const [stats, setStats] = useState({});
     const [comparisonMode, setComparisonMode] = useState("");
     const [analysisType, setAnalysisType] = useState("");
+    const handleBack = () => setActivePage("home");
+    const navigateBack = () => {
+        if (activePage === "keyness-word-detail") return handleBackFromWordDetail();
+        if (activePage === "keyness-results")     return setActivePage("keyness");
+        if (activePage === "keyness")             return setActivePage("home");
+        // other single-page tools go home:
+        if (["clustering","sentiment","sensorimotor"].includes(activePage)) return setActivePage("home");
+        return setActivePage("home");
+      };
+
+  const navigateViaBreadcrumb = (page) => {
+        if (page === "keyness-results" && activePage === "keyness-word-detail") {
+            return handleBackFromWordDetail();
+        }
+        if (page === "home") {
+           return setActivePage("home");
+        }
+        setActivePage(page);
+  };
 
     useEffect(() => {
   console.log("Active page changed:", activePage);
 }, [activePage]);
 
-    
     const handleProceed = ({ analysisType, genre, comparisonMode }) => {
   console.log("Parent received from HomePage:", { analysisType, genre, comparisonMode });
   setSelectedGenre(genre || null);
@@ -46,7 +63,6 @@ function App() {
     analysisType,
   });
 };
-
 
     const handleKeynessResults = (resultsData) => {
     console.log("Received keyness results:", resultsData);
@@ -88,11 +104,19 @@ function App() {
 
     return (
         <div className="p-6">
-            <Breadcrumbs
-              activePage={activePage}
-              onNavigate={(page) => setActivePage(page)}
-              currentWord={wordDetailData?.word}
-            />
+            <div className="ttc-topbar">
+        {activePage !== "home" && (
+          <button onClick={navigateBack} className="ttc-button ttc-button-sm">
+            ← Back
+          </button>
+        )}
+        <Breadcrumbs
+          activePage={activePage}
+          onNavigate={navigateViaBreadcrumb}
+          currentWord={wordDetailData?.word}
+          showBack={false}
+        />
+      </div>
             {activePage === "home" && (
                 <HomePage
                     onSelect={setActivePage}
