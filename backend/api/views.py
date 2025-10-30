@@ -1068,217 +1068,119 @@ def corpus_meta_keyness(request):
 @api_view(['POST'])
 def get_synonyms(request):
     """
-    Simple, strict: ask the model for EXACTLY 5 items and return them.
-    If parsing/validation fails, return a clean error. Removed generic fallback.
+    Simplified approach that works with flan-t5-base's actual capabilities.
     """
     word = (request.data.get('word') or "").strip()
-    uploaded_text = (request.data.get('uploaded_text') or "").strip()  # optional, used only to flag present words
+    uploaded_text = (request.data.get('uploaded_text') or "").strip()
 
     if not word:
         return Response({'error': 'No word provided.'}, status=400)
 
-    logger.info(f'[synonyms] start word="{word}"')
+    logger.info(f'[synonyms] Requesting synonyms for: "{word}"')
 
-    # Compact prompt; model must output ONLY a JSON array.
-    prompt = (
-        f'Return exactly 5 synonyms for "{word}". '
-        'Output ONLY a JSON array of 5 objects with keys: '
-        '"synonym","meaning","difference","usage","example". '
-        'Example format: [{"synonym":"","meaning":"","difference":"","usage":"","example":""}, ... x5]\n'
-        f'Now do "{word}". Output only the JSON array.'
-    )
+    # Much simpler prompt that works with T5's strengths
+    prompt = f"""List 5 synonyms for "{word}" with brief explanations.
 
-    # --- helpers ---
-    def _extract_json_array(raw: str) -> str | None:
-        if not raw:
-            return None
-        s = raw.strip()
-        # Strip code fences like ```json ... ``` or ``` ...
-        s = re.sub(r"^```(?:json)?\s*|\s*```$", "", s, flags=re.I | re.M)
-        # Grab the outermost [...] slice
-        start = s.find('[')
-        end = s.rfind(']')
-        if start == -1 or end == -1 or end <= start:
-            return None
-        s = s[start:end + 1]
-        # Normalise smart quotes
-        s = s.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
-        # Remove trailing commas before } or ]
-        s = re.sub(r",\s*([}\]])", r"\1", s)
-        # If no double quotes at all but single quotes present, convert to double
-        if '"' not in s and "'" in s:
-            s = s.replace("'", '"')
-    
-        # Optional: trailing commas -> remove (JSON5-ish forgiveness)
-        s = re.sub(r",(\s*[\]\}])", r"\1", s)
-    
-        return s
+Format:
+1. [synonym]: [explanation]
+2. [synonym]: [explanation]
+3. [synonym]: [explanation]
+4. [synonym]: [explanation]
+5. [synonym]: [explanation]
 
-    def _is_valid(items):
-        if not isinstance(items, list) or len(items) != 5:
-            return False
-        req = {"synonym", "meaning", "difference", "usage", "example"}
-        for it in items:
-            if not isinstance(it, dict) or not req.issubset(it.keys()):
-                return False
-        return True
-
-    def _normalise_item_keys(obj: dict) -> dict:
-        """Map common alias keys from the model to the exact required keys."""
-        if not isinstance(obj, dict):
-            return obj
-    
-        key_map = {
-            # synonym
-            "synonym": "synonym", "term": "synonym", "word": "synonym",
-            # meaning
-            "meaning": "meaning", "definition": "meaning", "def": "meaning", "sense": "meaning",
-            # difference
-            "difference": "difference", "nuance": "difference",
-            "difference_from_word": "difference", "difference_from_base": "difference",
-            "contrast": "difference",
-            # usage
-            "usage": "usage", "context": "usage", "when_to_use": "usage",
-            "register": "usage", "style": "usage",
-            # example
-            "example": "example", "example_sentence": "example", "sentence": "example",
-            "illustration": "example",
-        }
-    
-        required = {"synonym", "meaning", "difference", "usage", "example"}
-    
-        out = {}
-        for k, v in obj.items():
-            k_norm = k.strip().lower()
-            mapped = key_map.get(k_norm)
-            if mapped:
-                out[mapped] = v
-    
-        # Keep only the required keys if they exist after mapping
-        return {k: out.get(k, "") for k in ["synonym", "meaning", "difference", "usage", "example"]}
-
-    def _normalise_items(items: list) -> list:
-        """Apply key normalisation; accept dicts or strings, enforce required keys."""
-        if not isinstance(items, list):
-            return items
-        normed = []
-        for it in items:
-            if isinstance(it, dict):
-                normed.append(_normalise_item_keys(it))
-            elif isinstance(it, str):
-                s = it.strip()
-                if s:
-                    normed.append({
-                        "synonym": s,
-                        "meaning": "",
-                        "difference": "",
-                        "usage": "",
-                        "example": ""
-                    })
-        return normed
-
-
-    def _markdown(items, base):
-        lines = [f'**Synonyms for "{base}":**', ""]
-        for i, it in enumerate(items, 1):
-            lines.append(
-                f"{i}. **{it['synonym']}** — {it['meaning']} "
-                f"(diff: {it['difference']}; usage: {it['usage']}) "
-                f'Example: {it["example"]}'
-            )
-        return "\n".join(lines)
+Synonyms for "{word}":"""
 
     try:
-        # temperature=0 triggers deterministic decoding in generator
-        raw = generate_text_with_fallback(prompt, num_predict=220, temperature=0)
-        cleaned = _extract_json_array(raw) if raw else None
+        # Higher temperature for creative output, more tokens for complete response
+        raw = generate_text_with_fallback(prompt, num_predict=500, temperature=0.7)
 
-        if not cleaned:
-            logger.info("[synonyms] model did not return a JSON array")
+        # Print debug before any processing
+        print("=" * 50)
+        print("SYNONYMS DEBUG")
+        print(f"Word: {word}")
+        print(f"Prompt: {prompt[:200]}...")
+        print(f"Raw response: {raw}")
+        print(f"Response length: {len(raw)}")
+        print("=" * 50)
+        
+        logger.info(f"[synonyms] Raw response length: {len(raw)} chars")
+        logger.info(f"[synonyms] Raw response preview: {raw[:200]}")
+
+        if not raw or len(raw.strip()) < 20:
+            logger.warning(f"[synonyms] Insufficient response from model")
             return Response({
-                "word": word,
-                "success": False,
-                "error": "Synonyms unavailable for this word right now."
-            }, status=502)
+                'word': word,
+                'success': False,
+                'error': 'Model did not generate sufficient output. Try a different word or check model configuration.',
+                'raw_response': raw
+            }, status=200)
 
-        try:
-            items = json.loads(cleaned)
-        except Exception as e:
-            logger.info(f"[synonyms] JSON parse error: {e}")
+        # Parse the numbered list format
+        synonyms = []
+        lines = raw.strip().split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            # Match patterns like "1. happy: feeling joy" or "happy: feeling joy"
+            match = re.match(r'^(?:\d+[\.)]\s*)?([^:]+):\s*(.+)$', line)
+            if match:
+                syn = match.group(1).strip()
+                explanation = match.group(2).strip()
+                
+                # Basic validation
+                if syn and explanation and len(syn.split()) <= 3:
+                    synonyms.append({
+                        'synonym': syn,
+                        'meaning': explanation,
+                        'difference': f'Alternative to "{word}"',
+                        'usage': 'General usage',
+                        'example': f'Use "{syn}" instead of "{word}"'
+                    })
+        
+        logger.info(f"[synonyms] Parsed {len(synonyms)} synonyms")
+
+        if len(synonyms) == 0:
             return Response({
-                "word": word,
-                "success": False,
-                "error": "Synonyms unavailable for this word right now."
-            }, status=502)
+                'word': word,
+                'success': False,
+                'error': 'Could not parse synonyms from model output.',
+                'raw_response': raw
+            }, status=200)
 
-        items = _normalise_items(items)
-        # enforce exactly 5 in case model returns 6–7 good rows
-        if isinstance(items, list) and len(items) > 5:
-            items = items[:5]
+        # Take up to 5 synonyms
+        synonyms = synonyms[:5]
 
-        # --- Begin: extra diagnostics for why validation failed ---
-        def _validation_reasons(items):
-            reasons = []
-            required = {"synonym", "meaning", "difference", "usage", "example"}
-        
-            if not isinstance(items, list):
-                return ["not a list"]
-        
-            if len(items) != 5:
-                reasons.append(f"len={len(items)} (expected 5)")
-        
-            for i, it in enumerate(items):
-                if not isinstance(it, dict):
-                    reasons.append(f"item {i} not an object")
-                    continue
-                miss = sorted(required - set(it.keys()))
-                extra = sorted(set(it.keys()) - required)
-                if miss:
-                    reasons.append(f"item {i} missing {miss}")
-                if extra:
-                    reasons.append(f"item {i} extra {extra}")
-        
-            return reasons or ["passed structure check"]
-        
-        # Run diagnostics (without changing strict validator)
-        _diag = _validation_reasons(items)
-        if _diag and _diag != ["passed structure check"]:
-            # keep logs concise to avoid noisy output
-            logger.info(f'[synonyms] validation reasons: {", ".join(_diag)[:500]}')
-        # --- End: extra diagnostics ---
+        # Check which synonyms appear in the uploaded text
+        present = []
+        if uploaded_text:
+            for item in synonyms:
+                syn = item.get('synonym', '')
+                if syn and re.search(rf"\b{re.escape(syn)}\b", uploaded_text, flags=re.I):
+                    present.append(item)
 
-        if not _is_valid(items):
-            logger.info("[synonyms] JSON failed validation")
-            return Response({
-                "word": word,
-                "success": False,
-                "error": "Synonyms unavailable for this word right now.",
-                "items_received": items if isinstance(items, list) else []
-            }, status=200)  # return 200 to avoid surfacing infra error in UI
-
-        # Optional: flag which suggested synonyms already occur in the text
-        present = [
-            it for it in items
-            if it.get("synonym") and re.search(rf"\b{re.escape(it['synonym'])}\b", uploaded_text, flags=re.I)
-        ]
+        # Format markdown
+        markdown_lines = [f'**Synonyms for "{word}":**', '']
+        for i, item in enumerate(synonyms, 1):
+            markdown_lines.append(
+                f"{i}. **{item['synonym']}** — {item['meaning']}"
+            )
+        markdown = '\n'.join(markdown_lines)
 
         return Response({
-            "word": word,
-            "success": True,
-            "synonyms": items,                 # keep for current UI
-            "analysis_json": items,            # backwards compat
-            "analysis_markdown": _markdown(items, word),
-            "present_in_text": present,
-            "fallback": False
+            'word': word,
+            'success': True,
+            'synonyms': synonyms,
+            'analysis_json': synonyms,
+            'analysis_markdown': markdown,
+            'present_in_text': present,
+            'fallback': False
         })
 
-    except requests.exceptions.Timeout:
-        return Response({'error': 'Request timed out.'}, status=504)
-    except requests.exceptions.RequestException as e:
-        return Response({'error': f'LLM request failed: {str(e)}'}, status=500)
     except Exception as e:
-        logger.exception(f"[synonyms] unexpected error: {e}")
-        return Response({'error': f'An error occurred: {str(e)}'}, status=500)
+        logger.exception(f"[synonyms] Error: {e}")
+        return Response({
+            'error': f'An error occurred: {str(e)}'
+        }, status=500)
 
 @api_view(['POST'])
 def get_concepts(request):
