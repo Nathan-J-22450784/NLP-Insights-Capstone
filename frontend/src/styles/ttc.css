@@ -270,11 +270,13 @@ h1, .ttc-title-xl,
 /* ==========================
    How It Works (details card)
    ========================== */
-.ttc-howitworks {
+.ttc-howitworks,
+.ttc-howitworks[open]{
+  background: var(--ttc-accent) !important;
+  color: var(--ttc-accent-foreground) !important;
   border: 1px solid var(--ttc-border);
-  border-left: 6px solid var(--ttc-primary);
-
-  background: var(--ttc-accent);
+  border-color: var(--ttc-border) !important;
+  border-left-color: var(--ttc-primary) !important;
   border-radius: 12px;
   padding: 12px 14px;
   box-shadow: 0 1px 3px rgba(0,0,0,.05);
@@ -292,6 +294,7 @@ h1, .ttc-title-xl,
 }
 
 /* remove default disclosure marker & caret */
+.ttc-howitworks > summary { background: transparent;  }
 .ttc-howitworks > summary::-webkit-details-marker { display: none; }
 .ttc-howitworks > summary::before { display: none; }
 
@@ -347,29 +350,6 @@ h1, .ttc-title-xl,
 .info-message li {
   margin: 4px 0;
 }
-
-/* Optional: dark mode refinements if you toggle a class on <html> or body */
-@media (prefers-color-scheme: dark) {
-  .ttc-howitworks {
-    background: var(--ttc-surface, #0b0f19);
-    border-color: var(--ttc-border, #1f2937);
-  }
-  .ttc-howitworks[open] {
-    box-shadow: 0 1px 2px rgba(0,0,0,.4);
-    border-color: var(--ttc-border-strong, #2b3648);
-  }
-  .ttc-select {
-    background: var(--ttc-surface, #0b0f19);
-    border-color: var(--ttc-border, #1f2937);
-    color: var(--ttc-foreground, #e5e7eb);
-  }
-  .info-message {
-    background: rgba(73,44,121, .18);
-    border-color: var(--ttc-border, #1f2937);
-  }
-}
-
-
 
 /* ==========================================================================
    2) BUTTONS (unified base + variants)
