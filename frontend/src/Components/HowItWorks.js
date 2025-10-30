@@ -19,11 +19,11 @@ export default function HowItWorks({ id, title = "How it works" }) {
 
   return (
     <details
-      className="ttc-howitworks ttc-panel ttc-panel--notice"
+      className="ttc-panel ttc-panel--notice"
       open={open}
-      onToggle={(e) => setOpen(e.currentTarget.open)}
+      onToggle={(e) => { e.currentTarget.open = true; }}
     >
-      <summary className="ttc-howitworks__title">{title}</summary>
+      <summary className="ttc-title--sm" onClick={(e)=>e.preventDefault()}>{title}</summary>
       <div className="ttc-prose ttc-stack-sm">{body}</div>
     </details>
   );
