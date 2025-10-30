@@ -1,6 +1,8 @@
 
 /* ==========================================================================
    Global Style Sheet
+   ========================================================================== */
+
 /* ==========================================================================
    0) TOKENS
    ========================================================================== */
@@ -188,6 +190,127 @@ h1, .ttc-title-xl,
 .ttc-card {
   container-type: inline-size;
 }
+
+      /* =================
+         1.2) Breadcrumbs
+         ================= */
+
+/* Sticky bar that holds Back + Breadcrumbs */
+.ttc-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--ttc-accent, #edeaf2); /* light purple */
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--ttc-border, #e5e7eb);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+}
+
+/* Let breadcrumbs breathe inside the bar */
+.ttc-topbar .ttc-breadcrumbs {
+  margin: 0;             /* override any external margins */
+}
+
+/* Breadcrumbs container inside the top bar */
+.ttc-breadcrumbs { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+}
+
+/* Nav and list layout */
+.ttc-breadcrumbs__nav { 
+  overflow-x: auto; 
+}
+.ttc-breadcrumbs__list { 
+  display: flex; 
+  gap: 8px; 
+  list-style: none; 
+  padding: 0; 
+  margin: 0; 
+}
+.ttc-breadcrumbs__item { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  white-space: nowrap; 
+}
+.ttc-breadcrumbs__sep { 
+  opacity: 0.7; 
+}
+
+/* Link + current */
+.ttc-breadcrumbs__link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--ttc-primary, #492c79);
+  text-decoration: none;
+}
+.ttc-breadcrumbs__link:hover { 
+  text-decoration: underline; 
+}
+.ttc-breadcrumbs__link:focus-visible {
+  outline: 2px solid var(--ttc-ring, rgba(73, 44, 121, 0.55));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.ttc-breadcrumbs__current { 
+  font-weight: 700; 
+  color: var(--ttc-accent-foreground, #24163c); 
+}
+
+/* ==========================
+   HomePage layout helpers
+   ========================== */
+.homepage-section {
+  margin: 16px 0;
+  display: grid;
+  gap: 8px;
+}
+
+.homepage-label {
+  font-weight: 600;
+  color: var(--ttc-muted-foreground, #334155);
+}
+
+.ttc-select {
+  border: 1px solid var(--ttc-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--ttc-surface, #fff);
+  color: var(--ttc-foreground, #0f172a);
+  line-height: 1.2;
+}
+.ttc-select:focus {
+  outline: 2px solid transparent;
+  box-shadow: 0 0 0 3px rgba(73,44,121,.2); /* brand-ish focus ring */
+}
+
+/* Info message under keyness user_text */
+.info-message {
+  background: var(--ttc-accent, #edeaf2);
+  color: var(--ttc-accent-foreground, #24163c);
+  border: 1px solid var(--ttc-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+.info-message ul {
+  margin: 8px 0 6px;
+  padding-left: 1.2rem;
+}
+.info-message li {
+  margin: 4px 0;
+}
+
 /* ==========================================================================
    2) BUTTONS (unified base + variants)
    - Base layout + brand gradient for every button class already in use
@@ -1075,40 +1198,6 @@ h1, .ttc-title-xl,
     font-weight: 800;
     color: #0f172a;
 }
-
-.homepage-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin: 16px 0;
-}
-
-.homepage-label {
-    font-size: .95rem;
-    font-weight: 700;
-    color: #1f2937;
-}
-
-.info-message {
-    margin-top: 8px;
-    padding: 12px 14px;
-    background: #f8fafc;
-    border: 1px solid var(--ttc-border);
-    border-radius: 12px;
-    color: #334155;
-    line-height: 1.45;
-}
-
-    .info-message ul {
-        margin: 8px 0 8px 18px;
-        padding: 0;
-    }
-
-    .info-message em {
-        display: block;
-        margin-top: 6px;
-        color: #64748b;
-    }
 
 .analysis-container .analysis-title {
     font-size: clamp(1rem, .5vw + 1rem, 1.25rem);

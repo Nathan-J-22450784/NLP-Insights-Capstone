@@ -45,10 +45,7 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, corpu
     return (
         <main className="ttc-page">
           <div className="ttc-container ttc-stack-lg">
-            <button onClick={onBack} className="ttc-button">
-              ← Back
-            </button>
-
+            
         <section className="ttc-panel ttc-stack-md">
           <h1 className="analysis-title">Sentiment</h1>
 

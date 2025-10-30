@@ -147,16 +147,21 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
     p = prompt.lower()
 
     json_like = any(kw in p for kw in [
-    "output only a json array",
-    "return only json",
-    "strict json",
-    "output as json",
-    "only a json",
-    "json array"
+        "output only a json array",
+        "return only json",
+        "strict json",
+        "output as json",
+        "only a json"
     ])
 
+    gen_kwargs = {
+        "max_new_tokens": int(num_predict),
+        "min_new_tokens": 1,
+        "no_repeat_ngram_size": 0,
+        "repetition_penalty": 1.0,
+    }
+
     def wants_deterministic(s: str) -> bool:
-        # For tool-like, structured tasks (synonyms/concepts/charts/etc.)
         return (
             "provide exactly 5 synonyms" in s
             or "return exactly 5 synonyms" in s
@@ -165,25 +170,17 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
             or "analyse the bar chart" in s
             or "analyse the scatter plot" in s
             or "task: analyse" in s
-            or json_like
+            or json_like  # force deterministic for JSON mode
         )
 
-    # Base args that are valid for both modes
-    gen_kwargs = {
-        "max_new_tokens": int(num_predict),
-        "min_new_tokens": 1,
-        "no_repeat_ngram_size": 3,
-        "repetition_penalty": 1.2,
-    }
     if wants_deterministic(p) or (temperature is None) or (float(temperature) <= 0.0):
-        # Deterministic → beam search, NO sampling flags (prevents the warning)
         gen_kwargs.update({
             "do_sample": False,
             "num_beams": 4,
             "length_penalty": 1.0,
+            "early_stopping": True,
         })
     else:
-        # Sampling → include temperature/top_p (now valid because do_sample=True)
         gen_kwargs.update({
             "do_sample": True,
             "temperature": float(temperature),
@@ -1111,6 +1108,10 @@ def get_synonyms(request):
         # If no double quotes at all but single quotes present, convert to double
         if '"' not in s and "'" in s:
             s = s.replace("'", '"')
+    
+        # Optional: trailing commas -> remove (JSON5-ish forgiveness)
+        s = re.sub(r",(\s*[\]\}])", r"\1", s)
+    
         return s
 
     def _is_valid(items):
@@ -1157,14 +1158,25 @@ def get_synonyms(request):
         return {k: out.get(k, "") for k in ["synonym", "meaning", "difference", "usage", "example"]}
 
     def _normalise_items(items: list) -> list:
-        """Apply key normalisation + strip extras + enforce order."""
+        """Apply key normalisation; accept dicts or strings, enforce required keys."""
         if not isinstance(items, list):
             return items
         normed = []
         for it in items:
             if isinstance(it, dict):
                 normed.append(_normalise_item_keys(it))
+            elif isinstance(it, str):
+                s = it.strip()
+                if s:
+                    normed.append({
+                        "synonym": s,
+                        "meaning": "",
+                        "difference": "",
+                        "usage": "",
+                        "example": ""
+                    })
         return normed
+
 
     def _markdown(items, base):
         lines = [f'**Synonyms for "{base}":**', ""]
@@ -1240,8 +1252,9 @@ def get_synonyms(request):
             return Response({
                 "word": word,
                 "success": False,
-                "error": "Synonyms unavailable for this word right now."
-            }, status=502)
+                "error": "Synonyms unavailable for this word right now.",
+                "items_received": items if isinstance(items, list) else []
+            }, status=200)  # return 200 to avoid surfacing infra error in UI
 
         # Optional: flag which suggested synonyms already occur in the text
         present = [

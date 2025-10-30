@@ -158,11 +158,7 @@ const KeynessLanding = ({
     return (
         <main className="ttc-page">
       <div className="ttc-container ttc-stack-lg">
-        {/* Back */}
-        <button onClick={onBack} className="ttc-button">
-          ← Back
-        </button>
-
+        
             {/* Title + intro */}
         <section className="ttc-panel ttc-stack-md">
           <h1 className="analysis-title">Keyness Analysis</h1>
