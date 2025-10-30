@@ -146,15 +146,26 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
         
     p = prompt.lower()
 
+    json_like = any(kw in p for kw in [
+    "output only a json array",
+    "return only json",
+    "strict json",
+    "output as json",
+    "only a json",
+    "json array"
+    ])
+
     def wants_deterministic(s: str) -> bool:
         # For tool-like, structured tasks (synonyms/concepts/charts/etc.)
         return (
             "provide exactly 5 synonyms" in s
+            or "return exactly 5 synonyms" in s
             or "concepts related to" in s
             or "you are an expert data analyst" in s
             or "analyse the bar chart" in s
             or "analyse the scatter plot" in s
             or "task: analyse" in s
+            or json_like
         )
 
     # Base args that are valid for both modes
@@ -186,12 +197,17 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
 
     generated_text = result[0].get("generated_text", "").strip()
 
-    # Trim to last complete sentence if cut off
-    if generated_text and not generated_text.endswith(('.', '!', '?')):
-        last_period = generated_text.rfind('.')
-        if last_period > 0:
-            generated_text = generated_text[:last_period + 1]
-
+    # Only trim for prose – never trim JSON-like outputs
+    head = generated_text.lstrip() if generated_text else ""
+    if head and not (head.startswith('[') or head.startswith('{')):
+        if head.endswith(('.', '!', '?')):
+            generated_text = head
+        else:
+            last_period = head.rfind('.')
+            generated_text = head[: last_period + 1] if last_period != -1 else head
+    else:
+        generated_text = head
+    
     return generated_text
 
 def ensure_hf_loaded():
@@ -1068,8 +1084,10 @@ def get_synonyms(request):
 
     # Compact prompt; model must output ONLY a JSON array.
     prompt = (
-        f'Return exactly 5 synonyms for "{word}". Output ONLY a JSON array of 5 objects.\n'
-        'Each object must have keys: "synonym", "meaning", "difference", "usage", "example".\n'
+        f'Return exactly 5 synonyms for "{word}". '
+        'Output ONLY a JSON array of 5 objects with keys: '
+        '"synonym","meaning","difference","usage","example". '
+        'Example format: [{"synonym":"","meaning":"","difference":"","usage":"","example":""}, ... x5]\n'
         f'Now do "{word}". Output only the JSON array.'
     )
 
@@ -1078,13 +1096,19 @@ def get_synonyms(request):
         if not raw:
             return None
         s = raw.strip()
+        # Strip code fences like ```json ... ``` or ``` ...
+        s = re.sub(r"^```(?:json)?\s*|\s*```$", "", s, flags=re.I | re.M)
+        # Grab the outermost [...] slice
         start = s.find('[')
         end = s.rfind(']')
         if start == -1 or end == -1 or end <= start:
             return None
-        s = s[start:end+1]
-        # normalise curly quotes -> straight, and single -> double if needed
-        s = (s.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"'))
+        s = s[start:end + 1]
+        # Normalise smart quotes
+        s = s.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+        # Remove trailing commas before } or ]
+        s = re.sub(r",\s*([}\]])", r"\1", s)
+        # If no double quotes at all but single quotes present, convert to double
         if '"' not in s and "'" in s:
             s = s.replace("'", '"')
         return s
