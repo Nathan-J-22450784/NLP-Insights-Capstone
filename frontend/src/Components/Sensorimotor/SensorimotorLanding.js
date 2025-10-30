@@ -51,9 +51,7 @@ const SensorimotorLanding = ({ onBack }) => {
   return (
     <main className="ttc-page">
       <div className="ttc-container ttc-stack-lg">
-        {/* Back */}
-        <button type="button" onClick={onBack} className="ttc-button">← Back</button>
-
+        
         {/* Title */}
         <section className="ttc-panel ttc-stack-md">
           <h1 className="analysis-title">Sensorimotor Analysis</h1>
