@@ -50,10 +50,7 @@ const ClusteringLanding = ({ onBack }) => {
   return (
     <main className="ttc-page">
       <div className="ttc-container ttc-stack-lg">
-        <button onClick={onBack} className="ttc-button ttc-button-sm">
-          ← Back
-        </button>
-
+        
       <header className="ttc-stack-md">
           <h1 className="analysis-title">Clustering Analysis</h1>
         <p className="ttc-subtitle">
