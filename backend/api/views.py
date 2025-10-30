@@ -1068,7 +1068,7 @@ def corpus_meta_keyness(request):
 @api_view(['POST'])
 def get_synonyms(request):
     """
-    Simplified approach that works with flan-t5-base's actual capabilities.
+    FLAN-T5 optimized version - uses task-based prompting.
     """
     word = (request.data.get('word') or "").strip()
     uploaded_text = (request.data.get('uploaded_text') or "").strip()
@@ -1078,33 +1078,31 @@ def get_synonyms(request):
 
     logger.info(f'[synonyms] Requesting synonyms for: "{word}"')
 
-    # Much simpler prompt that works with T5's strengths
-    prompt = f"""List 5 synonyms for "{word}" with brief explanations.
+    # CRITICAL: T5 needs to be told to generate a LIST, not answer a question
+    # Use explicit instruction that triggers list-generation behavior
+    prompt = f"""Generate a numbered list of exactly 5 synonyms for the word "{word}". 
+For each synonym, provide the word followed by a colon and a brief explanation.
 
-Format:
-1. [synonym]: [explanation]
-2. [synonym]: [explanation]
-3. [synonym]: [explanation]
-4. [synonym]: [explanation]
-5. [synonym]: [explanation]
+Example format:
+1. synonym1: explanation here
+2. synonym2: explanation here
 
-Synonyms for "{word}":"""
+Now generate 5 synonyms for "{word}":
+1."""  # Start the first item to prime the model
 
     try:
-        # Higher temperature for creative output, more tokens for complete response
-        raw = generate_text_with_fallback(prompt, num_predict=500, temperature=0.7)
+        # Use sampling (not deterministic) for better variety
+        raw = generate_text_with_fallback(prompt, num_predict=400, temperature=0.8)
 
-        # Print debug before any processing
+        # Debug output
         print("=" * 50)
         print("SYNONYMS DEBUG")
         print(f"Word: {word}")
-        print(f"Prompt: {prompt[:200]}...")
-        print(f"Raw response: {raw}")
-        print(f"Response length: {len(raw)}")
+        print(f"Raw response: '{raw}'")
+        print(f"Response length: {len(raw) if raw else 0}")
         print("=" * 50)
         
-        logger.info(f"[synonyms] Raw response length: {len(raw)} chars")
-        logger.info(f"[synonyms] Raw response preview: {raw[:200]}")
+        logger.info(f"[synonyms] Raw response length: {len(raw) if raw else 0} chars")
 
         if not raw or len(raw.strip()) < 20:
             logger.warning(f"[synonyms] Insufficient response from model")
@@ -1115,36 +1113,44 @@ Synonyms for "{word}":"""
                 'raw_response': raw
             }, status=200)
 
+        # Since we primed with "1.", prepend it back
+        full_response = "1." + raw if raw and not raw.strip().startswith('1') else raw
+
         # Parse the numbered list format
         synonyms = []
-        lines = raw.strip().split('\n')
+        lines = full_response.strip().split('\n')
         
         for line in lines:
             line = line.strip()
-            # Match patterns like "1. happy: feeling joy" or "happy: feeling joy"
+            # Match: "1. word: explanation" or "word: explanation"
             match = re.match(r'^(?:\d+[\.)]\s*)?([^:]+):\s*(.+)$', line)
             if match:
                 syn = match.group(1).strip()
                 explanation = match.group(2).strip()
                 
-                # Basic validation
-                if syn and explanation and len(syn.split()) <= 3:
+                # Clean up any remaining numbers from synonym
+                syn = re.sub(r'^\d+[\.)]\s*', '', syn).strip()
+                
+                # Validation: single word or short phrase
+                if syn and explanation and len(syn.split()) <= 3 and len(syn) > 1:
                     synonyms.append({
                         'synonym': syn,
                         'meaning': explanation,
                         'difference': f'Alternative to "{word}"',
-                        'usage': 'General usage',
-                        'example': f'Use "{syn}" instead of "{word}"'
+                        'usage': 'Can be used in similar contexts',
+                        'example': f'Example: "{syn}" conveys a similar meaning to "{word}"'
                     })
         
         logger.info(f"[synonyms] Parsed {len(synonyms)} synonyms")
+        print(f"DEBUG: Parsed synonyms: {[s['synonym'] for s in synonyms]}")
 
         if len(synonyms) == 0:
             return Response({
                 'word': word,
                 'success': False,
                 'error': 'Could not parse synonyms from model output.',
-                'raw_response': raw
+                'raw_response': raw,
+                'full_response': full_response
             }, status=200)
 
         # Take up to 5 synonyms
