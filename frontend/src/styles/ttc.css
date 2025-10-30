@@ -268,46 +268,6 @@ h1, .ttc-title-xl,
 }
 
 /* ==========================
-   How It Works (details card)
-   ========================== */
-.ttc-howitworks,
-.ttc-howitworks[open]{
-  background: var(--ttc-accent) !important;
-  color: var(--ttc-accent-foreground) !important;
-  border: 1px solid var(--ttc-border);
-  border-color: var(--ttc-border) !important;
-  border-left-color: var(--ttc-primary) !important;
-  border-radius: 12px;
-  padding: 12px 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.05);
-}
-
-.ttc-howitworks__title {
-  list-style: none;
-  margin: 0 0 6px;
-  font-weight: 800;
-  color: var(--ttc-primary);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: default; 
-}
-
-/* remove default disclosure marker & caret */
-.ttc-howitworks > summary { background: transparent;  }
-.ttc-howitworks > summary::-webkit-details-marker { display: none; }
-.ttc-howitworks > summary::before { display: none; }
-
-/* keyboard focus ring */
-.ttc-howitworks > summary:focus-visible {
-  outline: 2px solid var(--ttc-ring);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-.ttc-howitworks .ttc-prose { margin-top: 4px; }
-
-/* ==========================
    HomePage layout helpers
    ========================== */
 .homepage-section {
