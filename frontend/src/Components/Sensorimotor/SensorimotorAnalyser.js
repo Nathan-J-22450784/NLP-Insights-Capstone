@@ -93,9 +93,7 @@ const SensorimotorAnalyser = ({ words, uploadedPreview, onBack }) => {
   return (
     <main className="ttc-page">
       <div className="ttc-container ttc-stack-lg">
-        {/* Back */}
-        <button type="button" onClick={onBack} className="ttc-button">← Back</button>
-
+        
         {/* Title + status */}
         <section className="ttc-panel ttc-stack-md" aria-live="polite">
           <h1 className="analysis-title">Sensorimotor Analysis</h1>

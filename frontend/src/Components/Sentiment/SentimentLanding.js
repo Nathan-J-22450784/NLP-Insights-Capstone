@@ -69,11 +69,7 @@ const SentimentLanding = ({ onBack, genre }) => {
   return (
     <main className="ttc-page">
       <div className="ttc-container ttc-stack-lg">
-        {/* Back */}
-        <button onClick={onBack} className="ttc-button">
-          ← Back
-        </button>
-
+        
         {/* Title */}
         <section className="ttc-panel ttc-stack-md">
           <h1 className="analysis-title">Sentiment Analysis</h1>

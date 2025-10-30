@@ -100,10 +100,7 @@ const ClusteringAnalyser = ({ uploadedText, onBack }) => {
   return (
     <main className="ttc-page">
       <div className="ttc-container ttc-stack-lg analysis-container">
-        <button onClick={onBack} className="ttc-button">
-          ← Back
-        </button>
-
+        
         <section className="ttc-panel ttc-stack-md">
          <header className="analysis-header">
           <h1 className="analysis-title">Clustering Analysis</h1>
