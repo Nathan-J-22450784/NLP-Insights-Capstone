@@ -146,33 +146,41 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
         
     p = prompt.lower()
 
+    json_like = any(kw in p for kw in [
+        "output only a json array",
+        "return only json",
+        "strict json",
+        "output as json",
+        "only a json"
+    ])
+
+    gen_kwargs = {
+        "max_new_tokens": int(num_predict),
+        "min_new_tokens": 1,
+        "no_repeat_ngram_size": 0,
+        "repetition_penalty": 1.0,
+    }
+
     def wants_deterministic(s: str) -> bool:
-        # For tool-like, structured tasks (synonyms/concepts/charts/etc.)
         return (
             "provide exactly 5 synonyms" in s
+            or "return exactly 5 synonyms" in s
             or "concepts related to" in s
             or "you are an expert data analyst" in s
             or "analyse the bar chart" in s
             or "analyse the scatter plot" in s
             or "task: analyse" in s
+            or json_like  # force deterministic for JSON mode
         )
 
-    # Base args that are valid for both modes
-    gen_kwargs = {
-        "max_new_tokens": int(num_predict),
-        "min_new_tokens": 1,
-        "no_repeat_ngram_size": 3,
-        "repetition_penalty": 1.2,
-    }
     if wants_deterministic(p) or (temperature is None) or (float(temperature) <= 0.0):
-        # Deterministic → beam search, NO sampling flags (prevents the warning)
         gen_kwargs.update({
             "do_sample": False,
             "num_beams": 4,
             "length_penalty": 1.0,
+            "early_stopping": True,
         })
     else:
-        # Sampling → include temperature/top_p (now valid because do_sample=True)
         gen_kwargs.update({
             "do_sample": True,
             "temperature": float(temperature),
@@ -186,12 +194,15 @@ def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: floa
 
     generated_text = result[0].get("generated_text", "").strip()
 
-    # Trim to last complete sentence if cut off
-    if generated_text and not generated_text.endswith(('.', '!', '?')):
-        last_period = generated_text.rfind('.')
-        if last_period > 0:
-            generated_text = generated_text[:last_period + 1]
-
+    # Only trim for prose (not JSON-like outputs)
+    head = generated_text.lstrip() if generated_text else ""
+    if head and not (head.startswith('[') or head.startswith('{')):
+        if not head.endswith(('.', '!', '?')):
+            generated_text = head
+        else:
+            last_period = head.rfind('.')
+            generated_text = head[:last_period + 1] if last_period > 0 else head
+            
     return generated_text
 
 def ensure_hf_loaded():
@@ -1068,9 +1079,14 @@ def get_synonyms(request):
 
     # Compact prompt; model must output ONLY a JSON array.
     prompt = (
-        f'Return exactly 5 synonyms for "{word}". Output ONLY a JSON array of 5 objects.\n'
-        'Each object must have keys: "synonym", "meaning", "difference", "usage", "example".\n'
-        f'Now do "{word}". Output only the JSON array.'
+    f'Return exactly 5 synonyms for "{word}". Output ONLY a JSON array of 5 objects.\n'
+    'Each object must have keys: "synonym", "meaning", "difference", "usage", "example".\n'
+    'Example: [{"synonym":"X","meaning":"","difference":"","usage":"","example":""},'
+    ' {"synonym":"Y","meaning":"","difference":"","usage":"","example":""},'
+    ' {"synonym":"Z","meaning":"","difference":"","usage":"","example":""},'
+    ' {"synonym":"A","meaning":"","difference":"","usage":"","example":""},'
+    ' {"synonym":"B","meaning":"","difference":"","usage":"","example":""}]\n'
+    'Do not include any text before or after the JSON array.'
     )
 
     # --- helpers ---
@@ -1078,15 +1094,35 @@ def get_synonyms(request):
         if not raw:
             return None
         s = raw.strip()
+        
+        # Strip code fences if present
+        if s.startswith("```"):
+            # remove ```json ... ``` or ``` ... ```
+            s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.IGNORECASE)
+            s = re.sub(r"\s*```$", "", s)
+    
+        # Normalize weird whitespace
+        s = s.replace("\u00A0", " ").replace("\u2009", " ").strip()
+    
+        # Find outermost array
         start = s.find('[')
         end = s.rfind(']')
         if start == -1 or end == -1 or end <= start:
             return None
+    
         s = s[start:end+1]
-        # normalise curly quotes -> straight, and single -> double if needed
-        s = (s.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"'))
+    
+        # Normalize curly quotes only for quotes around keys/strings, gently
+        s = (s.replace("“", '"').replace("”", '"')
+               .replace("’", "'").replace("‘", "'"))
+    
+        # If it's single-quoted JSON-ish, convert ONLY if there are no double quotes at all
         if '"' not in s and "'" in s:
             s = s.replace("'", '"')
+    
+        # Optional: trailing commas -> remove (JSON5-ish forgiveness)
+        s = re.sub(r",(\s*[\]\}])", r"\1", s)
+    
         return s
 
     def _is_valid(items):
@@ -1133,14 +1169,25 @@ def get_synonyms(request):
         return {k: out.get(k, "") for k in ["synonym", "meaning", "difference", "usage", "example"]}
 
     def _normalise_items(items: list) -> list:
-        """Apply key normalisation + strip extras + enforce order."""
+        """Apply key normalisation; accept dicts or strings, enforce required keys."""
         if not isinstance(items, list):
             return items
         normed = []
         for it in items:
             if isinstance(it, dict):
                 normed.append(_normalise_item_keys(it))
+            elif isinstance(it, str):
+                s = it.strip()
+                if s:
+                    normed.append({
+                        "synonym": s,
+                        "meaning": "",
+                        "difference": "",
+                        "usage": "",
+                        "example": ""
+                    })
         return normed
+
 
     def _markdown(items, base):
         lines = [f'**Synonyms for "{base}":**', ""]
@@ -1216,8 +1263,9 @@ def get_synonyms(request):
             return Response({
                 "word": word,
                 "success": False,
-                "error": "Synonyms unavailable for this word right now."
-            }, status=502)
+                "error": "Synonyms unavailable for this word right now.",
+                "items_received": items if isinstance(items, list) else []
+            }, status=200)  # return 200 to avoid surfacing infra error in UI
 
         # Optional: flag which suggested synonyms already occur in the text
         present = [
