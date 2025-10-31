@@ -1072,30 +1072,20 @@ def get_synonyms(request):
     """
     word = (request.data.get('word') or "").strip()
     uploaded_text = (request.data.get('uploaded_text') or "").strip()
-
     if not word:
         return Response({'error': 'No word provided.'}, status=400)
 
     logger.info(f'[synonyms] Requesting synonyms for: "{word}"')
-
     try:
-        # Import our lightweight synonym finder
         from api.keyness.synonym_finder import get_synonyms_for_word
-        
-        # Get synonyms using WordNet (much more memory efficient!)
         result = get_synonyms_for_word(word, uploaded_text, max_synonyms=5)
-        
-        # Debug output (much simpler now)
-        print("=" * 50)
-        print("SYNONYMS DEBUG")
-        print(f"Word: {word}")
-        print(f"Success: {result.get('success', False)}")
-        print(f"Synonyms found: {len(result.get('synonyms', []))}")
-        print(f"Source: {result.get('source', 'unknown')}")
-        print("=" * 50)
-        
+
+        # If WordNet wasn’t used and fallback is disabled, raise a hard error.
+        if not result.get("success", False) or (result.get("fallback") and os.getenv("ALLOW_SYNONYM_FALLBACK", "0") != "1"):
+            logger.error(f"[synonyms] Hard fail for '{word}': {result.get('error') or 'fallback disallowed'}")
+            return Response(result | {"success": False}, status=500)
+
         logger.info(f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
-        
         return Response(result)
 
     except Exception as e:
@@ -1104,7 +1094,7 @@ def get_synonyms(request):
             'word': word,
             'success': False,
             'error': f'An error occurred: {str(e)}',
-            'fallback': True
+            'fallback': False
         }, status=500)
 
 @api_view(['POST'])
