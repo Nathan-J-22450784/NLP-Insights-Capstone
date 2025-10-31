@@ -1065,6 +1065,52 @@ def corpus_meta_keyness(request):
         logger.exception(f"Error reading corpus metadata: {e}")
         return JsonResponse({"error": "Internal server error"}, status=500)
 
+def _enrich_synonyms_markdown(word: str, uploaded_text: str, synonyms: list[dict]) -> str:
+    """Use your HF model to turn bare WordNet items into intuitive, structured guidance."""
+    # Keep prompt compact and deterministic.
+    # Include brief context to tailor “difference/usage/example”.
+    context = (uploaded_text or "")[:800]  # keep it short
+    lines = []
+    for i, s in enumerate(synonyms[:5], 1):
+        # Carry through WordNet glosses to ground the model
+        gloss = (s.get("meaning") or "")[:140]
+        lines.append(f"{i}. {s['synonym']} — {gloss}")
+
+    bullet_list = "\n".join(lines) if lines else "None"
+
+    prompt = f"""
+You are a precise writing assistant.
+
+Task: For the target word "{word}", you are given up to 5 candidate synonyms (with short WordNet glosses) and a snippet of the user's text for context. Produce a SHORT, structured, practitioner-friendly markdown section with:
+
+Title: 🔄 Alternate Words for "{word}"
+Then a bold line: **Synonyms for "{word}":**
+Then for each synonym 1..5:
+1. **<synonym>**
+   - Meaning: <plain-English meaning, ≤1 sentence>
+   - Difference from "{word}": <crisp contrast in connotation/usage>
+   - Usage context: <when to pick this synonym in this kind of text>
+   - Example: <1 natural, short sentence; do not quote user text>
+
+Finally, a **Summary** (≤2 sentences) explaining how choosing among these options subtly shifts tone/intent.
+
+Synonyms (with glosses):
+{bullet_list}
+
+Context (may help you choose apt usage notes; DO NOT copy directly):
+{context}
+
+Rules:
+- Be concise. No fluff.
+- Keep each bullet ≤3 lines.
+- Do not invent technical facts; rely on general usage.
+- Output only the markdown section. 
+"""
+
+    # Deterministic decoding for stable shape
+    enriched = generate_text_with_fallback(prompt, num_predict=420, temperature=0.0)
+    return enriched or """ 
+    
 @api_view(['POST'])
 def get_synonyms(request):
     """
@@ -1075,6 +1121,9 @@ def get_synonyms(request):
     if not word:
         return Response({'error': 'No word provided.'}, status=400)
 
+    if not word:
+        return Response({'error': 'No word provided.'}, status=400)
+        
     logger.info(f'[synonyms] Requesting synonyms for: "{word}"')
     try:
         from api.keyness.synonym_finder import get_synonyms_for_word
@@ -1084,6 +1133,19 @@ def get_synonyms(request):
         if not result.get("success", False) or (result.get("fallback") and os.getenv("ALLOW_SYNONYM_FALLBACK", "0") != "1"):
             logger.error(f"[synonyms] Hard fail for '{word}': {result.get('error') or 'fallback disallowed'}")
             return Response(result | {"success": False}, status=500)
+
+        logger.info(f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
+        return Response(result)
+
+        # === NEW: optional LLM enrichment of the markdown ===
+        if os.getenv("SYNONYMS_ENRICH", "0") == "1" and not result.get("fallback"):
+            try:
+                enriched_md = _enrich_synonyms_markdown(word, uploaded_text, result.get("synonyms", []))
+                if enriched_md:
+                    result["analysis_markdown"] = enriched_md
+                    result["source"] = result.get("source", "wordnet") + "+llm"
+            except Exception as e:
+                logger.warning(f"[synonyms] enrichment skipped: {e}")
 
         logger.info(f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
         return Response(result)
