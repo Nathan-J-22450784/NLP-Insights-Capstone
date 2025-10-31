@@ -201,11 +201,7 @@ const labelByType = {
           )}
 
           {/* Genre selector + button for corpus-based analyses */}
-          {(
-            (analysisType === "keyness" && comparisonMode === "corpus") ||
-            analysisType === "sentiment" ||
-            analysisType === "sensorimotor"
-          ) && (
+          {(analysisType === "keyness" && comparisonMode === "corpus") && (
             <>
               <GenreCorpusSelector
                 loading={loading}
