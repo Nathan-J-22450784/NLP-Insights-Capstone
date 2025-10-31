@@ -1068,7 +1068,7 @@ def corpus_meta_keyness(request):
 @api_view(['POST'])
 def get_synonyms(request):
     """
-    FLAN-T5 optimized version - uses task-based prompting.
+    Lightweight synonym finder using NLTK WordNet - memory efficient alternative to LLMs
     """
     word = (request.data.get('word') or "").strip()
     uploaded_text = (request.data.get('uploaded_text') or "").strip()
@@ -1078,114 +1078,33 @@ def get_synonyms(request):
 
     logger.info(f'[synonyms] Requesting synonyms for: "{word}"')
 
-    # CRITICAL: T5 needs to be told to generate a LIST, not answer a question
-    # Use explicit instruction that triggers list-generation behavior
-    prompt = f"""Generate a numbered list of exactly 5 synonyms for the word "{word}". 
-For each synonym, provide the word followed by a colon and a brief explanation.
-
-Example format:
-1. synonym1: explanation here
-2. synonym2: explanation here
-
-Now generate 5 synonyms for "{word}":
-1."""  # Start the first item to prime the model
-
     try:
-        # Use sampling (not deterministic) for better variety
-        raw = generate_text_with_fallback(prompt, num_predict=400, temperature=0.8)
-
-        # Debug output
+        # Import our lightweight synonym finder
+        from api.keyness.synonym_finder import get_synonyms_for_word
+        
+        # Get synonyms using WordNet (much more memory efficient!)
+        result = get_synonyms_for_word(word, uploaded_text, max_synonyms=5)
+        
+        # Debug output (much simpler now)
         print("=" * 50)
         print("SYNONYMS DEBUG")
         print(f"Word: {word}")
-        print(f"Raw response: '{raw}'")
-        print(f"Response length: {len(raw) if raw else 0}")
+        print(f"Success: {result.get('success', False)}")
+        print(f"Synonyms found: {len(result.get('synonyms', []))}")
+        print(f"Source: {result.get('source', 'unknown')}")
         print("=" * 50)
         
-        logger.info(f"[synonyms] Raw response length: {len(raw) if raw else 0} chars")
-
-        if not raw or len(raw.strip()) < 20:
-            logger.warning(f"[synonyms] Insufficient response from model")
-            return Response({
-                'word': word,
-                'success': False,
-                'error': 'Model did not generate sufficient output. Try a different word or check model configuration.',
-                'raw_response': raw
-            }, status=200)
-
-        # Since we primed with "1.", prepend it back
-        full_response = "1." + raw if raw and not raw.strip().startswith('1') else raw
-
-        # Parse the numbered list format
-        synonyms = []
-        lines = full_response.strip().split('\n')
+        logger.info(f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
         
-        for line in lines:
-            line = line.strip()
-            # Match: "1. word: explanation" or "word: explanation"
-            match = re.match(r'^(?:\d+[\.)]\s*)?([^:]+):\s*(.+)$', line)
-            if match:
-                syn = match.group(1).strip()
-                explanation = match.group(2).strip()
-                
-                # Clean up any remaining numbers from synonym
-                syn = re.sub(r'^\d+[\.)]\s*', '', syn).strip()
-                
-                # Validation: single word or short phrase
-                if syn and explanation and len(syn.split()) <= 3 and len(syn) > 1:
-                    synonyms.append({
-                        'synonym': syn,
-                        'meaning': explanation,
-                        'difference': f'Alternative to "{word}"',
-                        'usage': 'Can be used in similar contexts',
-                        'example': f'Example: "{syn}" conveys a similar meaning to "{word}"'
-                    })
-        
-        logger.info(f"[synonyms] Parsed {len(synonyms)} synonyms")
-        print(f"DEBUG: Parsed synonyms: {[s['synonym'] for s in synonyms]}")
-
-        if len(synonyms) == 0:
-            return Response({
-                'word': word,
-                'success': False,
-                'error': 'Could not parse synonyms from model output.',
-                'raw_response': raw,
-                'full_response': full_response
-            }, status=200)
-
-        # Take up to 5 synonyms
-        synonyms = synonyms[:5]
-
-        # Check which synonyms appear in the uploaded text
-        present = []
-        if uploaded_text:
-            for item in synonyms:
-                syn = item.get('synonym', '')
-                if syn and re.search(rf"\b{re.escape(syn)}\b", uploaded_text, flags=re.I):
-                    present.append(item)
-
-        # Format markdown
-        markdown_lines = [f'**Synonyms for "{word}":**', '']
-        for i, item in enumerate(synonyms, 1):
-            markdown_lines.append(
-                f"{i}. **{item['synonym']}** — {item['meaning']}"
-            )
-        markdown = '\n'.join(markdown_lines)
-
-        return Response({
-            'word': word,
-            'success': True,
-            'synonyms': synonyms,
-            'analysis_json': synonyms,
-            'analysis_markdown': markdown,
-            'present_in_text': present,
-            'fallback': False
-        })
+        return Response(result)
 
     except Exception as e:
         logger.exception(f"[synonyms] Error: {e}")
         return Response({
-            'error': f'An error occurred: {str(e)}'
+            'word': word,
+            'success': False,
+            'error': f'An error occurred: {str(e)}',
+            'fallback': True
         }, status=500)
 
 @api_view(['POST'])
