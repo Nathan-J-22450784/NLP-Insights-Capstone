@@ -1183,9 +1183,7 @@ def get_concepts(request):
     sentences_text = "\n".join([f"- {s}" for s in sample_sentences]) if sample_sentences else "No real sentences found."
 
     # Build the prompt with real examples
-    prompt = f"""
-    
-You are a linguistic and conceptual analysis expert.
+    prompt = f"""You are a linguistic and conceptual analysis expert.
 
 Task: Given the word "{word}", provide a breakdown of the 3 - 5 main concepts or senses that this word might refer to.
 Use the example sentences provided below as your evidence. For each concept, select one of the provided sentences
