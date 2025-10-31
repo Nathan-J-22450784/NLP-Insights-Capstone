@@ -1183,9 +1183,11 @@ def get_concepts(request):
     sentences_text = "\n".join([f"- {s}" for s in sample_sentences]) if sample_sentences else "No real sentences found."
 
     # Build the prompt with real examples
-    prompt = f"""You are a linguistic and conceptual analysis expert.
+    prompt = f"""
+    
+You are a linguistic and conceptual analysis expert.
 
-Task: Given the word "{word}", provide a breakdown of the 3–5 main concepts or senses that this word might refer to.
+Task: Given the word "{word}", provide a breakdown of the 3 - 5 main concepts or senses that this word might refer to.
 Use the example sentences provided below as your evidence. For each concept, select one of the provided sentences
 that best illustrates this sense. Do not invent sentences; only use the given ones.
 
@@ -1205,8 +1207,7 @@ Distinction: [How this differs from other senses]
 [Continue for 3–5 concepts]
 
 Summary:
-[Why distinguishing between these senses matters for interpretation]
-"""
+[Why distinguishing between these senses matters for interpretation]"""
 
     try:
         analysis = generate_text_with_fallback(prompt, num_predict=400, temperature=0.7)
