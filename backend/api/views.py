@@ -1127,22 +1127,27 @@ def get_synonyms(request):
         result = get_synonyms_for_word(word, uploaded_text, max_synonyms=5)
 
         # If WordNet wasn’t used and fallback is disabled, raise a hard error.
-        if not result.get("success", False) or (result.get("fallback") and os.getenv("ALLOW_SYNONYM_FALLBACK", "0") != "1"):
-        logger.error(f"[synonyms] Hard fail for '{word}': {result.get('error') or 'fallback disallowed'}")
-        return Response(result | {"success": False}, status=500)
+        if not result.get("success", False) or (
+            result.get("fallback") and os.getenv("ALLOW_SYNONYM_FALLBACK", "0") != "1"
+        ):
+            logger.error(
+                f"[synonyms] Hard fail for '{word}': {result.get('error') or 'fallback disallowed'}"
+            )
+            return Response(result | {"success": False}, status=500)
 
-    # === NEW: optional LLM enrichment of the markdown ===
-    if os.getenv("SYNONYMS_ENRICH", "0") == "1" and not result.get("fallback"):
-        try:
-            enriched_md = _enrich_synonyms_markdown(word, uploaded_text, result.get("synonyms", []))
-            if enriched_md:
-                result["analysis_markdown"] = enriched_md
-                result["source"] = result.get("source", "wordnet") + "+llm"
-        except Exception as e:
-            logger.warning(f"[synonyms] enrichment skipped: {e}")
+        # === NEW: optional LLM enrichment of the markdown ===
+        if os.getenv("SYNONYMS_ENRICH", "0") == "1" and not result.get("fallback"):
+            try:
+                enriched_md = _enrich_synonyms_markdown(word, uploaded_text, result.get("synonyms", []))
+                if enriched_md:
+                    result["analysis_markdown"] = enriched_md
+                    result["source"] = result.get("source", "wordnet") + "+llm"
+            except Exception as e:
+                logger.warning(f"[synonyms] enrichment skipped: {e}")
 
-    logger.info(f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
-    return Response(result)
+        logger.info(
+            f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
+        return Response(result)
 
     except Exception as e:
         logger.exception(f"[synonyms] Error: {e}")
