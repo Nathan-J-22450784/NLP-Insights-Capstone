@@ -1080,7 +1080,7 @@ def get_synonyms(request):
 
     try:
         # Import our lightweight synonym finder
-        from api.synonyms.synonym_finder import get_synonyms_for_word
+        from api.keyness.synonym_finder import get_synonyms_for_word
         
         # Get synonyms using WordNet (much more memory efficient!)
         result = get_synonyms_for_word(word, uploaded_text, max_synonyms=5)
