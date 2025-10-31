@@ -14,6 +14,10 @@ const HomePage = ({ onSelect, selectedGenre, onSelectGenre, onProceed }) => {
   const [comparisonMode, setComparisonMode] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("");
 
+const isKeyness = analysisType === "keyness";
+const isKeynessCorpus = isKeyness && comparisonMode === "corpus";
+const isKeynessUserText = isKeyness && comparisonMode === "user_text";
+
 const labelByType = {
   keyness: "Keyness",
   sentiment: "Sentiment",
@@ -180,7 +184,7 @@ const labelByType = {
                 </option>
               </select>
 
-              {comparisonMode === "user_text" && (
+               {isKeynessUserText && (
                 <div className="info-message">
                   ℹ️ You'll upload two texts in the next step:
                   <ul>
@@ -200,8 +204,8 @@ const labelByType = {
             </div>
           )}
 
-          {/* Genre selector + button for corpus-based analyses */}
-          {(analysisType === "keyness" && comparisonMode === "corpus") && (
+          {/* Keyness + Corpus → How-to, Genre, Privacy, Go to */}
+          {isKeynessCorpus && (
             <>
               <GenreCorpusSelector
                 loading={loading}
@@ -211,59 +215,73 @@ const labelByType = {
                 filteredCorpora={filteredCorpora}
                 formatDisplayName={formatDisplayName}
               />
-
-              {/* Privacy Tile */}
+          
               <PrivacyTile style={{ marginBottom: 16 }} />
-
+          
               <button
                 onClick={() => {
-                  onProceed({
-                    analysisType,
-                    genre: localGenre,
-                    comparisonMode,
-                  });
+                  onProceed({ analysisType, genre: localGenre, comparisonMode });
                   setAnalysisDone(true);
                 }}
                 className="ttc-button ttc-button-lg"
                 disabled={!localGenre || loading || !!err}
               >
-                Go to{" "}
-                {analysisType.charAt(0).toUpperCase() + analysisType.slice(1)}{" "}
-                Analysis
+                Go to Keyness Analysis
               </button>
             </>
           )}
-
-          {/* Special case: Keyness with user_text (no genre needed) */}
-          {analysisType === "keyness" && comparisonMode === "user_text" && (
-            <button
-              onClick={() => {
-                onProceed({
-                  analysisType: "keyness",
-                  genre: null,
-                  comparisonMode: comparisonMode
-                });
-              }}
-              className="ttc-button ttc-button-lg"
-              disabled={loading || !!err}
-            >
-              Go to Keyness Analysis
-            </button>
-          )}
-
-          {/* Clustering button */}
-          {analysisType === "clustering" && (
+          
+          {/* Keyness + User Text → How-to, Privacy, Go to */}
+          {isKeynessUserText && (
             <>
-             {/* Privacy Tile */}
               <PrivacyTile style={{ marginBottom: 16 }} />
-            
-            <button
-              onClick={() => onProceed({ analysisType })}
-              className="ttc-button ttc-button-lg"
-            >
-              Go to Clustering Analysis
-            </button>
-                </>
+              <button
+                onClick={() => {
+                  onProceed({ analysisType: "keyness", genre: null, comparisonMode });
+                }}
+                className="ttc-button ttc-button-lg"
+                disabled={loading || !!err}
+              >
+                Go to Keyness Analysis
+              </button>
+            </>
+          )}
+          
+          {/* Everything else (Sentiment, Clustering, Sensorimotor) → How-to, Privacy, Go to */}
+          {!isKeyness && analysisType === "sentiment" && (
+            <>
+              <PrivacyTile style={{ marginBottom: 16 }} />
+              <button
+                onClick={() => onProceed({ analysisType: "sentiment" })}
+                className="ttc-button ttc-button-lg"
+              >
+                Go to Sentiment Analysis
+              </button>
+            </>
+          )}
+          
+          {!isKeyness && analysisType === "clustering" && (
+            <>
+              <PrivacyTile style={{ marginBottom: 16 }} />
+              <button
+                onClick={() => onProceed({ analysisType: "clustering" })}
+                className="ttc-button ttc-button-lg"
+              >
+                Go to Clustering Analysis
+              </button>
+            </>
+          )}
+          
+          {!isKeyness && analysisType === "sensorimotor" && (
+            <>
+              <PrivacyTile style={{ marginBottom: 16 }} />
+              <button
+                onClick={() => onProceed({ analysisType: "sensorimotor" })}
+                className="ttc-button ttc-button-lg"
+              >
+                Go to Sensorimotor Analysis
+              </button>
+            </>
           )}
 
         </div>
