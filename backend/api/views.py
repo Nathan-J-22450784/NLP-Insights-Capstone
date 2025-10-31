@@ -1204,7 +1204,7 @@ Description: [Brief definition]
 Example usage: [Choose one of the given sentences, copy it exactly, and explain why it illustrates this concept]
 Distinction: [How this differs from other senses]
 
-[Continue for 3–5 concepts]
+[Continue for 3-5 concepts]
 
 Summary:
 [Why distinguishing between these senses matters for interpretation]"""
