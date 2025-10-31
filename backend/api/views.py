@@ -1109,7 +1109,7 @@ Rules:
 
     # Deterministic decoding for stable shape
     enriched = generate_text_with_fallback(prompt, num_predict=420, temperature=0.0)
-    return enriched or """ 
+    return enriched or ""
     
 @api_view(['POST'])
 def get_synonyms(request):
@@ -1121,9 +1121,6 @@ def get_synonyms(request):
     if not word:
         return Response({'error': 'No word provided.'}, status=400)
 
-    if not word:
-        return Response({'error': 'No word provided.'}, status=400)
-        
     logger.info(f'[synonyms] Requesting synonyms for: "{word}"')
     try:
         from api.keyness.synonym_finder import get_synonyms_for_word
@@ -1131,24 +1128,21 @@ def get_synonyms(request):
 
         # If WordNet wasn’t used and fallback is disabled, raise a hard error.
         if not result.get("success", False) or (result.get("fallback") and os.getenv("ALLOW_SYNONYM_FALLBACK", "0") != "1"):
-            logger.error(f"[synonyms] Hard fail for '{word}': {result.get('error') or 'fallback disallowed'}")
-            return Response(result | {"success": False}, status=500)
+        logger.error(f"[synonyms] Hard fail for '{word}': {result.get('error') or 'fallback disallowed'}")
+        return Response(result | {"success": False}, status=500)
 
-        logger.info(f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
-        return Response(result)
+    # === NEW: optional LLM enrichment of the markdown ===
+    if os.getenv("SYNONYMS_ENRICH", "0") == "1" and not result.get("fallback"):
+        try:
+            enriched_md = _enrich_synonyms_markdown(word, uploaded_text, result.get("synonyms", []))
+            if enriched_md:
+                result["analysis_markdown"] = enriched_md
+                result["source"] = result.get("source", "wordnet") + "+llm"
+        except Exception as e:
+            logger.warning(f"[synonyms] enrichment skipped: {e}")
 
-        # === NEW: optional LLM enrichment of the markdown ===
-        if os.getenv("SYNONYMS_ENRICH", "0") == "1" and not result.get("fallback"):
-            try:
-                enriched_md = _enrich_synonyms_markdown(word, uploaded_text, result.get("synonyms", []))
-                if enriched_md:
-                    result["analysis_markdown"] = enriched_md
-                    result["source"] = result.get("source", "wordnet") + "+llm"
-            except Exception as e:
-                logger.warning(f"[synonyms] enrichment skipped: {e}")
-
-        logger.info(f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
-        return Response(result)
+    logger.info(f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
+    return Response(result)
 
     except Exception as e:
         logger.exception(f"[synonyms] Error: {e}")
