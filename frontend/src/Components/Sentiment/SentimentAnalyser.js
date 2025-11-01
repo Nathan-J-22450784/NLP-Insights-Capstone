@@ -3,17 +3,13 @@ import SentimentResults from "./SentimentResults";
 
 const API_URL = "http://localhost:8000/api/analyse-sentiment/";
 
-export default function SentimentAnalyser({ uploadedText, uploadedPreview, corpusPreview, onBack, genre }) {
+export default function SentimentAnalyser({ uploadedText, uploadedPreview, onBack, genre }) {
     const [data, setData] = useState(null);
     const [state, setState] = useState({ loading: true, error: "" });
 
     const previews = useMemo(() => {
         const out = [];
         if (uploadedPreview) out.push({ label: "Your text (preview)", body: uploadedPreview });
-        if (corpusPreview) {
-            const label = genre ? `Corpus preview (${genre})` : "Corpus preview";
-            out.push({ label, body: corpusPreview });
-        }
         return out;
     }, [uploadedPreview, corpusPreview, genre]);
 
@@ -76,9 +72,6 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, corpu
                                 ))}
                             </div>
                         )}
-                        <p className="ttc-subtitle">
-                            All statistics below are computed from <strong>your text</strong> only; the corpus preview is reference-only.
-                        </p>
                         <SentimentResults data={data} />
                     </>
                 )}
