@@ -45,7 +45,7 @@ export default function SentimentSummary({ summary }) {
       </div>
 
       {/* Metrics grid — force 4 equal columns to fill the panel */}
-      <div className="stats-grid">
+      <div className="ttc-stack-md">
         <div className="stat-card">
           <div className="stat-label">Mean Sentiment</div>
           <div className="stat-number">{nice(sentiment_score_mean)}</div>
