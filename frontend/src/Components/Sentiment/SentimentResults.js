@@ -3,16 +3,84 @@ import SentimentSummary from "./SentimentSummary";
 import EmotionBars from "./EmotionBars";
 import SentimentWordList from "./SentimentWordList";
 
+// Shared card for word lists
+function WordListCard({ title, words }) {
+  const [q, setQ] = React.useState("");
+
+  const norm = (w) => {
+    if (!w) return null;
+    const token = (w.word ?? w.token ?? w.term ?? `${w}`).toString();
+    const score = w.score ?? w.lexicon_rating ?? w.rating ?? null;
+    const freq  = w.freq ?? w.frequency ?? w.count ?? null;
+    const contrib = w.contribution ?? (score != null && freq != null ? score * freq : null);
+    return { token, score, freq, contrib };
+  };
+
+  const items = (words || [])
+    .map(norm)
+    .filter(Boolean)
+    .filter(({ token }) => token.toLowerCase().includes(q.toLowerCase()));
+
+  return (
+    <div className="ttc-panel">
+      <div className="ttc-flex-between">
+        <h3 className="ttc-title ttc-title--sm">{title}</h3>
+        <input
+          className="ttc-input"
+          style={inputCss}
+          placeholder="Find a word…"
+          aria-label="Find a word"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
+
+      <div className="ttc-sub">• Contribution = lexicon rating × frequency; Score = raw lexicon rating.</div>
+
+      {items.length === 0 ? (
+        <div className="ttc-center">
+          <p className="ttc-sub">No items.</p>
+        </div>
+      ) : (
+        <>
+          <table className="ttc-table">
+          <thead>
+            <tr>
+              <th>Word</th>
+              <th className="stat-cell">Score</td>
+            <th className="stat-cell">Contribution</td>
+            </tr>
+        </thead>
+        <tbody>
+          {items.map(({ token, score, contrib }, i) => (
+              <tr key={token + i}>
+                <td><strong>{token}</strong></td>
+                <td className="stat-cell">
+                  <span className="ttc-pill">{score ?? "—"}</span>
+                </td>
+                <td className="stat-cell">
+                  <span className="ttc-pill">
+                    {contrib != null ? contrib.toFixed(4) : "—"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 export default function SentimentResults({ data }) {
   const summary = data?.summary || {};
   const emotions = data?.emotions || {};
+
+  const tokens = data?.tokens || [];
+  const POS_T = 0.05, NEG_T = -0.05;
+
   const pos = data?.top_contributors?.positive || [];
   const neg = data?.top_contributors?.negative || [];
-
-  // Build full positive/negative lists from per-token transparency
-  const tokens = data?.tokens || [];
-  const POS_T = 0.05;
-  const NEG_T = -0.05;
 
   const posAll = [...tokens]
     .filter((t) => t.sentiment_score > POS_T)
@@ -23,25 +91,27 @@ export default function SentimentResults({ data }) {
     .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
 
   return (
-    <div className="tcc-stack-lg">
-      {/* Summary + Emotion bars */}
+    <div className="ttc-stack-lg ttc-container">
+      {/* Summary (big stat cards) */}
       <div className="tcc-grid tcc-grid-2-md">
         <div className="tcc-panel">
           <SentimentSummary summary={summary} />
         </div>
         <div className="tcc-panel">
-          <h3 className="tcc-title tcc-title--sm">Emotion Averages</h3>
-          <EmotionBars emotions={emotions} />
+          <h3 className="tcc-title ttc-title--sm">Emotion Averages</h3>
+          <EmotionBars emotions={emotions} className="emotion-bars" />
         </div>
       </div>
 
-      {/* Word lists */}
-      <div className="tcc-grid tcc-grid-2-lg">
-        <div className="tcc-panel">
-          <SentimentWordList title="Positive words" rows={pos} allRows={posAll} sign="pos" />
+      {/* Word lists: two equal columns, equal widths */}
+      <div className="ttc-grid ttc-grid-2-md">
+        <div>
+        {/* Positive words container with adjusted width */}
+          <WordListCard title="Positive words" words={pos.length ? pos : posAll} />
         </div>
-        <div className="tcc-panel">
-          <SentimentWordList title="Negative words" rows={neg} allRows={negAll} sign="neg" />
+        <div>
+        {/* Negative words container (no width override) */}
+          <WordListCard title="Negative words" words={neg.length ? neg : negAll} />
         </div>
       </div>
     </div>
