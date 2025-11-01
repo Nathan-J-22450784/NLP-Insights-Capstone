@@ -12,13 +12,11 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from textwrap import dedent
 
 REPO_URL = "https://github.com/Nathan-J-22450784/NLP-Insights-Capstone.git"
 DEFAULT_PROJECT_DIRNAME = "NLP-Insights-Capstone"
 DEFAULT_BRANCH = "local-dev"
 FRONTEND_SUBDIR = "frontend"
-MANAGE_PY = Path("backend") / "manage.py"
 SPACY_MODELS = ["en_core_web_sm", "en_core_web_md"]
 
 # --- Utility helpers ---------------------------------------------------------
@@ -121,61 +119,77 @@ def py_in_venv(venv): return venv / ("Scripts/python.exe" if is_windows() else "
 def pip_in_venv(venv): return venv / ("Scripts/pip.exe" if is_windows() else "bin/pip")
 
 # --- Setup steps -------------------------------------------------------------
+def assert_windows_py311_or_die():
+    """
+    On Windows we require Python 3.11 because SciPy==1.12.0 ships wheels for 3.11,
+    and we do not want to trigger native builds.
+    """
+    if not is_windows():
+        return
+    # Try to discover a 3.11 interpreter via the Windows py launcher
+    try:
+        out = subprocess.run(
+            ["py", "-3.11", "-c", "import sys; print(sys.executable)"],
+            check=True, capture_output=True, text=True
+        ).stdout.strip()
+        if out and Path(out).exists():
+            return
+    except Exception:
+        pass
+    msg = """
+    ERROR: Python 3.11 is required on Windows for prebuilt SciPy/Numpy wheels.
+    Please install Python 3.11 from https://www.python.org/downloads/windows/
+    (tick "Add python.exe to PATH") and then re-run:
+
+        py -3.11 setup.py
+
+    Tip: verify it's installed with:  py -3.11 -V
+    """.strip()
+    sys.exit(msg)
+
 def resolve_python311() -> str:
     """
-    Return the absolute path to a Python 3.11 interpreter on Windows/macOS/Linux.
-    On Windows we use the 'py' launcher; elsewhere we search PATH.
+    Return the absolute path to a Python 3.11 interpreter.
+    On Windows, we require it (see assert_windows_py311_or_die()).
     """
-    if platform.system() == "Windows":
-        # Ask the py launcher for the 3.11 interpreter path
-        try:
-            out = subprocess.run(
-                ["py", "-3.11", "-c", "import sys; print(sys.executable)"],
-                check=True, capture_output=True, text=True
-            ).stdout.strip()
-            if out and Path(out).exists():
-                return out
-        except Exception:
-            pass
-        # Not found -> explain clearly
-        msg = textwrap.dedent("""
-            ERROR: Python 3.11 not found.
-            This project uses SciPy==1.12.0 which provides prebuilt wheels for Python 3.11 on Windows.
-            Please install Python 3.11 from https://www.python.org/downloads/ (tick "Add to PATH")
-            and re-run:  py -3.11 setup.py
-        """).strip()
-        sys.exit(msg)
-    else:
-        # Non-Windows: prefer current interpreter if it's 3.11, otherwise try `python3.11` on PATH
-        if sys.version_info[:2] == (3, 11):
-            return sys.executable
-        candidate = shutil.which("python3.11") or shutil.which("python3")
-        if candidate:
-            # verify it's really 3.11
-            ver = subprocess.run([candidate, "-c", "import sys; print('.'.join(map(str, sys.version_info[:2])))"],
-                                 check=True, capture_output=True, text=True).stdout.strip()
-            if ver == "3.11":
-                return candidate
-        sys.exit("ERROR: Python 3.11 interpreter not found. Please install Python 3.11 and re-run setup.py.")
+    if is_windows():
+        assert_windows_py311_or_die()
+        out = subprocess.run(
+            ["py", "-3.11", "-c", "import sys; print(sys.executable)"],
+            check=True, capture_output=True, text=True
+        ).stdout.strip()
+        return out
+
+    # Non-Windows: prefer current interpreter if it's 3.11, else try python3.11
+    if sys.version_info[:2] == (3, 11):
+        return sys.executable
+    candidate = shutil.which("python3.11") or shutil.which("python3")
+    if candidate:
+        ver = subprocess.run(
+            [candidate, "-c", "import sys; print('.'.join(map(str, sys.version_info[:2])))"],
+            check=True, capture_output=True, text=True
+        ).stdout.strip()
+        if ver == "3.11":
+            return candidate
+    sys.exit("ERROR: Python 3.11 interpreter not found. Please install Python 3.11 and re-run setup.py.")
 
 def create_venv_with(python_exe: str, project_dir: Path):
     venv = project_dir / "venv"
+    if venv.exists():
+        # verify version inside venv
+        py_in = venv / ("Scripts/python.exe" if is_windows() else "bin/python")
+        try:
+            ver = subprocess.run([str(py_in), "-c", "import sys; print('.'.join(map(str, sys.version_info[:2])))"],
+                                 check=True, capture_output=True, text=True).stdout.strip()
+        except Exception:
+            ver = "unknown"
+        if ver != "3.11":
+            print("♻ Recreating venv with Python 3.11 …")
+            shutil.rmtree(venv)
     if not venv.exists():
         print(f"Creating virtual environment with {python_exe} …")
         run([python_exe, "-m", "venv", str(venv)])
-    else:
-        print(f"✓ Using existing venv: {venv}")
-    # Return the python inside the venv we just created
     return venv, (venv / ("Scripts/python.exe" if is_windows() else "bin/python"))
-
-def create_venv(project_dir):
-    venv = project_dir / "venv"
-    if not venv.exists():
-        print("Creating virtual environment …")
-        run([sys.executable, "-m", "venv", str(venv)])
-    else:
-        print(f"✓ Using existing venv: {venv}")
-    return venv, py_in_venv(venv)
 
 def install_backend(py, project_dir, use_lock):
     req = project_dir / ("backend/backend/requirements-lock.txt" if use_lock else "backend/backend/requirements.txt")
@@ -186,18 +200,26 @@ def install_backend(py, project_dir, use_lock):
     # Always keep pip tooling current
     run([str(py), "-m", "pip", "install", "--upgrade", "pip", "wheel", "setuptools"])
 
-    # --- Bootstrap to avoid SciPy build on Windows when using pinned scipy==1.12.0 ---
-    # Won't touch requirements file; just ensures a compatible NumPy is in place first.
-    if platform.system() == "Windows":
-        try:
-            # numpy<2 is broadly compatible with SciPy 1.12 wheels
-            run([str(py), "-m", "pip", "install", "numpy<2.0"])
-        except subprocess.CalledProcessError:
-            # Not fatal; we'll still attempt the full install next.
-            pass
+    # Wheels-only install on Windows to avoid native builds.
+    # (If a wheel doesn't exist for a pinned version, pip will fail fast with a clear error.)
+    pip_args = [str(py), "-m", "pip", "install"]
+    if is_windows():
+        pip_args += ["--only-binary", ":all:", "--no-binary", "en_core_web_sm,en_core_web_md"]
 
-    # Now install the full set
-    run([str(py), "-m", "pip", "install", "-r", str(req)])
+    # On Windows, don't try to preinstall numpy<2.0 unless we're *actually* on a 3.11 venv
+    if is_windows():
+        py_ver = subprocess.run(
+            [str(py), "-c", "import sys; print('.'.join(map(str, sys.version_info[:2])))"],
+            check=True, capture_output=True, text=True
+        ).stdout.strip()
+        if py_ver == "3.11":
+            try:
+                run([str(py), "-m", "pip", "install", "numpy<2.0", "--only-binary", ":all:"])
+            except subprocess.CalledProcessError:
+                # Not fatal; continue to main install which is wheels-only and will error clearly if needed
+                pass
+
+    run(pip_args + ["-r", str(req)])
 
 def download_spacy_models(py, skip=False):
     if skip: return
@@ -206,12 +228,13 @@ def download_spacy_models(py, skip=False):
         run([str(py), "-m", "spacy", "download", model])
 
 def run_migrations(py, project_dir):
-    manage_py = project_dir / MANAGE_PY
-    if not manage_py.exists():
-        print(f"⚠ manage.py not found at {manage_py} — skipping migrations.")
+    found = find_manage_py(project_dir)
+    if not found:
+        print("⚠ manage.py not found — skipping migrations.")
         return
+    manage_py, work_dir = found
     print(f"Applying Django migrations … ({manage_py.relative_to(project_dir)})")
-    run([str(py), str(manage_py), "migrate"], cwd=str(project_dir / "backend"))
+    run([str(py), "manage.py", "migrate"], cwd=str(work_dir))
 
 def install_frontend(project_dir):
     ensure_node_npm_available()
@@ -231,13 +254,13 @@ def maybe_setup_ollama(skip, model):
 
 # --- Runtime -----------------------------------------------------------------
 def start_backend(py, project_dir, port):
-    manage_py = project_dir / MANAGE_PY
-    if not manage_py.exists():
-        print(f"⚠ manage.py not found at {manage_py} — cannot start backend.")
+    found = find_manage_py(project_dir)
+    if not found:
+        print("⚠ manage.py not found — cannot start backend.")
         return None
-    print(f"Starting Django backend on http://localhost:{port} (cwd=backend/)")
-    return popen([str(py), str(manage_py), "runserver", f"0.0.0.0:{port}"],
-                 cwd=str(project_dir / "backend"), new_console=True)
+    manage_py, work_dir = found
+    print(f"Starting Django backend on http://localhost:{port} (cwd={work_dir.relative_to(project_dir)}/)")
+    return popen([str(py), "manage.py", "runserver", f"0.0.0.0:{port}"], cwd=str(work_dir), new_console=True)
 
 def start_frontend(project_dir, port=None):
     fe = project_dir / FRONTEND_SUBDIR
