@@ -121,6 +121,53 @@ def py_in_venv(venv): return venv / ("Scripts/python.exe" if is_windows() else "
 def pip_in_venv(venv): return venv / ("Scripts/pip.exe" if is_windows() else "bin/pip")
 
 # --- Setup steps -------------------------------------------------------------
+def resolve_python311() -> str:
+    """
+    Return the absolute path to a Python 3.11 interpreter on Windows/macOS/Linux.
+    On Windows we use the 'py' launcher; elsewhere we search PATH.
+    """
+    if platform.system() == "Windows":
+        # Ask the py launcher for the 3.11 interpreter path
+        try:
+            out = subprocess.run(
+                ["py", "-3.11", "-c", "import sys; print(sys.executable)"],
+                check=True, capture_output=True, text=True
+            ).stdout.strip()
+            if out and Path(out).exists():
+                return out
+        except Exception:
+            pass
+        # Not found -> explain clearly
+        msg = textwrap.dedent("""
+            ERROR: Python 3.11 not found.
+            This project uses SciPy==1.12.0 which provides prebuilt wheels for Python 3.11 on Windows.
+            Please install Python 3.11 from https://www.python.org/downloads/ (tick "Add to PATH")
+            and re-run:  py -3.11 setup.py
+        """).strip()
+        sys.exit(msg)
+    else:
+        # Non-Windows: prefer current interpreter if it's 3.11, otherwise try `python3.11` on PATH
+        if sys.version_info[:2] == (3, 11):
+            return sys.executable
+        candidate = shutil.which("python3.11") or shutil.which("python3")
+        if candidate:
+            # verify it's really 3.11
+            ver = subprocess.run([candidate, "-c", "import sys; print('.'.join(map(str, sys.version_info[:2])))"],
+                                 check=True, capture_output=True, text=True).stdout.strip()
+            if ver == "3.11":
+                return candidate
+        sys.exit("ERROR: Python 3.11 interpreter not found. Please install Python 3.11 and re-run setup.py.")
+
+def create_venv_with(python_exe: str, project_dir: Path):
+    venv = project_dir / "venv"
+    if not venv.exists():
+        print(f"Creating virtual environment with {python_exe} …")
+        run([python_exe, "-m", "venv", str(venv)])
+    else:
+        print(f"✓ Using existing venv: {venv}")
+    # Return the python inside the venv we just created
+    return venv, (venv / ("Scripts/python.exe" if is_windows() else "bin/python"))
+
 def create_venv(project_dir):
     venv = project_dir / "venv"
     if not venv.exists():
@@ -135,7 +182,21 @@ def install_backend(py, project_dir, use_lock):
     if not req.exists():
         sys.exit(f"ERROR: requirements file not found at {req}")
     print(f"Installing backend deps from {req.relative_to(project_dir)} …")
+
+    # Always keep pip tooling current
     run([str(py), "-m", "pip", "install", "--upgrade", "pip", "wheel", "setuptools"])
+
+    # --- Bootstrap to avoid SciPy build on Windows when using pinned scipy==1.12.0 ---
+    # Won't touch requirements file; just ensures a compatible NumPy is in place first.
+    if platform.system() == "Windows":
+        try:
+            # numpy<2 is broadly compatible with SciPy 1.12 wheels
+            run([str(py), "-m", "pip", "install", "numpy<2.0"])
+        except subprocess.CalledProcessError:
+            # Not fatal; we'll still attempt the full install next.
+            pass
+
+    # Now install the full set
     run([str(py), "-m", "pip", "install", "-r", str(req)])
 
 def download_spacy_models(py, skip=False):
@@ -206,11 +267,11 @@ def main():
     target = Path(args.dir).resolve()
 
     ensure_git_available()
-    ensure_node_npm_available()
-
+    
     if not args.start:
         create_or_use_repo(args.repo, target, args.skip_clone, branch=args.branch)
-        venv, py = create_venv(target)
+        py311 = resolve_python311()
+        venv, py = create_venv_with(py311, target)
         install_backend(py, target, args.use_lock)
         download_spacy_models(py, skip=args.skip_spacy)
         run_migrations(py, target)
