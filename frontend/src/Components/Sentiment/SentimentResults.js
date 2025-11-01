@@ -93,7 +93,7 @@ export default function SentimentResults({ data }) {
   return (
     <div className="ttc-stack-lg ttc-container">
       {/* Summary (big stat cards) */}
-      <div className="ttc-grid ttc-grid-2-md">
+      <div className="ttc-stack-lg">
         <div className="ttc-panel">
           <SentimentSummary summary={summary} />
         </div>
