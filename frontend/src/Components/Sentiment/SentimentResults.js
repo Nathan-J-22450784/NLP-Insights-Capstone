@@ -104,15 +104,11 @@ export default function SentimentResults({ data }) {
       </div>
 
       {/* Word lists: two equal columns, equal widths */}
-      <div className="ttc-grid ttc-grid-2-md">
-        <div>
+      <div className="ttc-stack-lg">
         {/* Positive words container with adjusted width */}
           <WordListCard title="Positive words" words={pos.length ? pos : posAll} />
-        </div>
-        <div>
         {/* Negative words container (no width override) */}
           <WordListCard title="Negative words" words={neg.length ? neg : negAll} />
-        </div>
       </div>
     </div>
   );
