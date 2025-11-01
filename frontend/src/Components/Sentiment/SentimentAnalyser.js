@@ -3,19 +3,15 @@ import SentimentResults from "./SentimentResults";
 
 const API_URL = "http://localhost:8000/api/analyse-sentiment/";
 
-export default function SentimentAnalyser({ uploadedText, uploadedPreview, corpusPreview, onBack, genre }) {
+export default function SentimentAnalyser({ uploadedText, uploadedPreview, onBack, genre }) {
     const [data, setData] = useState(null);
     const [state, setState] = useState({ loading: true, error: "" });
 
     const previews = useMemo(() => {
         const out = [];
         if (uploadedPreview) out.push({ label: "Your text (preview)", body: uploadedPreview });
-        if (corpusPreview) {
-            const label = genre ? `Corpus preview (${genre})` : "Corpus preview";
-            out.push({ label, body: corpusPreview });
-        }
         return out;
-    }, [uploadedPreview, corpusPreview, genre]);
+    }, [uploadedPreview, genre]);
 
     useEffect(() => {
         let cancelled = false;
@@ -26,8 +22,7 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, corpu
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        uploaded_text: uploadedText || "",
-                        corpus_name: genre || "",          // NEW: tell backend which genre corpus to use
+                        uploaded_text: uploadedText || ""
                     }),
                 });
                 const json = await res.json().catch(() => ({}));
@@ -45,7 +40,6 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, corpu
     return (
         <main className="ttc-page">
           <div className="ttc-container ttc-stack-lg">
-            
         <section className="ttc-panel ttc-stack-md">
           <h1 className="analysis-title">Sentiment</h1>
 
@@ -67,18 +61,12 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, corpu
                 {!state.loading && !state.error && (
                     <>
                         {previews.length > 0 && (
-                            <div className="ttc-grid ttc-grid-2-md">
-                                {previews.map((b, i) => (
-                                    <div key={i} className="ttc-panel">
-                                        <div className="ttc-title--sm">{b.label}</div>
-                                        <pre className="ttc-pre">{b.body}</pre>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        <p className="ttc-subtitle">
-                            All statistics below are computed from <strong>your text</strong> only; the corpus preview is reference-only.
-                        </p>
+                          <div className="ttc-panel">
+                            <h3 className="ttc-title ttc-title--sm text-center">{previews[0].label}</h3>
+                            <pre className="ttc-pre">{previews[0].body}</pre>
+                          </div>
+                          </div>
+                    )}
                         <SentimentResults data={data} />
                     </>
                 )}

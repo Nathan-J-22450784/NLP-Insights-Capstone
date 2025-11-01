@@ -10,25 +10,7 @@ const SentimentLanding = ({ onBack, genre }) => {
   const [activeInput, setActiveInput] = useState("");
   const [error, setError] = useState("");
   const [analysisStarted, setAnalysisStarted] = useState(false);
-  const [corpusPreview, setCorpusPreview] = useState("");
   const [pastedWordCount, setPastedWordCount] = useState(0);
-
-  useEffect(() => {
-    const fetchCorpusPreview = async () => {
-      try {
-        const url = genre
-          ? `http://localhost:8000/api/corpus-preview/?name=${encodeURIComponent(genre)}`
-          : "http://localhost:8000/api/corpus-preview/";
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        setCorpusPreview((data.preview || "").split("\n").slice(0, 4).join("\n"));
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchCorpusPreview();
-  }, [genre]);
 
   const handleTextPaste = (e) => {
     const text = e.target.value || "";
@@ -59,7 +41,6 @@ const SentimentLanding = ({ onBack, genre }) => {
       <SentimentAnalyser
         uploadedText={uploadedText}
         uploadedPreview={uploadedPreview}
-        corpusPreview={corpusPreview}
         onBack={() => setAnalysisStarted(false)}
         genre={genre}
       />
@@ -85,7 +66,6 @@ const SentimentLanding = ({ onBack, genre }) => {
             handleTextPaste={handleTextPaste}
             pastedWordCount={pastedWordCount}
             uploadedPreview={uploadedPreview}
-            corpusPreview={corpusPreview}
             error={error}
             onFilesUploaded={handleFilesUploaded}
           />

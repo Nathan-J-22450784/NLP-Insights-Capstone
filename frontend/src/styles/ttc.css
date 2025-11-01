@@ -1837,3 +1837,67 @@ h1, .ttc-title-xl,
 .results-summary .stats-grid { display:grid; gap:1.5rem; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); }
 @media (min-width:640px){ .results-summary .stats-grid { grid-template-columns:repeat(2,1fr); } }
 @media (min-width:1024px){ .results-summary .stats-grid { grid-template-columns:repeat(3,1fr); } }
+
+/* ==========================================================================
+   15) GENERIC BADGES & EMOTION BARS
+   ========================================================================== */
+
+/* Pill / badge */
+.ttc-pill {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  border: 1px solid var(--ttc-border);
+  background: var(--ttc-accent);
+  color: var(--ttc-accent-foreground);
+  text-align: center;
+  min-width: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+.ttc-pill--sm { font-size: 11px; padding: 3px 8px; min-width: 60px; }
+.ttc-pill--lg { font-size: 13px; padding: 6px 10px; min-width: 84px; }
+
+/* Emotion bars (generic, reusable for any KPI bars) */
+.emotion-bars { display: grid; gap: 8px; }
+
+.emotion-bar {
+  display: grid;
+  grid-template-columns: 120px 1fr auto; /* label | bar | value */
+  align-items: center;
+  gap: 10px;
+}
+
+.emotion-bar__label {
+  font-weight: 600;
+  color: #475569; /* slate-700-ish */
+}
+
+.emotion-bar__track {
+  position: relative;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--ttc-accent, #edeaf2);
+  overflow: hidden;
+  border: 1px solid var(--ttc-border);
+}
+
+.emotion-bar__fill {
+  height: 100%;
+  width: var(--value, 0%); /* set via style or inline CSS var */
+  background: linear-gradient(90deg, var(--ttc-grad-start), var(--ttc-grad-end));
+}
+
+.emotion-bar__value {
+  font-variant-numeric: tabular-nums;
+  font-family: "Courier New", ui-monospace, monospace;
+  color: #374151; /* slate-700 */
+}
+
+@media (max-width: 640px) {
+  .emotion-bar { grid-template-columns: 1fr; }
+  .emotion-bar__value { justify-self: start; }
+}
+
