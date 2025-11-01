@@ -66,6 +66,7 @@ function WordListCard({ title, words }) {
             ))}
           </tbody>
         </table>
+      </>
       )}
     </div>
   );
