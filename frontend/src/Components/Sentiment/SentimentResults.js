@@ -27,7 +27,6 @@ function WordListCard({ title, words }) {
         <h3 className="ttc-title ttc-title--sm">{title}</h3>
         <input
           className="ttc-input"
-          style={inputCss}
           placeholder="Find a word…"
           aria-label="Find a word"
           value={q}
@@ -47,8 +46,8 @@ function WordListCard({ title, words }) {
           <thead>
             <tr>
               <th>Word</th>
-              <th className="stat-cell">Score</td>
-            <th className="stat-cell">Contribution</td>
+              <th className="stat-cell">Score</th>
+            <th className="stat-cell">Contribution</th>
             </tr>
         </thead>
         <tbody>
@@ -93,12 +92,12 @@ export default function SentimentResults({ data }) {
   return (
     <div className="ttc-stack-lg ttc-container">
       {/* Summary (big stat cards) */}
-      <div className="tcc-grid tcc-grid-2-md">
-        <div className="tcc-panel">
+      <div className="ttc-grid ttc-grid-2-md">
+        <div className="ttc-panel">
           <SentimentSummary summary={summary} />
         </div>
-        <div className="tcc-panel">
-          <h3 className="tcc-title ttc-title--sm">Emotion Averages</h3>
+        <div className="ttc-panel">
+          <h3 className="ttc-title ttc-title--sm">Emotion Averages</h3>
           <EmotionBars emotions={emotions} className="emotion-bars" />
         </div>
       </div>
