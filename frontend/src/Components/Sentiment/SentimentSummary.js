@@ -26,6 +26,7 @@ export default function SentimentSummary({ summary }) {
 
   return (
     <section className="results-summary">
+    <div className="ttc-stack-md">
       {/* Pills */}
       <div className="ttc-btnrow" style={{ justifyContent: "center" }}>
         <span className="ttc-pill">
@@ -45,7 +46,7 @@ export default function SentimentSummary({ summary }) {
       </div>
 
       {/* Metrics grid — force 4 equal columns to fill the panel */}
-      <div className="ttc-stack-md">
+      <div className="ttc-grid ttc-grid-3-lg">
         <div className="stat-card">
           <div className="stat-label">Mean Sentiment</div>
           <div className="stat-number">{nice(sentiment_score_mean)}</div>
