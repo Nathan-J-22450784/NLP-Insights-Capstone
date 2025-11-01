@@ -11,7 +11,7 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, onBac
         const out = [];
         if (uploadedPreview) out.push({ label: "Your text (preview)", body: uploadedPreview });
         return out;
-    }, [uploadedPreview, corpusPreview, genre]);
+    }, [uploadedPreview, genre]);
 
     useEffect(() => {
         let cancelled = false;
@@ -22,8 +22,7 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, onBac
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        uploaded_text: uploadedText || "",
-                        corpus_name: genre || "",          // NEW: tell backend which genre corpus to use
+                        uploaded_text: uploadedText || ""
                     }),
                 });
                 const json = await res.json().catch(() => ({}));
@@ -63,15 +62,18 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, onBac
                 {!state.loading && !state.error && (
                     <>
                         {previews.length > 0 && (
-                            <div className="ttc-grid ttc-grid-2-md">
-                                {previews.map((b, i) => (
-                                    <div key={i} className="ttc-panel">
-                                        <div className="ttc-title--sm">{b.label}</div>
-                                        <pre className="ttc-pre">{b.body}</pre>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+  <div style={{ gridColumn: "1 / -1", justifySelf: "center", marginBottom: 12 }}>
+    <div className="ttc-panel" style={{ maxWidth: 860, margin: "0 auto" }}>
+      <h3
+        className="ttc-title ttc-title--sm"
+        style={{ marginTop: 0, textAlign: "center" }}
+      >
+        {previews[0].label}
+      </h3>
+      <pre className="ttc-pre">{previews[0].body}</pre>
+    </div>
+  </div>
+)}
                         <SentimentResults data={data} />
                     </>
                 )}
