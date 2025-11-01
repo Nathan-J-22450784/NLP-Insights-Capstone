@@ -8,6 +8,7 @@ import spacy
 import mimetypes
 import math
 import logging
+import time
 import numpy as np
 import pandas as pd
 from django.http import JsonResponse, HttpResponseNotFound
@@ -20,7 +21,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from pathlib import Path
 from sklearn.feature_extraction.text import CountVectorizer
-from scipy.stats import chi2
+from scipy.stats import chi2_contingency, chi2
 from gensim import corpora, models
 from collections import defaultdict, Counter
 from api.keyness.keyness_analyser import (
@@ -36,6 +37,7 @@ from django.core.files.uploadedfile import UploadedFile
 from .models import KeynessResult
 from backend.utils.session_utils import ensure_session_exists, schedule_session_cleanup
 
+# ---------------------------------------------------------------------------
 # File validation constants
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 MAX_FILES = 5
@@ -49,27 +51,23 @@ ALLOWED_MIME_TYPES = {
 MAX_TEXT_LENGTH = 100000
 logger = logging.getLogger(__name__)
 
+_HF_MODEL = None
+_HF_TOKENIZER = None
 _HF_PIPELINE = None
 
 CORPUS_DIR = os.path.join(settings.BASE_DIR, "api", "corpus")
 SAMPLE_FILE = os.path.join(CORPUS_DIR, "sample1.txt")
 
-DEFAULT_HF_MODEL = os.getenv("HUGGINGFACE_MODEL", "google/flan-t5-base")
-
 # --- Genre Corpus Meta  -----------
 # Looks for metadata-only corpora in backend/api/corpus_meta/*.json
 META_DIR = Path("api/corpus_meta")
-KEYNESS_DIR = META_DIR
+KEYNESS_DIR = Path("api/corpus_meta_keyness")
 
 try:
     import psutil
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
-
-@csrf_exempt
-def health(_request):
-    return JsonResponse({"status": "ok"})
 
 def log_memory_usage(label):
     """Log current memory usage."""
@@ -85,164 +83,27 @@ def log_memory_usage(label):
 
 def generate_text_with_fallback(prompt: str, num_predict: int = 600, temperature: float = 0.7) -> str:
     """
-    Generate text using Groq, HuggingFace, or Ollama.
+    Generate text using Ollama locally 
     """
     log_memory_usage("LLM request start")
-    
-    provider = (os.environ.get("LLM_PROVIDER") or "huggingface").strip().lower()
-    print(f"🔍 Using LLM provider: {provider}")
-
     try:
-        if provider == "huggingface":
-            result = _generate_huggingface(prompt, num_predict, temperature)
-        else:
-            result = _generate_ollama(prompt, num_predict, temperature)
-
+        text = _generate_huggingface(prompt, num_predict=num_predict, temperature=temperature)
         gc.collect()
         log_memory_usage("LLM request end")
-        return result
-
+        return text
     except Exception as e:
-        logger.error(f"LLM generation failed with {provider}: {e}")
+        logger.exception(f"[HF] Generation failed: {e}")
         gc.collect()
         raise
 
-
-def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: float = 0.7) -> str:
+def _generate_ollama(prompt: str, model_name: str, num_predict: int = 400, temperature: float = 0.7, max_retries: int = 3) -> str:
     """
-    Hugging Face generation with clean args:
-    - Only include temperature/top_p when do_sample=True
-    - Switch to deterministic decoding for analysis-style prompts
-    - Avoid the invalid-flags warning and reduce template echoing
+    Generate text using Ollama local API with a chosen model and retry logic.
     """
-    global _HF_PIPELINE
-    import time
-    
-    model_name = DEFAULT_HF_MODEL
-    use_ort = os.getenv("USE_ORT", "0") == "1"
-
-    if _HF_PIPELINE is None:
-        print(f"📦 Loading HF model: {model_name} (ORT={use_ort})")
-        start_load = time.time()
-        try:
-            if use_ort:
-                from optimum.onnxruntime import ORTModelForSeq2SeqLM
-                from transformers import AutoTokenizer, pipeline as hf_pipeline
-                model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
-                tokenizer = AutoTokenizer.from_pretrained(model_name)
-                _HF_PIPELINE = hf_pipeline("text2text-generation", model=model, tokenizer=tokenizer)
-            else:
-                from transformers import pipeline as hf_pipeline
-                _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
-            print(f"✅ Model loaded in {time.time() - start_load:.2f}s")
-        except Exception as e:
-            print(f"⚠️ ORT/PyTorch load failed, fallback to PyTorch pipeline: {e}")
-            from transformers import pipeline as hf_pipeline
-            _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
-
-    # Truncate extremely long prompts
-    if len(prompt) > 1024:
-        prompt = prompt[:1024]
-        
-    p = prompt.lower()
-
-    json_like = any(kw in p for kw in [
-        "output only a json array",
-        "return only json",
-        "strict json",
-        "output as json",
-        "only a json"
-    ])
-
-    gen_kwargs = {
-        "max_new_tokens": int(num_predict),
-        "min_new_tokens": 1,
-        "no_repeat_ngram_size": 0,
-        "repetition_penalty": 1.0,
-    }
-
-    def wants_deterministic(s: str) -> bool:
-        return (
-            "provide exactly 5 synonyms" in s
-            or "return exactly 5 synonyms" in s
-            or "concepts related to" in s
-            or "you are an expert data analyst" in s
-            or "analyse the bar chart" in s
-            or "analyse the scatter plot" in s
-            or "task: analyse" in s
-            or json_like  # force deterministic for JSON mode
-        )
-
-    if wants_deterministic(p) or (temperature is None) or (float(temperature) <= 0.0):
-        gen_kwargs.update({
-            "do_sample": False,
-            "num_beams": 4,
-            "length_penalty": 1.0,
-            "early_stopping": True,
-        })
-    else:
-        gen_kwargs.update({
-            "do_sample": True,
-            "temperature": float(temperature),
-            "top_p": 0.9,
-            "num_beams": 1,
-        })
-
-    start_gen = time.time()
-    result = _HF_PIPELINE(prompt, **gen_kwargs)
-    print(f"⏱️ Generation took {time.time() - start_gen:.2f}s")
-
-    generated_text = result[0].get("generated_text", "").strip()
-
-    # Only trim for prose – never trim JSON-like outputs
-    head = generated_text.lstrip() if generated_text else ""
-    if head and not (head.startswith('[') or head.startswith('{')):
-        if head.endswith(('.', '!', '?')):
-            generated_text = head
-        else:
-            last_period = head.rfind('.')
-            generated_text = head[: last_period + 1] if last_period != -1 else head
-    else:
-        generated_text = head
-    
-    return generated_text
-
-def ensure_hf_loaded():
-    global _HF_PIPELINE
-    if _HF_PIPELINE is not None:
-        return
-
-    model_name = DEFAULT_HF_MODEL
-    use_ort = os.getenv("USE_ORT", "0") == "1"
-    print(f"📦 [warmup] Preparing HF pipeline for {model_name} (ORT={use_ort})")
-    try:
-        if use_ort:
-            from optimum.onnxruntime import ORTModelForSeq2SeqLM
-            from transformers import AutoTokenizer, pipeline as hf_pipeline
-            model = ORTModelForSeq2SeqLM.from_pretrained(model_name, export=True)
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            _HF_PIPELINE = hf_pipeline("text2text-generation", model=model, tokenizer=tokenizer)
-        else:
-            from transformers import pipeline as hf_pipeline
-            _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
-        print("✅ [warmup] pipeline ready")
-    except Exception as e:
-        print(f"⚠️ [warmup] failed, falling back to PyTorch pipeline: {e}")
-        from transformers import pipeline as hf_pipeline
-        _HF_PIPELINE = hf_pipeline("text2text-generation", model=model_name)
-
-def _generate_ollama(prompt: str, num_predict: int, temperature: float) -> str:
-    """Generate text using Ollama local API."""
-    base_url = os.environ.get("OLLAMA_URL") or "http://localhost:11434/api/generate"
-    model = os.environ.get("OLLAMA_MODEL") or "llama3"
-
-    max_prompt_length = 4000
-    if len(prompt) > max_prompt_length:
-        logger.warning(f"Prompt truncated from {len(prompt)} to {max_prompt_length} chars")
-        prompt = prompt[:max_prompt_length]
+    base_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/api/generate"
 
     payload = {
-        "model": model,
+        "model": model_name,
         "prompt": prompt,
         "stream": False,
         "options": {
@@ -252,23 +113,40 @@ def _generate_ollama(prompt: str, num_predict: int, temperature: float) -> str:
         }
     }
 
-    logger.info(f"Calling Ollama API: {model}")
-    response = requests.post(base_url, json=payload, timeout=180)
-    response.raise_for_status()
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Calling Ollama API: {model_name} (attempt {attempt+1}/{max_retries})")
+            response = requests.post(base_url, json=payload, timeout=180)
+            response.raise_for_status()
+            return (response.json() or {}).get("response", "").strip()
+        except requests.RequestException as e:
+            logger.warning(f"Ollama call failed for {model_name}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(5)
+            else:
+                return None
 
-    return (response.json() or {}).get("response", "")
 
 def list_corpus_files(analysis_type=None):
-    folder = META_DIR
+    if analysis_type == "keyness":
+        folder = KEYNESS_DIR
+    else:
+        folder = META_DIR
 
     if not folder.exists():
         return []
 
-    # Basenames like "fantasy", "horror", etc.
     files = [f.stem for f in folder.glob("*.json")]
 
-    files.sort(key=lambda x: (0 if x == "general_fiction" else 1, x))
+    if analysis_type == "keyness":
+        # strip _keyness suffix
+        files = [f.replace("_keyness", "") for f in files]
+        files.sort(key=lambda x: (0 if x == "general_fiction" else 1, x))
+    else:
+        files.sort()
+
     return files
+
 
 
 def load_corpus_meta(corpus_name: str) -> dict:
@@ -301,11 +179,15 @@ def list_corpora(request):
     try:
         analysis_type = request.GET.get("analysis")
         files = list_corpus_files(analysis_type)
+
+        # If keyness, add the suffix back for the frontend
+        if analysis_type == "keyness":
+            files = [f"{f}_keyness" if f != "general_fiction" else f"{f}_keyness" for f in files]
+
         return JsonResponse({"corpora": files})
     except Exception as e:
         logger.exception("Error in list_corpora")
         return JsonResponse({"error": str(e)}, status=500)
-# ---------------------------------------------------------------------------
 
 def validate_file(uploaded_file: UploadedFile) -> tuple[bool, str]:
     """
@@ -360,6 +242,7 @@ def process_text_file(uploaded_file: UploadedFile) -> tuple[str, str]:
             else:
                 return "", "Unable to decode file with supported encodings"
 
+
         elif file_extension == 'docx':
 
             from docx import Document
@@ -368,16 +251,16 @@ def process_text_file(uploaded_file: UploadedFile) -> tuple[str, str]:
 
             text_content = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
 
+            # Basic content validation
+            if len(text_content.strip()) == 0:
+                return "", "File appears to be empty or contains only whitespace"
+
         elif file_extension == 'doc':
 
             return "", ".doc files not supported. Please convert to .docx or .txt"
 
         else:
             return "", f"Unsupported file type: {file_extension}"
-
-        # Basic content validation
-        if len(text_content.strip()) == 0:
-            return "", "File appears to be empty or contains only whitespace"
 
         # Check for reasonable content length
         if len(text_content) > 1000000:  # 1MB of text
@@ -510,34 +393,21 @@ def read_corpus():
 def get_corpus_preview(request):
     """
     Optional query param: ?name=<genre>
-    Returns a short preview.
-    Prefers unified meta `previews[].snippet`; falls back to legacy `preview` or synthesized top-freq words.
+    Returns 4 preview lines. Prefer meta.preview if present.
     """
     try:
         corpus_name = request.GET.get("name")
         if corpus_name:
             meta = load_corpus_meta(corpus_name)
-
-            # 1) Unified format (ex-Keyness): previews[].snippet
-            snippets = [
-                (item.get("snippet") or "").strip()
-                for item in meta.get("previews", [])
-                if (item.get("snippet") or "").strip()
-            ]
-            if snippets:
-                return JsonResponse({"preview": "\n\n".join(snippets[:4])})
-
-            # 2) Legacy format: meta["preview"] is a list of lines
+            # Prefer curated preview if available
             preview_lines = meta.get("preview")
-            if preview_lines:
-                return JsonResponse({"preview": "\n".join(preview_lines[:4])})
-
-            # 3) Last resort: synthesize from top frequent words
-            freq = meta.get("freq", {})
-            words = sorted(freq.items(), key=lambda kv: kv[1], reverse=True)[:20]
-            preview_text = " ".join([w for w, _ in words])
-            preview_lines = [preview_text[i:i+80] for i in range(0, len(preview_text), 80)][:4]
-            return JsonResponse({"preview": "\n".join(preview_lines)})
+            if not preview_lines:
+                # Fallback: synthesize from top frequent words
+                freq = meta.get("freq", {})
+                words = sorted(freq.items(), key=lambda kv: kv[1], reverse=True)[:20]
+                preview_text = " ".join([w for w, _ in words])
+                preview_lines = [preview_text[i:i+80] for i in range(0, len(preview_text), 80)][:4]
+            return JsonResponse({"preview": "\n".join(preview_lines[:4])})
 
         # Backward compatibility (no genre provided): use legacy sample file
         try:
@@ -551,7 +421,6 @@ def get_corpus_preview(request):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
-
 
 # -----------------------------------------------------------------------------
 # Local helper: counts-based keyness (no other files changed)
@@ -567,7 +436,7 @@ def compute_keyness_from_counts(
     Log-likelihood (G^2) keyness from counts.
     Returns {"results": [...], "total_significant": int}
     """
-    def safe(x): 
+    def safe(x):
         return x if x > 0 else 1e-12
 
     results = []
@@ -640,7 +509,7 @@ def analyse_keyness(request):
             logger.warning("Analysis request with empty uploaded_text")
             return JsonResponse({"error": "No uploaded text provided"}, status=400)
 
-            # Limit text length to prevent memory issues
+        # OPTIMIZATION 1: Limit text length to prevent memory issues
         if len(uploaded_text) > MAX_TEXT_LENGTH:
             logger.warning(f"Text truncated from {len(uploaded_text)} to {MAX_TEXT_LENGTH} chars")
             uploaded_text = uploaded_text[:MAX_TEXT_LENGTH]
@@ -651,7 +520,7 @@ def analyse_keyness(request):
         # Choose filtering function
         filter_fn = filter_all_words if filter_mode == "all" else filter_content_words
 
-        # Process uploaded text once and clear from memory
+        # OPTIMIZATION 2: Process uploaded text once and clear from memory
         filtered_uploaded = filter_fn(uploaded_text)
         uploaded_total = len(filtered_uploaded)
 
@@ -666,7 +535,7 @@ def analyse_keyness(request):
                 logger.warning("User text comparison without reference_text")
                 return JsonResponse({"error": "No reference text provided"}, status=400)
 
-            # Limit reference text as well
+            # OPTIMIZATION 3: Limit reference text as well
             if len(reference_text) > MAX_TEXT_LENGTH:
                 reference_text = reference_text[:MAX_TEXT_LENGTH]
 
@@ -675,16 +544,16 @@ def analyse_keyness(request):
                 f"reference={len(reference_text.split())} words"
             )
 
-            # Build reference counts map using the same filter function
+            # Build reference counts map
             filtered_reference = filter_fn(reference_text)
             reference_counts_map = Counter([w["word"] for w in filtered_reference])
             reference_total = sum(reference_counts_map.values())
 
-            # Clear filtered data from memory
+            # OPTIMIZATION 4: Clear filtered data from memory
             del filtered_reference
             gc.collect()
 
-            # Call the selected method exactly as with corpus analysis
+            # Call the selected method
             if method == "nltk":
                 data_out = keyness_nltk(
                     uploaded_text,
@@ -717,7 +586,7 @@ def analyse_keyness(request):
                 logger.warning(f"Unknown keyness method requested: {method}")
                 return JsonResponse({"error": f"Unknown method: {method}"}, status=400)
 
-            # Clear large objects after use
+            # OPTIMIZATION 5: Clear large objects after use
             del reference_counts_map
             gc.collect()
 
@@ -733,7 +602,7 @@ def analyse_keyness(request):
             # Save to DB
             keyness_obj = KeynessResult.objects.create(
                 method=method,
-                uploaded_text=uploaded_text[:10000],
+                uploaded_text=uploaded_text[:10000],  # OPTIMIZATION 6: Only save first 10k chars to DB
                 results=results_list,
                 uploaded_total=uploaded_total,
                 corpus_total=corpus_total,
@@ -759,10 +628,16 @@ def analyse_keyness(request):
             if not corpus_name:
                 return JsonResponse({"error": "No corpus_name provided"}, status=400)
 
+            # Remove .json if already included
             corpus_name = re.sub(r'\.json$', '', corpus_name)
-            filename = f"{corpus_name}.json"
-            corpus_path = KEYNESS_DIR / filename
 
+            # Append _keyness.json only if not already present
+            if not corpus_name.endswith("_keyness"):
+                filename = f"{corpus_name}_keyness.json"
+            else:
+                filename = f"{corpus_name}.json"
+
+            corpus_path = KEYNESS_DIR / filename
             if not corpus_path.exists():
                 return JsonResponse({"error": f"Unknown corpus_name: {filename}"}, status=400)
 
@@ -775,7 +650,7 @@ def analyse_keyness(request):
             corpus_counts_map = Counter(meta.get("counts", {}))
             corpus_total = sum(corpus_counts_map.values())
 
-            # Clear meta from memory
+            # OPTIMIZATION 7: Clear meta from memory
             del meta
             gc.collect()
 
@@ -812,7 +687,7 @@ def analyse_keyness(request):
                 logger.warning(f"Unknown keyness method requested: {method}")
                 return JsonResponse({"error": f"Unknown method: {method}"}, status=400)
 
-            # Clear corpus map after use
+            # OPTIMIZATION 8: Clear corpus map after use
             del corpus_counts_map
             gc.collect()
 
@@ -826,7 +701,7 @@ def analyse_keyness(request):
             # Save to DB
             keyness_obj = KeynessResult.objects.create(
                 method=method,
-                uploaded_text=uploaded_text[:10000],
+                uploaded_text=uploaded_text[:10000],  # Only save first 10k chars
                 results=results_list,
                 uploaded_total=uploaded_total,
                 corpus_total=corpus_total,
@@ -838,7 +713,7 @@ def analyse_keyness(request):
                 f"uploaded_total={uploaded_total}, corpus_total={corpus_total}, id={keyness_obj.id}"
             )
 
-            # Final cleanup
+            # OPTIMIZATION 9: Final cleanup
             del uploaded_text, filtered_uploaded, data_out
             gc.collect()
 
@@ -855,9 +730,12 @@ def analyse_keyness(request):
 
     except Exception as e:
         logger.exception(f"Error during keyness analysis: {e}")
-        # Cleanup on error
+        # OPTIMIZATION 10: Cleanup on error
         gc.collect()
         return JsonResponse({"error": str(e)}, status=500)
+
+
+
 
 @require_http_methods(["GET"])
 def get_keyness_results(request, result_id):
@@ -894,6 +772,10 @@ def get_sentences(request):
     except Exception as e:
         logger.exception(f"Error extracting sentences: {e}")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+
+
 
 
 # --- Sentiment (SentiArt lexicon) -------------------------------------------
@@ -946,13 +828,20 @@ def analyse_sentiment(request):
 
 @require_http_methods(["GET"])
 def corpus_preview_keyness(request):
+    # Get the genre from the query string
     genre = request.GET.get("name", "").strip()
     if not genre:
         return JsonResponse({"preview": ""})
 
     # Remove any trailing '.json' first
     genre = re.sub(r'\.json$', '', genre)
-    filename = f"{genre}.json"
+
+    # Ensure filename ends with '_keyness.json'
+    if not genre.endswith("_keyness"):
+        filename = f"{genre}_keyness.json"
+    else:
+        filename = f"{genre}.json"
+
     file_path = KEYNESS_DIR / filename
 
     if not file_path.exists():
@@ -973,25 +862,37 @@ def corpus_preview_keyness(request):
         logger.exception(f"Error generating keyness corpus preview: {e}")
         return JsonResponse({"preview": ""}, status=500)
 
+
+def generate_keyness_summaries(prompt: str, models: list[str] = None, num_predict: int = 400, temperature: float = 0.7) -> dict:
+    """
+    Generate summaries for a prompt using multiple models.
+    Returns a dict {model_name: generated_text}.
+    """
+    if models is None:
+        models = ["llama3.1", "llama3.2"]
+
+    results = {}
+    for model in models:
+        text = _generate_ollama(prompt, model_name=model, num_predict=num_predict, temperature=temperature)
+        if text:
+            # Trim to last complete sentence
+            text = text.rsplit('.', 1)[0] + '.' if '.' in text else text
+        results[model] = text or "[No response]"
+    return results
+
 @api_view(['POST'])
 def get_keyness_summary(request):
+    """
+    API endpoint to generate keyness summaries using multiple models.
+    """
     keyness_results = request.data.get('keyness_results', [])
 
-    print(f"🔍 Received {len(keyness_results)} keyness results")
-
-    # Filter to match frontend logic
     filtered_words = [
         word for word in keyness_results
-        if word.get('pos') != 'PROPN'  # Skip proper nouns like frontend
+        if word.get('pos') != 'PROPN'
     ][:30]
 
-    print(f"🔍 Filtered to {len(filtered_words)} words")
-    print(f"🔍 Sample words: {[w.get('word') for w in filtered_words[:5]]}")
-
-    words_list = ", ".join([f"{word['word']}" for word in filtered_words])
-
-    print(f"🔍 Words list length: {len(words_list)} characters")
-    print(f"🔍 Words list preview: {words_list[:200]}")
+    words_list = ", ".join([word['word'] for word in filtered_words])
 
     prompt = (
         f"These are the most distinctive words in a literary text: {words_list}. "
@@ -999,22 +900,10 @@ def get_keyness_summary(request):
         "style, and subject matter. Focus on interpretation, not statistics."
     )
 
-    print(f"🔍 Full prompt: {prompt[:300]}")
+    summaries = generate_keyness_summaries(prompt, models=["llama3.1", "llama3.2"], num_predict=300, temperature=0.7)
 
-    # Updated generation parameters
-    analysis = generate_text_with_fallback(
-        prompt,
-        num_predict=300,
-        temperature=0.7,
-    )
+    return Response({"summaries": summaries})
 
-    if not analysis:
-        return Response({"error": "No response from model."}, status=500)
-
-    # Optional: trim to last complete sentence if still cut off
-    analysis = analysis.rsplit('.', 1)[0] + '.' if '.' in analysis else analysis
-
-    return Response({"summary": analysis})
 
 @require_http_methods(["GET"])
 def corpus_meta_keyness(request):
@@ -1029,7 +918,13 @@ def corpus_meta_keyness(request):
 
     # Remove any trailing '.json' first
     genre = re.sub(r'\.json$', '', genre)
-    filename = f"{genre}.json"
+
+    # Ensure filename ends with '_keyness.json'
+    if not genre.endswith("_keyness"):
+        filename = f"{genre}_keyness.json"
+    else:
+        filename = f"{genre}.json"
+
     file_path = KEYNESS_DIR / filename
 
     if not file_path.exists():
@@ -1065,37 +960,65 @@ def corpus_meta_keyness(request):
         logger.exception(f"Error reading corpus metadata: {e}")
         return JsonResponse({"error": "Internal server error"}, status=500)
 
+
 @api_view(['POST'])
 def get_synonyms(request):
-    """
-    Lightweight synonym finder using NLTK WordNet - memory efficient alternative to LLMs
-    """
-    word = (request.data.get('word') or "").strip()
-    uploaded_text = (request.data.get('uploaded_text') or "").strip()
+    word = request.data.get('word', None)
     if not word:
         return Response({'error': 'No word provided.'}, status=400)
 
-    logger.info(f'[synonyms] Requesting synonyms for: "{word}"')
+    prompt = f"""You are a linguistic expert specializing in word analysis and semantic differences.
+
+Task: Provide exactly 5 synonyms for the word "{word}" and analyse their subtle differences.
+
+Format your response as follows:
+
+**Synonyms for "{word}":**
+
+1. **[Synonym 1]**
+   - Meaning: [Brief definition]
+   - Difference from "{word}": [Explain the subtle difference]
+   - Usage context: [When to use this instead]
+   - Example: [Show both words in similar sentences to demonstrate the difference]
+
+2. **[Synonym 2]**
+   - Meaning: [Brief definition]
+   - Difference from "{word}": [Explain the subtle difference]
+   - Usage context: [When to use this instead]
+   - Example: [Show both words in similar sentences to demonstrate the difference]
+
+[Continue for all 5 synonyms]
+
+**Summary:**
+Write a brief paragraph explaining how choosing different synonyms can change the tone, formality, or precise meaning of your text.
+
+Requirements:
+- Choose synonyms that are genuinely interchangeable in at least some contexts
+- Focus on subtle differences rather than obvious ones
+- Provide concrete examples showing the difference in usage
+- Consider connotation, formality level, and context appropriateness"""
+
     try:
-        from api.keyness.synonym_finder import get_synonyms_for_word
-        result = get_synonyms_for_word(word, uploaded_text, max_synonyms=5)
-
-        # If WordNet wasn’t used and fallback is disabled, raise a hard error.
-        if not result.get("success", False) or (result.get("fallback") and os.getenv("ALLOW_SYNONYM_FALLBACK", "0") != "1"):
-            logger.error(f"[synonyms] Hard fail for '{word}': {result.get('error') or 'fallback disallowed'}")
-            return Response(result | {"success": False}, status=500)
-
-        logger.info(f"[synonyms] Found {len(result.get('synonyms', []))} synonyms for: '{word}' using {result.get('source', 'unknown')}")
-        return Response(result)
-
-    except Exception as e:
-        logger.exception(f"[synonyms] Error: {e}")
+        analysis = generate_text_with_fallback(prompt, num_predict=400, temperature=0.7)
+        if not analysis:
+            return Response({'error': 'No response from model.'}, status=500)
         return Response({
-            'word': word,
-            'success': False,
-            'error': f'An error occurred: {str(e)}',
-            'fallback': False
-        }, status=500)
+            "word": word,
+            "analysis": analysis,
+            "success": True
+        })
+
+    except requests.exceptions.Timeout:
+        return Response({'error': 'Request timed out. The model is taking too long to respond.'}, status=504)
+    except requests.exceptions.HTTPError as e:
+        status_code = getattr(e.response, "status_code", 500)
+        if status_code == 404:
+            return Response({'error': 'Hugging Face model not found. Check HUGGINGFACE_MODEL name or repository visibility.'}, status=502)
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
+    except requests.exceptions.RequestException as e:
+        return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
+    except Exception as e:
+        return Response({'error': f'An error occurred: {str(e)}'}, status=500)
 
 @api_view(['POST'])
 def get_concepts(request):
@@ -1163,9 +1086,7 @@ Summary:
     except requests.exceptions.HTTPError as e:
         status_code = getattr(e.response, "status_code", 500)
         if status_code == 404:
-            return Response(
-                {'error': 'Hugging Face model not found. Check HUGGINGFACE_MODEL name or repository visibility.'},
-                status=502)
+            return Response({'error': 'Hugging Face model not found. Check HUGGINGFACE_MODEL name or repository visibility.'}, status=502)
         return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
     except requests.exceptions.RequestException as e:
         return Response({'error': f'Request to language model failed: {str(e)}'}, status=500)
@@ -1175,6 +1096,7 @@ Summary:
 
 @api_view(['POST'])
 def summarise_keyness_chart(request):
+    """Generate AI summary of keyness chart using Groq."""
     log_memory_usage("summarise_keyness_chart start")
 
     chart_type = request.data.get('chart_type', 'bar')
@@ -1917,12 +1839,15 @@ def create_temp_corpus(request):
             "counts": freq,
         }
 
-        # Save as temp JSON 
+        # Save as temp JSON in KEYNESS_DIR
         KEYNESS_DIR.mkdir(parents=True, exist_ok=True)
-        temp_file = KEYNESS_DIR / "temp_user_upload.json"
+        temp_file = KEYNESS_DIR / "temp_user_upload_keyness.json"
         with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(out_data, f, ensure_ascii=False, indent=2)
 
         return JsonResponse({"success": True, "filename": str(temp_file)})
 
     return JsonResponse({"success": False, "error": "No file uploaded"}, status=400)
+
+def health(request):
+    return JsonResponse({"status": "ok"})
