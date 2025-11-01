@@ -95,6 +95,7 @@ export default function SentimentSummary({ summary }) {
           )}
         </div>
       </div>
+    </div>
     </section>
   );
 }
