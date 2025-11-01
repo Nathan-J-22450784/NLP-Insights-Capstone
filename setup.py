@@ -221,6 +221,19 @@ def install_backend(py, project_dir, use_lock):
 
     run(pip_args + ["-r", str(req)])
 
+def build_conceptnet_subset(py, project_dir: Path):
+    """Create backend/data/numberbatch-en-top50k-fp16.npz once."""
+    script = project_dir / "backend" / "download_embeddings.py"
+    if not script.exists():
+        print(f"⚠ Embedding builder not found at {script} — skipping.")
+        return
+    data_npz = project_dir / "backend" / "data" / "numberbatch-en-top50k-fp16.npz"
+    if data_npz.exists():
+        print(f"✓ Embedding subset already present: {data_npz}")
+        return
+    print("Building ConceptNet embedding subset (first run only)…")
+    run([str(py), str(script)])
+
 def download_spacy_models(py, skip=False):
     if skip: return
     for model in SPACY_MODELS:
@@ -330,3 +343,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
