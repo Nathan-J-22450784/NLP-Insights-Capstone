@@ -45,28 +45,19 @@ export default function SentimentSummary({ summary }) {
       </div>
 
       {/* Metrics grid — force 4 equal columns to fill the panel */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr 1fr",
-          gap: 16,
-          width: "100%",
-          alignItems: "stretch",
-        }}
-      >
-        <div className="stats-grid">
+      <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-label">Mean Sentiment</div>
           <div className="stat-number">{nice(sentiment_score_mean)}</div>
         </div>
 
         <div className="stat-card">
-          <div style="stat-label">Magnitude</div>
+          <div className="stat-label">Magnitude</div>
           <div className="stat-number">{nice(magnitude)}</div>
         </div>
 
-        <div className="ttc-panel">
-          <div style="stat-label>Std Dev</div>
+        <div className="stat-card">
+          <div className="stat-label">Std Dev</div>
           <div className="stat-number">{nice(stddev)}</div>
         </div>
 
