@@ -19,7 +19,7 @@ except ImportError:
     PSUTIL_AVAILABLE = False
 
 try:
-    import spacy
+    import spacy  # optional
 except Exception:
     spacy = None
 from sklearn.feature_extraction.text import CountVectorizer
@@ -28,10 +28,9 @@ from math import log
 
 logger = logging.getLogger(__name__)
 
-# Set chunk size for processing large texts
+# OPTIMIZATION: Set chunk size for processing large texts
 CHUNK_SIZE = 10000  # Process text in 10k character chunks
 
-ALLOWED_POS = {"NOUN", "VERB", "ADJ", "ADV"}
 
 # Download required NLTK data on startup
 def setup_nltk():
@@ -58,6 +57,7 @@ def setup_nltk():
 # Call setup on import
 setup_nltk()
 
+
 def log_memory_usage(label):
     """Log current memory usage."""
     if PSUTIL_AVAILABLE:
@@ -70,9 +70,6 @@ def log_memory_usage(label):
     else:
         logger.debug(f"Checkpoint: {label} (psutil not available)")
 
-# ---------------------------
-# Filtering functions
-# ---------------------------
 
 def _safe_word_tokens(text):
     return re.findall(r"[A-Za-z]+(?:n't|'t|'re|'ve|'ll|'d|'m|'s)?", text)
@@ -80,6 +77,14 @@ def _safe_word_tokens(text):
 
 def _safe_sentences(text):
     return [s for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+
+
+ALLOWED_POS = {"NOUN", "VERB", "ADJ", "ADV"}
+
+
+# ---------------------------
+# Filtering functions (NLTK-ONLY for memory efficiency)
+# ---------------------------
 
 def filter_content_words(text):
     """
@@ -190,7 +195,7 @@ def extract_sentences(text, word):
         return []
 
     word_lower = word.lower()
-    sentences = sent_tokenize(text)
+    sentences = _safe_sentences(text)
 
     matched = []
     for s in sentences:
@@ -201,12 +206,13 @@ def extract_sentences(text, word):
     return matched
 
 # ---------------------------
-# Keyness Functions
+# Keyness Functions (with memory cleanup)
 # ---------------------------
 
 def keyness_nltk(uploaded_text, corpus_counts_map, top_n=50, filter_func=filter_content_words):
     """NLTK-style log-likelihood using counts-based corpus."""
     log_memory_usage("keyness_nltk start")
+
     if filter_func is None:
         filter_func = lambda t: [{"word": w.lower(), "pos": "OTHER"} for w in t.split()]
 
@@ -247,19 +253,20 @@ def keyness_nltk(uploaded_text, corpus_counts_map, top_n=50, filter_func=filter_
             "pos": pos
         })
 
-    # Clear large objects
+    # OPTIMIZATION: Clear large objects
     del uploaded_tokens, uploaded_counts, all_words
     gc.collect()
 
     sorted_results = sorted(results, key=lambda x: x["keyness_score"], reverse=True)
+
     log_memory_usage("keyness_nltk end")
     return {"results": sorted_results[:top_n], "total_significant": len(sorted_results)}
-
 
 
 def keyness_gensim(uploaded_text, corpus_counts_map, top_n=50, filter_func=filter_content_words):
     """Gensim-style TF-IDF + chi2 keyness."""
     log_memory_usage("keyness_gensim start")
+
     if filter_func is None:
         filter_func = lambda t: [{"word": w.lower(), "pos": "OTHER"} for t in t.split()]
 
@@ -269,9 +276,8 @@ def keyness_gensim(uploaded_text, corpus_counts_map, top_n=50, filter_func=filte
     # Reconstruct "corpus text" from counts map (limit to prevent memory issues)
     words_corpus = []
     for word, count in corpus_counts_map.items():
-        words_corpus.extend([word] * min(count, 1000))
+        words_corpus.extend([word] * min(count, 1000))  # OPTIMIZATION: Cap repetitions
 
-    # Gensim dictionary & TF-IDF
     dictionary = corpora.Dictionary([words_uploaded, words_corpus])
     corpus_gensim = [dictionary.doc2bow(words_uploaded), dictionary.doc2bow(words_corpus)]
     tfidf = models.TfidfModel(corpus_gensim, smartirs="ntc")
@@ -315,13 +321,13 @@ def keyness_gensim(uploaded_text, corpus_counts_map, top_n=50, filter_func=filte
             "pos": pos
         })
 
-    # Clear memory
+    # OPTIMIZATION: Clear memory
     del tokens_uploaded, words_uploaded, words_corpus, dictionary, corpus_gensim, tfidf
     gc.collect()
 
     results_sorted = sorted(results, key=lambda x: x["keyness_score"], reverse=True)
-    log_memory_usage("keyness_gensim end")
 
+    log_memory_usage("keyness_gensim end")
     return {
         "results": results_sorted[:top_n],
         "total_significant": len(results_sorted),
@@ -330,10 +336,10 @@ def keyness_gensim(uploaded_text, corpus_counts_map, top_n=50, filter_func=filte
     }
 
 
-
 def keyness_spacy(uploaded_text, corpus_counts_map, top_n=50, filter_func=filter_content_words):
     """spaCy-based keyness analysis (uses NLTK filtering for memory efficiency)."""
     log_memory_usage("keyness_spacy start")
+
     if filter_func is None:
         filter_func = lambda t: [{"word": w.lower(), "pos": "OTHER"} for t in t.split()]
 
@@ -374,19 +380,20 @@ def keyness_spacy(uploaded_text, corpus_counts_map, top_n=50, filter_func=filter
             "pos": pos
         })
 
-    # Clear memory
+    # OPTIMIZATION: Clear memory
     del tokens_uploaded, uploaded_counts
     gc.collect()
 
     sorted_results = sorted(results, key=lambda x: x["chi2"], reverse=True)
+
     log_memory_usage("keyness_spacy end")
     return {"results": sorted_results[:top_n], "total_significant": len(sorted_results)}
-
 
 
 def keyness_sklearn(uploaded_text, corpus_counts_map, top_n=50, filter_func=None):
     """sklearn-based keyness analysis."""
     log_memory_usage("keyness_sklearn start")
+
     if filter_func is None:
         filter_func = lambda t: [{"word": w.lower(), "pos": "OTHER"} for t in t.split()]
 
@@ -424,11 +431,11 @@ def keyness_sklearn(uploaded_text, corpus_counts_map, top_n=50, filter_func=None
             "pos": pos
         })
 
-    # Clear memory
+    # OPTIMIZATION: Clear memory
     del tokens_uploaded, uploaded_counts
     gc.collect()
 
     sorted_results = sorted(results, key=lambda x: x["keyness_score"], reverse=True)
+
     log_memory_usage("keyness_sklearn end")
     return {"results": sorted_results[:top_n], "total_significant": len(sorted_results)}
-

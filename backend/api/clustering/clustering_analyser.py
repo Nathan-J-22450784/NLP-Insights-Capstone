@@ -49,14 +49,65 @@ ALL_STOPWORDS = NLTK_STOPWORDS.union(CUSTOM_STOPWORDS, NUMBER_WORDS, ROMAN_STOPW
 # ======================
 # Embeddings loader
 # ======================
-from backend.download_embeddings import ConceptNetEmbeddings
 
 _embeddings = None
 
+def _try_load_npz():
+    """
+    Prefer a prebuilt subset at backend/data/numberbatch-en-top50k-fp16.npz.
+    Returns an object with .get_vector(word) or None if not found.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    npz_path = repo_root / "backend" / "data" / "numberbatch-en-top50k-fp16.npz"
+    if not npz_path.exists():
+        return None
+
+    class _NpzEmb:
+        def __init__(self, p):
+            data = np.load(p)
+            # ensure Python strings for keys
+            self.vocab = [str(v) for v in data["vocab"]]
+            self.embeddings = data["embeddings"]
+            self.word_to_idx = {w: i for i, w in enumerate(self.vocab)}
+
+        def get_vector(self, word: str):
+            i = self.word_to_idx.get(word.lower())
+            return None if i is None else self.embeddings[i]
+
+    print(f"📦 Loading NPZ embeddings from {npz_path}")
+    return _NpzEmb(npz_path)
+
 def get_conceptnet_model():
+    """
+    1) Try NPZ subset (fast, local)
+    2) Fallback to ConceptNetEmbeddings (existing behavior)
+    3) If both fail, return None (TF-IDF fallback will kick in)
+    """
     global _embeddings
-    if _embeddings is None:
+    if _embeddings is not None:
+        return _embeddings
+
+    # (1) NPZ subset
+    try:
+        emb = _try_load_npz()
+        if emb is not None:
+            _embeddings = emb
+            return _embeddings
+    except Exception as e:
+        print(f"⚠️ NPZ load failed: {e}")
+
+    # (2) Existing loader
+    try:
+        from backend.download_embeddings import ConceptNetEmbeddings
+        print("📂 Loading ConceptNet embeddings via download_embeddings …")
         _embeddings = ConceptNetEmbeddings()
+        return _embeddings
+    except Exception as e:
+        print(f"⚠️ ConceptNetEmbeddings fallback failed: {e}")
+
+    # (3) No embeddings -> TF-IDF fallback in clustering
+    print("⚠️ No embeddings available; clustering will use TF-IDF.")
+    _embeddings = None
     return _embeddings
 
 # ------------------ General Themes ------------------ #
