@@ -16,6 +16,7 @@ from textwrap import dedent
 
 REPO_URL = "https://github.com/Nathan-J-22450784/NLP-Insights-Capstone.git"
 DEFAULT_PROJECT_DIRNAME = "NLP-Insights-Capstone"
+DEFAULT_BRANCH = "local-dev"
 FRONTEND_SUBDIR = "frontend"
 MANAGE_PY = Path("backend") / "manage.py"
 SPACY_MODELS = ["en_core_web_sm", "en_core_web_md"]
@@ -73,22 +74,27 @@ def run_capture(cmd, cwd=None):
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     ).stdout.strip()
 
-def create_or_use_repo(url, project_dir: Path, skip_clone=False):
+def create_or_use_repo(url, project_dir: Path, skip_clone=False, branch=None):
+    branch = branch or DEFAULT_BRANCH
+
     if project_dir.exists():
-        # If it’s already a git repo, just update it
+        # If it’s already a git repo, update & ensure desired branch is checked out
         if (project_dir / ".git").exists():
             print(f"✓ Using existing repo at {project_dir}")
             try:
-                # show current branch
-                branch = run_capture(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_dir))
-                print(f"Updating branch: {branch}")
-                # get latest and fast-forward/rebase
                 run(["git", "fetch", "--all", "--prune"], cwd=str(project_dir))
-                # --autostash lets it rebase even if you have local edits
+
+                # Try to checkout the branch; create local tracking branch if needed
+                try:
+                    run(["git", "checkout", branch], cwd=str(project_dir))
+                except subprocess.CalledProcessError:
+                    run(["git", "checkout", "-b", branch, f"origin/{branch}"], cwd=str(project_dir))
+
                 run(["git", "pull", "--rebase", "--autostash", "origin", branch], cwd=str(project_dir))
             except subprocess.CalledProcessError:
                 print("⚠ Git update failed; continuing with existing files.")
             return
+
         # Exists but not a git repo
         if skip_clone:
             sys.exit(f"ERROR: {project_dir} exists but is not a git repo, and --skip-clone was provided.")
@@ -98,7 +104,8 @@ def create_or_use_repo(url, project_dir: Path, skip_clone=False):
         if skip_clone:
             sys.exit(f"ERROR: {project_dir} not found and --skip-clone provided.")
         print(f"Cloning {url} into {project_dir} …")
-        run(["git", "clone", url, str(project_dir)])
+        # Clone directly to the desired branch
+        run(["git", "clone", "-b", branch, url, str(project_dir)])
 
 def ensure_git_available():
     if not which("git"):
@@ -114,14 +121,6 @@ def py_in_venv(venv): return venv / ("Scripts/python.exe" if is_windows() else "
 def pip_in_venv(venv): return venv / ("Scripts/pip.exe" if is_windows() else "bin/pip")
 
 # --- Setup steps -------------------------------------------------------------
-def create_or_use_repo(url, project_dir, skip_clone=False):
-    if project_dir.exists():
-        print(f"✓ Using existing repo at {project_dir}")
-    else:
-        if skip_clone:
-            sys.exit(f"ERROR: {project_dir} not found and --skip-clone provided.")
-        run(["git", "clone", url, str(project_dir)])
-
 def create_venv(project_dir):
     venv = project_dir / "venv"
     if not venv.exists():
@@ -192,6 +191,7 @@ def main():
     p = argparse.ArgumentParser(description="Cross-platform setup/runner for NLP-Insights Capstone")
     p.add_argument("--repo", default=REPO_URL)
     p.add_argument("--dir", default=DEFAULT_PROJECT_DIRNAME)
+    p.add_argument("--branch", default=DEFAULT_BRANCH)
     p.add_argument("--skip-clone", action="store_true")
     p.add_argument("--use-lock", action="store_true")
     p.add_argument("--no-ollama", action="store_true")
@@ -211,7 +211,7 @@ def main():
     ensure_node_npm_available()
 
     if not args.start:
-        create_or_use_repo(args.repo, target, args.skip_clone)
+        create_or_use_repo(args.repo, target, args.skip_clone, branch=args.branch)
         venv, py = create_venv(target)
         install_backend(py, target, args.use_lock)
         download_spacy_models(py, skip=args.skip_spacy)
