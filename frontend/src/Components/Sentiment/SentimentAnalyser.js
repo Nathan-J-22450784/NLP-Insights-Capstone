@@ -65,8 +65,8 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, onBac
                             <h3 className="ttc-title ttc-title--sm text-center">{previews[0].label}</h3>
                             <pre className="ttc-pre">{previews[0].body}</pre>
                           </div>
-                          </div>
                     )}
+
                         <SentimentResults data={data} />
                     </>
                 )}
