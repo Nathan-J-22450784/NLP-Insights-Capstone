@@ -203,8 +203,6 @@ def main():
     args = p.parse_args()
 
     # If already at repo root (has .git or common top-level dirs), use CWD
-    if (Path.cwd() / ".git").exists() or (Path.cwd() / "backend").exists() or (Path.cwd() / "frontend").exists():
-        args.dir = "."
     target = Path(args.dir).resolve()
 
     ensure_git_available()
