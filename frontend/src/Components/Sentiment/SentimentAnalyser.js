@@ -40,7 +40,6 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, onBac
     return (
         <main className="ttc-page">
           <div className="ttc-container ttc-stack-lg">
-            
         <section className="ttc-panel ttc-stack-md">
           <h1 className="analysis-title">Sentiment</h1>
 
@@ -62,18 +61,12 @@ export default function SentimentAnalyser({ uploadedText, uploadedPreview, onBac
                 {!state.loading && !state.error && (
                     <>
                         {previews.length > 0 && (
-  <div style={{ gridColumn: "1 / -1", justifySelf: "center", marginBottom: 12 }}>
-    <div className="ttc-panel" style={{ maxWidth: 860, margin: "0 auto" }}>
-      <h3
-        className="ttc-title ttc-title--sm"
-        style={{ marginTop: 0, textAlign: "center" }}
-      >
-        {previews[0].label}
-      </h3>
-      <pre className="ttc-pre">{previews[0].body}</pre>
-    </div>
-  </div>
-)}
+                          <div className="ttc-panel">
+                            <h3 className="ttc-title ttc-title--sm text-center">{previews[0].label}</h3>
+                            <pre className="ttc-pre">{previews[0].body}</pre>
+                          </div>
+                          </div>
+                    )}
                         <SentimentResults data={data} />
                     </>
                 )}
