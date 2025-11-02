@@ -36,6 +36,7 @@ from api.keyness.keyness_analyser import (
 from django.core.files.uploadedfile import UploadedFile
 from .models import KeynessResult
 from backend.utils.session_utils import ensure_session_exists, schedule_session_cleanup
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 
 # ---------------------------------------------------------------------------
 # File validation constants
@@ -101,85 +102,81 @@ def _truncate_prompt(tokenizer, prompt: str, max_input_tokens: int) -> str:
     return tokenizer.decode(enc.input_ids[0], skip_special_tokens=True)
 
 def _load_hf_pipeline():
-    """Lazy-load and cache a Transformers pipeline with sane defaults."""
-    global _HF_MODEL, _HF_TOKENIZER, _HF_PIPELINE
-    model_name, task = _get_hf_defaults()
-
-    # Reuse if same model already loaded
-    if _HF_PIPELINE is not None and getattr(_HF_PIPELINE, "_model_name", None) == model_name:
+    """Load or reuse a local Hugging Face pipeline."""
+    global _HF_PIPELINE
+    if _HF_PIPELINE is not None:
         return _HF_PIPELINE
 
-    dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-    device = 0 if torch.cuda.is_available() else -1
+    model_name = os.environ.get("HUGGINGFACE_MODEL", "google/flan-t5-base")
+    task = os.environ.get("HF_TASK", "text2text-generation")
 
-    _HF_TOKENIZER = AutoTokenizer.from_pretrained(model_name)
-    if task == "text2text-generation":
-        _HF_MODEL = AutoModelForSeq2SeqLM.from_pretrained(model_name, torch_dtype=dtype)
-    else:
-        _HF_MODEL = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
-
-    _HF_PIPELINE = pipeline(task, model=_HF_MODEL, tokenizer=_HF_TOKENIZER, device=device)
-    _HF_PIPELINE._model_name = model_name  # remember for reuse
-    logger.info(f"✅ HF model loaded: {model_name} (task={task}, device={'cuda' if device==0 else 'cpu'})")
+    logger.info(f"⚙️  Loading Hugging Face model: {model_name} ({task})")
+    try:
+        _HF_PIPELINE = pipeline(task=task, model=model_name)
+        logger.info(f"✅ HF model loaded successfully: {model_name}")
+    except Exception as e:
+        logger.error(f"❌ Failed to load Hugging Face model: {e}")
+        _HF_PIPELINE = None
     return _HF_PIPELINE
 
-def _format_for_model(model_name: str, prompt: str) -> str:
-    # T5/FLAN like explicit instruction format
-    if any(k in model_name.lower() for k in ["t5", "flan"]):
-        return f"Instruction:\n{prompt}\n\nAnswer:"
-    return prompt
 
-def _generate_huggingface(prompt: str, num_predict: int = 400, temperature: float = 0.7) -> str:
-    """Return generated text (never None). Raises on hard failures."""
+def _generate_huggingface(prompt: str, num_predict: int = 600, temperature: float = 0.7) -> str:
+    """Generate text with a Hugging Face model."""
     pipe = _load_hf_pipeline()
-    tok = _HF_TOKENIZER
-    model_name = getattr(pipe, "_model_name", "")
-    task = pipe.task
+    if pipe is None:
+        raise RuntimeError("Hugging Face pipeline not initialised")
 
-    # Conservative caps to avoid OOM on CPU; adjust if you have GPU
-    max_new_tokens = max(32, min(int(num_predict), 512))
-    # Leave room for response in the model context
-    max_input_tokens = 768 if "flan-t5-base" in model_name else 2048
-    in_text = _truncate_prompt(tok, _format_for_model(model_name, prompt), max_input_tokens)
-
-    if task == "text2text-generation":
-        out = pipe(
-            in_text,
-            do_sample=True, temperature=temperature, top_p=0.9,
-            max_new_tokens=max_new_tokens
+    try:
+        output = pipe(
+            prompt,
+            max_new_tokens=num_predict,
+            temperature=temperature,
+            do_sample=True,
+            truncation=True,
         )
-        text = out[0]["generated_text"]
-        # Strip the leading "Answer:" if FLAN repeats it
-        return text.split("Answer:", 1)[-1].strip() if "Answer:" in text else text.strip()
-
-    # text-generation (causal) returns continuation (may include the prompt)
-    out = pipe(
-        in_text,
-        do_sample=True, temperature=temperature, top_p=0.9,
-        max_new_tokens=max_new_tokens, eos_token_id=tok.eos_token_id
-    )
-    gen = out[0]["generated_text"]
-    # If the lib echoes the prompt, strip it
-    return gen[len(in_text):].strip() if gen.startswith(in_text) else gen.strip()
+        if isinstance(output, list) and len(output) > 0:
+            # Works for both text-generation and text2text-generation
+            text = output[0].get("generated_text") or output[0].get("translation_text")
+            return text.strip()
+        return str(output)
+    except Exception as e:
+        logger.error(f"HF generation failed: {e}")
+        return ""
 
 # ---- LLM generation helper (Ollama or Hugging Face) ----
 
 def generate_text_with_fallback(prompt: str, num_predict: int = 600, temperature: float = 0.7) -> str:
+    """
+    Unified text generation entry point.
+    Priority:
+        1. Hugging Face (if LLM_PROVIDER=huggingface or no Ollama configured)
+        2. Ollama (if explicitly configured)
+    """
     log_memory_usage("LLM request start")
-    # 1) Try Ollama if env OLLAMA_BASE_URL is present
-    if os.getenv("OLLAMA_BASE_URL"):
+
+    provider = (os.getenv("LLM_PROVIDER") or "").strip().lower()
+
+    try:
+        # --- Prefer Hugging Face if explicitly chosen or no Ollama available ---
+        if provider == "huggingface" or not os.getenv("OLLAMA_BASE_URL"):
+            text = _generate_huggingface(prompt, num_predict=num_predict, temperature=temperature)
+            log_memory_usage("LLM request end")
+            return text
+
+        # --- Otherwise, use Ollama explicitly ---
         for m in (os.getenv("OLLAMA_MODEL") or "llama3.2").split(","):
             txt = _generate_ollama(prompt, m.strip(), num_predict=num_predict, temperature=temperature)
             if txt:
                 log_memory_usage("LLM request end")
                 return txt
-    # 2) Fallback to HF
-    try:
+
+        # --- Final fallback ---
         text = _generate_huggingface(prompt, num_predict=num_predict, temperature=temperature)
         log_memory_usage("LLM request end")
         return text
+
     except Exception as e:
-        logger.exception(f"[HF] Generation failed: {e}")
+        logger.exception(f"[generate_text_with_fallback] Generation failed: {e}")
         raise
 
 def _generate_ollama(prompt: str, model_name: str, num_predict: int = 400, temperature: float = 0.7, max_retries: int = 3) -> str:
