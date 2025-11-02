@@ -45,9 +45,9 @@ def choose_default_model() -> str:
             return "meta-llama/Meta-Llama-3-8B"
         else:
             print("💡 No GPU detected — using Mistral 7B Instruct (CPU-friendly).")
-            return "mistralai/Mistral-7B-Instruct-v0.2"
+            return "mistralai/Mistral-7B-Instruct-v0.1"
     except Exception:
-        return "mistralai/Mistral-7B-Instruct-v0.2"
+        return "mistralai/Mistral-7B-Instruct-v0.1"
 
 HF_DEFAULT_MODEL = os.environ.get("HUGGINGFACE_MODEL", choose_default_model())
 HF_CACHE_DIRNAME = ".hf_cache"
@@ -510,3 +510,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
