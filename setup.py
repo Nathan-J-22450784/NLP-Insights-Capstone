@@ -168,7 +168,7 @@ def preload_hf_model(py, project_dir: Path):
     code = f"""
 import os
 os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
-model_name = "{HF_DEFAULT_MODEL}"
+model_name = HF_DEFAULT_MODEL
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
 low = model_name.lower()
 is_t5 = ("t5" in low) or ("flan" in low)
@@ -196,7 +196,7 @@ def sanity_generation(py, project_dir: Path):
     code = f"""
 import os
 os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
-model_name = "{HF_DEFAULT_MODEL}"
+model_name = HF_DEFAULT_MODEL
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
 low = model_name.lower()
 is_t5 = ("t5" in low) or ("flan" in low)
@@ -510,3 +510,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
