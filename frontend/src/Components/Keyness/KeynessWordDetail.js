@@ -120,39 +120,102 @@ const KeynessWordDetail = ({
       return lines.join("\n");
     }
 
+    // Parse **bold** tokens (and numbered lines) from markdown-ish text
+    function extractWordsFromAnalysis(md) {
+      if (!md || typeof md !== "string") return [];
+      const bolds = Array.from(md.matchAll(/\*\*([^*]+)\*\*/g)).map(m => m[1].trim());
+      // also catch simple "1. word" lines
+      const numbered = md
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(l => /^\d+\.\s+/.test(l))
+        .map(l => l.replace(/^\d+\.\s+/, "").split(/[—:-]/)[0].trim());
+      const merged = [...bolds, ...numbered].filter(w => w && /^[\p{L}\-’' ]+$/u.test(w));
+      // de-dupe, keep order
+      return Array.from(new Set(merged));
+    }
+    
+    // Normalize a synonyms array to [{word: "…"}]
+    function toWordObjects(list) {
+      return (list || []).map(it =>
+        typeof it === "string"
+          ? { word: it }
+          : it.word
+          ? { word: it.word }
+          : it.synonym
+          ? { word: it.synonym }
+          : null
+      ).filter(Boolean);
+    }
+
+
     // Fetch synonym analysis
     const fetchSynonyms = async () => {
-        if (synonymsAnalysis || synonymsList.length > 0) return;
-        setLoadingSynonyms(true);
-        try {
-            const response = await fetch("http://localhost:8000/api/get-synonyms/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                //include uploaded_text so backend can compute present_in_text
-                body: JSON.stringify({ word, uploaded_text: uploadedText || "" }), 
-            });
-            const data = await response.json();
-
-            // Prefer in-text matches; else use full synonyms; else fall back to backend markdown
-            const items =
-              (Array.isArray(data.present_in_text) && data.present_in_text.length > 0)
-                ? data.present_in_text
-                : (Array.isArray(data.synonyms) ? data.synonyms : null);
-        
-            const md =
-              (items ? markdownFromItems(items, word) : null) ||
-              data.analysis_markdown ||
-              "No alternate words found.";
-
-            setSynonymsAnalysis(md);
-        } catch (err) {
-            console.error(err);
-            setSynonymsAnalysis("We couldn't fetch alternate words right now. The language model may still be warming up. Please try again in a few seconds.");
-            setSynonymsList([]);
-        } finally {
-            setLoadingSynonyms(false);
+      if (synonymsAnalysis || synonymsList.length > 0) return;
+      setLoadingSynonyms(true);
+      try {
+        const response = await fetch("http://localhost:8000/api/get-synonyms/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ word, uploaded_text: uploadedText || "" }),
+        });
+        const data = await response.json();
+    
+        // 1) Prefer explicit arrays from the API
+        const present = Array.isArray(data.present_in_text) ? toWordObjects(data.present_in_text) : [];
+        const plainSyns = Array.isArray(data.synonyms) ? toWordObjects(data.synonyms) : [];
+    
+        let list = present.length ? present : plainSyns;
+    
+        // 2) If only a markdown/string analysis is returned, parse words from it
+        const rawAnalysis = data.analysis || data.analysis_markdown || "";
+        if (!list.length && rawAnalysis) {
+          const parsed = extractWordsFromAnalysis(rawAnalysis).map(w => ({ word: w }));
+          if (parsed.length) list = parsed;
         }
+    
+        // 3) Build a readable markdown if we got structured items with meaning/usage
+        let md = "";
+        if (present.length) {
+          md = markdownFromItems(
+            present.map(p => ({
+              synonym: p.word,
+              meaning: p.meaning || "",
+              difference: p.difference || "",
+              usage: p.usage || "",
+              example: p.example || "",
+            })),
+            word
+          );
+        } else if (plainSyns.length) {
+          md = markdownFromItems(
+            plainSyns.map(p => ({
+              synonym: p.word,
+              meaning: p.meaning || "",
+              difference: p.difference || "",
+              usage: p.usage || "",
+              example: p.example || "",
+            })),
+            word
+          );
+        } else {
+          // fall back to whatever the backend wrote
+          md = rawAnalysis || "No alternate words found.";
+        }
+    
+        setSynonymsList(list);
+        setSynonymsAnalysis(md);
+      } catch (err) {
+        console.error(err);
+        setSynonymsAnalysis(
+          "We couldn't fetch alternate words right now. The language model may still be warming up. Please try again in a few seconds."
+        );
+        setSynonymsList([]);
+      } finally {
+        setLoadingSynonyms(false);
+      }
     };
+
 
     // Fetch concepts analysis
     const fetchConcepts = async () => {
