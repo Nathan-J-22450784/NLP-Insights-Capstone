@@ -36,7 +36,7 @@ from api.keyness.keyness_analyser import (
 from django.core.files.uploadedfile import UploadedFile
 from .models import KeynessResult
 from backend.utils.session_utils import ensure_session_exists, schedule_session_cleanup
-from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+# from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 
 # ---------------------------------------------------------------------------
 # File validation constants
@@ -52,9 +52,9 @@ ALLOWED_MIME_TYPES = {
 MAX_TEXT_LENGTH = 100000
 logger = logging.getLogger(__name__)
 
-_HF_MODEL = None
-_HF_TOKENIZER = None
-_HF_PIPELINE = None
+# _HF_MODEL = None
+# _HF_TOKENIZER = None
+# _HF_PIPELINE = None
 
 CORPUS_DIR = os.path.join(settings.BASE_DIR, "api", "corpus")
 SAMPLE_FILE = os.path.join(CORPUS_DIR, "sample1.txt")
@@ -87,66 +87,66 @@ def log_memory_usage(label):
 #   HF_HOME=... (optional cache dir)
 #   HF_TASK=text2text-generation | text-generation (auto-chooses if unset)
 
-import torch
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM, pipeline
+# import torch
+# from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM, pipeline
 
-def _get_hf_defaults():
-    name = os.getenv("HUGGINGFACE_MODEL") or os.getenv("HF_DEFAULT_MODEL") or "mistralai/Mistral-7B-Instruct-v0.2"
-    task = os.getenv("HF_TASK", "").strip()
-    if not task:
-        task = "text2text-generation" if any(k in name.lower() for k in ["t5", "flan"]) else "text-generation"
-    return name, task
+# def _get_hf_defaults():
+#     name = os.getenv("HUGGINGFACE_MODEL") or os.getenv("HF_DEFAULT_MODEL") or "mistralai/Mistral-7B-Instruct-v0.2"
+#     task = os.getenv("HF_TASK", "").strip()
+#     if not task:
+#         task = "text2text-generation" if any(k in name.lower() for k in ["t5", "flan"]) else "text-generation"
+#     return name, task
 
-def _truncate_prompt(tokenizer, prompt: str, max_input_tokens: int) -> str:
-    enc = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=max_input_tokens)
-    return tokenizer.decode(enc.input_ids[0], skip_special_tokens=True)
+# def _truncate_prompt(tokenizer, prompt: str, max_input_tokens: int) -> str:
+#     enc = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=max_input_tokens)
+#     return tokenizer.decode(enc.input_ids[0], skip_special_tokens=True)
 
-def _load_hf_pipeline():
-    """Load or reuse a local Hugging Face pipeline."""
-    global _HF_PIPELINE
-    if _HF_PIPELINE is not None:
-        return _HF_PIPELINE
+# def _load_hf_pipeline():
+#     """Load or reuse a local Hugging Face pipeline."""
+#     global _HF_PIPELINE
+#     if _HF_PIPELINE is not None:
+#         return _HF_PIPELINE
 
-    model_name = (
-        os.environ.get("HUGGINGFACE_MODEL")
-        or os.environ.get("HF_DEFAULT_MODEL")
-        or "mistralai/Mistral-7B-Instruct-v0.2"
-    )
+#     model_name = (
+#         os.environ.get("HUGGINGFACE_MODEL")
+#         or os.environ.get("HF_DEFAULT_MODEL")
+#         or "mistralai/Mistral-7B-Instruct-v0.2"
+#     )
     
-    task = os.environ.get("HF_TASK", "text2text-generation")
+#     task = os.environ.get("HF_TASK", "text2text-generation")
 
-    logger.info(f"⚙️  Loading Hugging Face model: {model_name} ({task})")
-    try:
-        _HF_PIPELINE = pipeline(task=task, model=model_name)
-        logger.info(f"✅ HF model loaded successfully: {model_name}")
-    except Exception as e:
-        logger.error(f"❌ Failed to load Hugging Face model: {e}")
-        _HF_PIPELINE = None
-    return _HF_PIPELINE
+#     logger.info(f"⚙️  Loading Hugging Face model: {model_name} ({task})")
+#     try:
+#         _HF_PIPELINE = pipeline(task=task, model=model_name)
+#         logger.info(f"✅ HF model loaded successfully: {model_name}")
+#     except Exception as e:
+#         logger.error(f"❌ Failed to load Hugging Face model: {e}")
+#         _HF_PIPELINE = None
+#     return _HF_PIPELINE
 
 
-def _generate_huggingface(prompt: str, num_predict: int = 600, temperature: float = 0.7) -> str:
-    """Generate text with a Hugging Face model."""
-    pipe = _load_hf_pipeline()
-    if pipe is None:
-        raise RuntimeError("Hugging Face pipeline not initialised")
+# def _generate_huggingface(prompt: str, num_predict: int = 600, temperature: float = 0.7) -> str:
+#     """Generate text with a Hugging Face model."""
+#     pipe = _load_hf_pipeline()
+#     if pipe is None:
+#         raise RuntimeError("Hugging Face pipeline not initialised")
 
-    try:
-        output = pipe(
-            prompt,
-            max_new_tokens=num_predict,
-            temperature=temperature,
-            do_sample=True,
-            truncation=True,
-        )
-        if isinstance(output, list) and len(output) > 0:
-            # Works for both text-generation and text2text-generation
-            text = output[0].get("generated_text") or output[0].get("translation_text")
-            return text.strip()
-        return str(output)
-    except Exception as e:
-        logger.error(f"HF generation failed: {e}")
-        return ""
+#     try:
+#         output = pipe(
+#             prompt,
+#             max_new_tokens=num_predict,
+#             temperature=temperature,
+#             do_sample=True,
+#             truncation=True,
+#         )
+#         if isinstance(output, list) and len(output) > 0:
+#             # Works for both text-generation and text2text-generation
+#             text = output[0].get("generated_text") or output[0].get("translation_text")
+#             return text.strip()
+#         return str(output)
+#     except Exception as e:
+#         logger.error(f"HF generation failed: {e}")
+#         return ""
 
 # ---- LLM generation helper (Ollama or Hugging Face) ----
 
