@@ -12,7 +12,7 @@ What this does:
        transformers>=4.42 accelerate>=0.33 sentencepiece safetensors python-docx
        (and torch if missing)
   3) Create/merge a .env with local defaults:
-       HUGGINGFACE_MODEL=auto-selected (Llama 3 or Mistral)
+       HUGGINGFACE_MODEL=google/flan-t5-base
        HF_HOME=.hf_cache
        # OLLAMA_BASE_URL=http://localhost:11434/api/generate
        # OLLAMA_MODEL=llama3.2
@@ -168,7 +168,7 @@ def preload_hf_model(py, project_dir: Path):
     code = f"""
 import os
 os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
-model_name = "{HF_DEFAULT_MODEL}"
+model_name = HF_DEFAULT_MODEL
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
 low = model_name.lower()
 is_t5 = ("t5" in low) or ("flan" in low)
@@ -196,7 +196,7 @@ def sanity_generation(py, project_dir: Path):
     code = f"""
 import os
 os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
-model_name = "{HF_DEFAULT_MODEL}"
+model_name = HF_DEFAULT_MODEL
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
 low = model_name.lower()
 is_t5 = ("t5" in low) or ("flan" in low)
@@ -510,8 +510,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
