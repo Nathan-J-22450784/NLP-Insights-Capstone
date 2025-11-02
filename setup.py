@@ -393,9 +393,10 @@ def run_migrations(py, project_dir):
     run([str(py), "manage.py", "migrate"], cwd=str(work_dir))
 
 def install_frontend(project_dir):
-    ensure_node_npm_available()
     fe = project_dir / FRONTEND_SUBDIR
-    if not fe.exists(): return
+    if not fe.exists(): 
+        return
+    ensure_node_npm_available()
     print("Installing frontend dependencies …")
     run([npm_cmd(), "install"], cwd=str(fe))
 
@@ -455,7 +456,7 @@ def main():
         download_spacy_models(py, skip=args.skip_spacy)
         run_migrations(py, target)
         install_frontend(target)
-         # --- Local-plus additions ---
+        # --- Local-plus additions ---
         ensure_local_dirs(target)
         write_env_non_destructive(target)
         install_local_plus_extras(py)
@@ -494,5 +495,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
