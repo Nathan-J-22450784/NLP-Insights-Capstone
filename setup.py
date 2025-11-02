@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 NLP-Insights Capstone — Cross-platform bootstrap & runner
@@ -9,12 +8,8 @@ Usage:
 
 What this does:
   1) pip install -r backend/requirements.txt
-  2) pip install local-plus extras:
-       transformers>=4.42 accelerate>=0.33 sentencepiece safetensors python-docx
-       (and torch if missing)
+  2) pip install local-plus extras
   3) Create/merge a .env with local defaults:
-       HUGGINGFACE_MODEL=google/flan-t5-base
-       HF_HOME=.hf_cache
        # OLLAMA_BASE_URL=http://localhost:11434/api/generate
        # OLLAMA_MODEL=llama3.2
   4) Pre-download the HF model into cache.
@@ -149,7 +144,7 @@ def write_env_non_destructive(project_dir: Path):
     merged = dict(existing)
     merged.setdefault("HUGGINGFACE_MODEL", HF_DEFAULT_MODEL)
     merged.setdefault("HF_HOME", str(project_dir / HF_CACHE_DIRNAME))
-    merged.setdefault("LLM_PROVIDER", "huggingface")
+    merged.setdefault("LLM_PROVIDER", "ollama")
     lines = ["# --- Local-plus defaults (safe to edit) ---"]
     for k in sorted(merged):
         lines.append(f"{k}={merged[k]}")
@@ -479,8 +474,8 @@ def main():
         ensure_local_dirs(target)
         write_env_non_destructive(target)
         install_local_plus_extras(py)
-        preload_hf_model(py, target)
-        sanity_generation(py, target)
+        # preload_hf_model(py, target)
+        # sanity_generation(py, target)
         detect_ollama_server()
         # --- end local-plus additions ---
         maybe_setup_ollama(args.no_ollama, args.ollama_model)
@@ -514,3 +509,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
