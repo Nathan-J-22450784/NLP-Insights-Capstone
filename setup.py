@@ -1,7 +1,24 @@
+
 #!/usr/bin/env python3
 """
 NLP-Insights Capstone — Cross-platform bootstrap & runner
 Works on Windows, macOS, and Linux. No shell scripts needed.
+
+Usage:
+    python setup.py
+
+What this does:
+  1) pip install -r backend/requirements.txt
+  2) pip install local-plus extras:
+       transformers>=4.42 accelerate>=0.33 sentencepiece safetensors python-docx
+       (and torch if missing)
+  3) Create/merge a .env with local defaults:
+       HUGGINGFACE_MODEL=google/flan-t5-base
+       HF_HOME=.hf_cache
+       # OLLAMA_BASE_URL=http://localhost:11434/api/generate
+       # OLLAMA_MODEL=llama3.2
+  4) Pre-download the HF model into cache.
+  5) Quick generation sanity check.
 """
 
 import argparse
@@ -18,6 +35,16 @@ DEFAULT_PROJECT_DIRNAME = "NLP-Insights-Capstone"
 DEFAULT_BRANCH = "local-dev"
 FRONTEND_SUBDIR = "frontend"
 SPACY_MODELS = ["en_core_web_sm", "en_core_web_md"]
+# --- Local-plus defaults (HF cache, models) ---------------------------------
+HF_DEFAULT_MODEL = os.environ.get("HUGGINGFACE_MODEL", "google/flan-t5-base")
+HF_CACHE_DIRNAME = ".hf_cache"
+EXTRA_PKGS = [
+    "transformers>=4.42",
+    "accelerate>=0.33",
+    "sentencepiece",
+    "safetensors",
+    "python-docx",  # used by DOCX parsing in views
+]
 
 # --- Utility helpers ---------------------------------------------------------
 def is_windows(): return platform.system().lower().startswith("win")
@@ -64,6 +91,136 @@ def find_manage_py(project_dir: Path) -> tuple[Path, Path] | None:
         p = hits[0]
         return p, p.parent
     return None
+
+def py_version_tuple(py):
+    out = subprocess.run(
+        [str(py), "-c", "import sys; print('.'.join(map(str, sys.version_info[:2])))"],
+        check=True, capture_output=True, text=True
+    ).stdout.strip()
+    return tuple(map(int, out.split(".")))
+
+def pip_install(py, pkgs):
+    if not isinstance(pkgs, (list, tuple)):
+        pkgs = [pkgs]
+    run([str(py), "-m", "pip", "install", "-U"] + list(pkgs))
+
+def ensure_torch(py):
+    # Try import inside the venv
+    code = "import importlib,sys; sys.exit(0 if importlib.util.find_spec('torch') else 1)"
+    rc = subprocess.run([str(py), "-c", code]).returncode
+    if rc == 0:
+        print("🧠 torch already installed")
+        return
+    print("🧠 Installing torch (CPU build)")
+    # CPU wheel index (safe default; CUDA users can upgrade later)
+    run([str(py), "-m", "pip", "install", "-U", "torch", "--index-url",
+         "https://download.pytorch.org/whl/cpu"])
+
+def install_local_plus_extras(py):
+    print("📦 Installing local-plus extras …")
+    pip_install(py, EXTRA_PKGS)
+    ensure_torch(py)
+
+def write_env_non_destructive(project_dir: Path):
+    dotenv = project_dir / ".env"
+    existing = {}
+    if dotenv.exists():
+        for line in dotenv.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.strip().startswith("#"):
+                k, v = line.split("=", 1)
+                existing[k.strip()] = v.strip()
+    merged = dict(existing)
+    merged.setdefault("HUGGINGFACE_MODEL", HF_DEFAULT_MODEL)
+    merged.setdefault("HF_HOME", str(project_dir / HF_CACHE_DIRNAME))
+    lines = ["# --- Local-plus defaults (safe to edit) ---"]
+    for k in sorted(merged):
+        lines.append(f"{k}={merged[k]}")
+    if "OLLAMA_BASE_URL" not in merged:
+        lines.append("# OLLAMA_BASE_URL=http://localhost:11434/api/generate")
+    if "OLLAMA_MODEL" not in merged:
+        lines.append("# OLLAMA_MODEL=llama3.2")
+    dotenv.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"🧾 Wrote {dotenv} (non-destructive merge)")
+
+def ensure_local_dirs(project_dir: Path):
+    (project_dir / HF_CACHE_DIRNAME).mkdir(parents=True, exist_ok=True)
+    # in case these folders are referenced elsewhere:
+    (project_dir / "api" / "corpus_meta").mkdir(parents=True, exist_ok=True)
+    (project_dir / "api" / "corpus_meta_keyness").mkdir(parents=True, exist_ok=True)
+
+def preload_hf_model(py, project_dir: Path):
+    """Pre-download tokenizer + model inside the venv so first run is fast."""
+    print(f"⬇️  Pre-downloading HF model: {HF_DEFAULT_MODEL}")
+    code = f"""
+import os
+os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
+model_name = "{HF_DEFAULT_MODEL}"
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
+low = model_name.lower()
+is_t5 = ("t5" in low) or ("flan" in low)
+tok = AutoTokenizer.from_pretrained(model_name)
+if is_t5:
+    AutoModelForSeq2SeqLM.from_pretrained(model_name)
+else:
+    AutoModelForCausalLM.from_pretrained(model_name)
+tok("hello world")
+print("OK")
+"""
+    try:
+        out = run_capture([str(py), "-c", code])
+        if "OK" in out:
+            print("✅ HF model cached successfully")
+        else:
+            print("⚠️  HF preload finished without explicit OK (continuing).")
+    except subprocess.CalledProcessError as e:
+        print("❌ Could not pre-download HF model (continuing).")
+        print(e.stdout or e)
+
+def sanity_generation(py, project_dir: Path):
+    """Tiny generation to verify stack works (runs in venv)."""
+    print("🧪 Running a tiny generation sanity check …")
+    code = f"""
+import os
+os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
+model_name = "{HF_DEFAULT_MODEL}"
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
+low = model_name.lower()
+is_t5 = ("t5" in low) or ("flan" in low)
+tok = AutoTokenizer.from_pretrained(model_name)
+if is_t5:
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    task = "text2text-generation"
+    prompt = "Instruction:\\nList two synonyms for 'emerging'.\\n\\nAnswer:"
+else:
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    task = "text-generation"
+    prompt = "List two synonyms for 'emerging':"
+pipe = pipeline(task, model=model, tokenizer=tok, device=-1)
+out = pipe(prompt, max_new_tokens=32, do_sample=True, top_p=0.9, temperature=0.8)
+txt = out[0].get("generated_text","").strip()
+print("SAMPLE:", txt[:160])
+"""
+    try:
+        out = run_capture([str(py), "-c", code])
+        print(out)
+        print("✅ Generation sanity check passed")
+    except subprocess.CalledProcessError as e:
+        print("⚠️  Generation sanity check failed (non-fatal).")
+        print(e.stdout or e)
+
+def detect_ollama_server():
+    """Pure-stdlib probe so we don't depend on 'requests' globally."""
+    import urllib.request, urllib.error
+    try:
+        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2) as r:
+            if r.status == 200:
+                print("🟢 Detected local Ollama. Uncomment OLLAMA_* in .env to enable.")
+                return True
+    except Exception:
+        pass
+    print("ℹ️  Ollama not detected (optional).")
+    return False
+
 
 # --- Environment setup -------------------------------------------------------
 def run_capture(cmd, cwd=None):
@@ -221,19 +378,6 @@ def install_backend(py, project_dir, use_lock):
 
     run(pip_args + ["-r", str(req)])
 
-def build_conceptnet_subset(py, project_dir: Path):
-    """Create backend/data/numberbatch-en-top50k-fp16.npz once."""
-    script = project_dir / "backend" / "download_embeddings.py"
-    if not script.exists():
-        print(f"⚠ Embedding builder not found at {script} — skipping.")
-        return
-    data_npz = project_dir / "backend" / "data" / "numberbatch-en-top50k-fp16.npz"
-    if data_npz.exists():
-        print(f"✓ Embedding subset already present: {data_npz}")
-        return
-    print("Building ConceptNet embedding subset (first run only)…")
-    run([str(py), str(script)])
-
 def download_spacy_models(py, skip=False):
     if skip: return
     for model in SPACY_MODELS:
@@ -250,9 +394,10 @@ def run_migrations(py, project_dir):
     run([str(py), "manage.py", "migrate"], cwd=str(work_dir))
 
 def install_frontend(project_dir):
-    ensure_node_npm_available()
     fe = project_dir / FRONTEND_SUBDIR
-    if not fe.exists(): return
+    if not fe.exists(): 
+        return
+    ensure_node_npm_available()
     print("Installing frontend dependencies …")
     run([npm_cmd(), "install"], cwd=str(fe))
 
@@ -312,6 +457,14 @@ def main():
         download_spacy_models(py, skip=args.skip_spacy)
         run_migrations(py, target)
         install_frontend(target)
+        # --- Local-plus additions ---
+        ensure_local_dirs(target)
+        write_env_non_destructive(target)
+        install_local_plus_extras(py)
+        preload_hf_model(py, target)
+        sanity_generation(py, target)
+        detect_ollama_server()
+        # --- end local-plus additions ---
         maybe_setup_ollama(args.no_ollama, args.ollama_model)
     else:
         venv = target / "venv"
