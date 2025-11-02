@@ -12,7 +12,7 @@ What this does:
        transformers>=4.42 accelerate>=0.33 sentencepiece safetensors python-docx
        (and torch if missing)
   3) Create/merge a .env with local defaults:
-       HUGGINGFACE_MODEL=google/flan-t5-base
+       HUGGINGFACE_MODEL=auto-selected (Llama 3 or Mistral)
        HF_HOME=.hf_cache
        # OLLAMA_BASE_URL=http://localhost:11434/api/generate
        # OLLAMA_MODEL=llama3.2
@@ -510,6 +510,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
