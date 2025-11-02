@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 NLP-Insights Capstone — Cross-platform bootstrap & runner
@@ -35,7 +36,10 @@ DEFAULT_BRANCH = "local-dev"
 FRONTEND_SUBDIR = "frontend"
 SPACY_MODELS = ["en_core_web_sm", "en_core_web_md"]
 # --- Local-plus defaults (HF cache, models) ---------------------------------
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 
 def choose_default_model() -> str:
     """Choose the best default model automatically."""
