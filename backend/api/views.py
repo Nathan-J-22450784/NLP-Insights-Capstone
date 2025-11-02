@@ -159,30 +159,30 @@ def generate_text_with_fallback(prompt: str, num_predict: int = 600, temperature
     """
     log_memory_usage("LLM request start")
 
-    provider = (os.getenv("LLM_PROVIDER") or "").strip().lower()
-
     try:
-        # --- Prefer Hugging Face if explicitly chosen or no Ollama available ---
-        if provider == "huggingface" or not os.getenv("OLLAMA_BASE_URL"):
-            text = _generate_huggingface(prompt, num_predict=num_predict, temperature=temperature)
-            log_memory_usage("LLM request end")
-            return text
+        # Force Ollama usage
+        base_url = os.getenv("OLLAMA_BASE_URL", "").strip()
+        if not base_url:
+            raise RuntimeError("OLLAMA_BASE_URL not set — please configure your .env")
 
-        # --- Otherwise, use Ollama explicitly ---
-        for m in (os.getenv("OLLAMA_MODEL") or "llama3.2").split(","):
-            txt = _generate_ollama(prompt, m.strip(), num_predict=num_predict, temperature=temperature)
+        models = (os.getenv("OLLAMA_MODEL") or "llama3.2").split(",")
+
+        for m in models:
+            model_name = m.strip()
+            if not model_name:
+                continue
+
+            txt = _generate_ollama(prompt, model_name, num_predict=num_predict, temperature=temperature)
             if txt:
                 log_memory_usage("LLM request end")
                 return txt
 
-        # --- Final fallback ---
-        text = _generate_huggingface(prompt, num_predict=num_predict, temperature=temperature)
-        log_memory_usage("LLM request end")
-        return text
+        raise RuntimeError("All Ollama model calls failed.")
 
     except Exception as e:
-        logger.exception(f"[generate_text_with_fallback] Generation failed: {e}")
-        raise
+        logger.exception(f"[generate_text_with_fallback] Ollama generation failed: {e}")
+        log_memory_usage("LLM request end")
+        return f"Error: Ollama generation failed — {e}"
 
 def _generate_ollama(prompt: str, model_name: str, num_predict: int = 400, temperature: float = 0.7, max_retries: int = 3) -> str:
     """
