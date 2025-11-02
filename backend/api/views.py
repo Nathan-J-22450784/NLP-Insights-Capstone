@@ -83,7 +83,7 @@ def log_memory_usage(label):
 # ---- Hugging Face (local) ---------------------------------------------------
 # Uses a local HF model for rich analysis in dev. Caches in process.
 # Env:
-#   HUGGINGFACE_MODEL=google/flan-t5-base (good CPU default)
+#   HUGGINGFACE_MODEL="HF_DEFAULT_MODEL" (good CPU default)
 #   HF_HOME=... (optional cache dir)
 #   HF_TASK=text2text-generation | text-generation (auto-chooses if unset)
 
@@ -91,7 +91,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM, pipeline
 
 def _get_hf_defaults():
-    name = os.getenv("HUGGINGFACE_MODEL", "google/flan-t5-base").strip()
+    name = os.getenv("HUGGINGFACE_MODEL") or os.getenv("HF_DEFAULT_MODEL") or "mistralai/Mistral-7B-Instruct-v0.2"
     task = os.getenv("HF_TASK", "").strip()
     if not task:
         task = "text2text-generation" if any(k in name.lower() for k in ["t5", "flan"]) else "text-generation"
@@ -107,7 +107,12 @@ def _load_hf_pipeline():
     if _HF_PIPELINE is not None:
         return _HF_PIPELINE
 
-    model_name = os.environ.get("HUGGINGFACE_MODEL", "google/flan-t5-base")
+    model_name = (
+        os.environ.get("HUGGINGFACE_MODEL")
+        or os.environ.get("HF_DEFAULT_MODEL")
+        or "mistralai/Mistral-7B-Instruct-v0.2"
+    )
+    
     task = os.environ.get("HF_TASK", "text2text-generation")
 
     logger.info(f"⚙️  Loading Hugging Face model: {model_name} ({task})")
