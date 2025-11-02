@@ -35,7 +35,21 @@ DEFAULT_BRANCH = "local-dev"
 FRONTEND_SUBDIR = "frontend"
 SPACY_MODELS = ["en_core_web_sm", "en_core_web_md"]
 # --- Local-plus defaults (HF cache, models) ---------------------------------
-HF_DEFAULT_MODEL = os.environ.get("HUGGINGFACE_MODEL", "google/flan-t5-base")
+import torch
+
+def choose_default_model() -> str:
+    """Choose the best default model automatically."""
+    try:
+        if torch.cuda.is_available():
+            print("🧠 GPU detected — using Llama 3 (8B) for richer outputs.")
+            return "meta-llama/Meta-Llama-3-8B"
+        else:
+            print("💡 No GPU detected — using Mistral 7B Instruct (CPU-friendly).")
+            return "mistralai/Mistral-7B-Instruct-v0.2"
+    except Exception:
+        return "mistralai/Mistral-7B-Instruct-v0.2"
+
+HF_DEFAULT_MODEL = os.environ.get("HUGGINGFACE_MODEL", choose_default_model())
 HF_CACHE_DIRNAME = ".hf_cache"
 EXTRA_PKGS = [
     "transformers>=4.42",
@@ -131,6 +145,7 @@ def write_env_non_destructive(project_dir: Path):
     merged = dict(existing)
     merged.setdefault("HUGGINGFACE_MODEL", HF_DEFAULT_MODEL)
     merged.setdefault("HF_HOME", str(project_dir / HF_CACHE_DIRNAME))
+    merged.setdefault("LLM_PROVIDER", "huggingface")
     lines = ["# --- Local-plus defaults (safe to edit) ---"]
     for k in sorted(merged):
         lines.append(f"{k}={merged[k]}")
@@ -495,6 +510,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
