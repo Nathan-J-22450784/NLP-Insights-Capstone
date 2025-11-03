@@ -568,6 +568,7 @@ const KeynessWordDetail = ({
                         </ReactMarkdown>
                       </div>
                     )}
+                 </div>
 
                 ) : synonymsAnalysis ? (
                   <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
