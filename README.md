@@ -7,7 +7,7 @@ A Python and React-based application for advanced text analysis, including keyne
 - [Project Overview](#project-overview)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
-- [Austomated Installation](#automated-installation)
+- [Automated Installation](#automated-installation)
 - [Manual Installation](#manual-installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
