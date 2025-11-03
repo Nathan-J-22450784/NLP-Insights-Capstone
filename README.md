@@ -7,7 +7,8 @@ A Python and React-based application for advanced text analysis, including keyne
 - [Project Overview](#project-overview)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
-- [Installation](#installation)
+- [Installation](#automated-nstallation)
+- [Installation](#manual-installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Quick Start Example](#quick-start-example)
@@ -82,7 +83,7 @@ It includes interactive visualisations, AI-generated summaries, and multiple typ
 
 This will clone the repo into ./NLP-Insights-Capstone, create a venv, install deps, download spaCy models, run migrations, (optionally) prep Ollama, then start backend + frontend. If the repo is already cloned it will rebase it to ensure it is up to date.
 
-### To automate the following Prerequisits and Installation process simply refer to the README-setup-py.md and follow two steps:
+### To automate the following Prerequisites and Installation process simply refer to the README-setup-py.md and follow two steps:
 
 ### 1. Clone the repository
 git clone https://github.com/Nathan-J-22450784/NLP-Insights-Capstone.git
