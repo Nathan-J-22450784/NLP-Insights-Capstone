@@ -7,13 +7,13 @@ Usage:
     python setup.py
 
 What this does:
-  1) pip install -r backend/requirements.txt
-  2) pip install local-plus extras
-  3) Create/merge a .env with local defaults:
-       # OLLAMA_BASE_URL=http://localhost:11434/api/generate
-       # OLLAMA_MODEL=llama2
-  4) Pre-download the HF model into cache.
-  5) Quick generation sanity check.
+  1) Clones or updates the repo (branch = local-dev)
+  2) Installs backend and frontend dependencies
+  3) Creates a .env configured for Ollama:
+       OLLAMA_BASE_URL=http://localhost:11434/api/generate
+       OLLAMA_MODEL=llama2
+  4) Ensures spaCy models are installed
+  5) Starts backend (and optionally frontend)
 """
 
 import argparse
@@ -31,10 +31,10 @@ DEFAULT_BRANCH = "local-dev"
 FRONTEND_SUBDIR = "frontend"
 SPACY_MODELS = ["en_core_web_sm", "en_core_web_md"]
 # --- Local-plus defaults (HF cache, models) ---------------------------------
-try:
-    import torch
-except ImportError:
-    torch = None
+# try:
+#     import torch
+# except ImportError:
+#     torch = None
 
 # def choose_default_model() -> str:
 #     """Choose the best default model automatically."""
@@ -128,10 +128,10 @@ def pip_install(py, pkgs):
 #     run([str(py), "-m", "pip", "install", "-U", "torch", "--index-url",
 #          "https://download.pytorch.org/whl/cpu"])
 
-def install_local_plus_extras(py):
-    print("📦 Installing local-plus extras …")
-    pip_install(py, EXTRA_PKGS)
-    ensure_torch(py)
+# def install_local_plus_extras(py):
+#     print("📦 Installing local-plus extras …")
+#     pip_install(py, EXTRA_PKGS)
+#     ensure_torch(py)
 
 def write_env_non_destructive(project_dir: Path):
     dotenv = project_dir / ".env"
@@ -229,11 +229,10 @@ def detect_ollama_server():
     try:
         with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2) as r:
             if r.status == 200:
-                print("🟢 Detected local Ollama. Uncomment OLLAMA_* in .env to enable.")
+                print("🟢 Detected local Ollama server at http://localhost:11434")
                 return True
     except Exception:
-        pass
-    print("ℹ️  Ollama not detected (optional).")
+        print("ℹ️  Ollama not detected.")
     return False
 
 
@@ -421,10 +420,19 @@ def maybe_setup_ollama(skip, model):
         print("Skipping Ollama setup.")
         return
     print(f"Ensuring Ollama model '{model}' …")
-    try: run(["ollama", "pull", model])
-    except subprocess.CalledProcessError: pass
-    popen(["ollama", "serve"], new_console=True)
-
+    try:
+        run(["ollama", "pull", model])
+    except subprocess.CalledProcessError:
+        pass
+    # Start Ollama server only if not running
+    import urllib.request
+    try:
+        urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2)
+        print("🟢 Ollama already running.")
+    except Exception:
+        print("🚀 Starting Ollama service …")
+        popen(["ollama", "serve"], new_console=True)
+        
 # --- Runtime -----------------------------------------------------------------
 def start_backend(py, project_dir, port):
     found = find_manage_py(project_dir)
@@ -475,7 +483,7 @@ def main():
         # --- Local-plus additions ---
         ensure_local_dirs(target)
         write_env_non_destructive(target)
-        install_local_plus_extras(py)
+        # install_local_plus_extras(py)
         # preload_hf_model(py, target)
         # sanity_generation(py, target)
         detect_ollama_server()
@@ -511,9 +519,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
