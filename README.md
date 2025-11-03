@@ -86,8 +86,10 @@ This will clone the repo into ./NLP-Insights-Capstone, create a venv, install de
 ### To automate the following Prerequisites and Installation process simply refer to the README-setup-py.md and follow two steps:
 
 ### 1. Clone the repository
+```bash
 git clone https://github.com/Nathan-J-22450784/NLP-Insights-Capstone.git
 cd NLP-Insights-Capstone
+```
 
 ### 2. Run the Setup.py file
 ```bash
