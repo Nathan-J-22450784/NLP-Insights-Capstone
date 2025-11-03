@@ -79,6 +79,23 @@ It includes interactive visualisations, AI-generated summaries, and multiple typ
 
 ---
 
+## Automated Installation
+
+This will clone the repo into ./NLP-Insights-Capstone, create a venv, install deps, download spaCy models, run migrations, (optionally) prep Ollama, then start backend + frontend. If the repo is already cloned it will rebase it to ensure it is up to date.
+
+### To automate the following Prerequisits and Installation process simply refer to the README-setup-py.md and follow two steps:
+
+### 1. Clone the repository
+git clone https://github.com/Nathan-J-22450784/NLP-Insights-Capstone.git
+cd NLP-Insights-Capstone
+
+### 2. Run the Setup.py file
+```bash
+py setup.py
+```
+
+## Manual Installation
+
 ## Prerequisites
 
 Before installing, ensure you have the following:
@@ -89,8 +106,6 @@ Before installing, ensure you have the following:
 - **Ollama** with **Llama2** model (for AI-generated summaries)
 
 ---
-
-## Installation
 
 ### 1. Clone the repository
 
