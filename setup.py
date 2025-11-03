@@ -142,9 +142,12 @@ def write_env_non_destructive(project_dir: Path):
                 k, v = line.split("=", 1)
                 existing[k.strip()] = v.strip()
     merged = dict(existing)
-    merged.setdefault("HUGGINGFACE_MODEL", HF_DEFAULT_MODEL)
-    merged.setdefault("HF_HOME", str(project_dir / HF_CACHE_DIRNAME))
+    # merged.setdefault("HUGGINGFACE_MODEL", HF_DEFAULT_MODEL)
+    # merged.setdefault("HF_HOME", str(project_dir / HF_CACHE_DIRNAME))
     merged.setdefault("LLM_PROVIDER", "ollama")
+    merged["LLM_PROVIDER"] = "ollama"
+    merged["OLLAMA_BASE_URL"] = "http://localhost:11434/api/generate"
+    merged["OLLAMA_MODEL"] = "llama3.2"
     lines = ["# --- Local-plus defaults (safe to edit) ---"]
     for k in sorted(merged):
         lines.append(f"{k}={merged[k]}")
@@ -156,70 +159,72 @@ def write_env_non_destructive(project_dir: Path):
     print(f"🧾 Wrote {dotenv} (non-destructive merge)")
 
 def ensure_local_dirs(project_dir: Path):
-    (project_dir / HF_CACHE_DIRNAME).mkdir(parents=True, exist_ok=True)
+    # (project_dir / HF_CACHE_DIRNAME).mkdir(parents=True, exist_ok=True)
     # in case these folders are referenced elsewhere:
     (project_dir / "api" / "corpus_meta").mkdir(parents=True, exist_ok=True)
     (project_dir / "api" / "corpus_meta_keyness").mkdir(parents=True, exist_ok=True)
 
-def preload_hf_model(py, project_dir: Path):
-    """Pre-download tokenizer + model inside the venv so first run is fast."""
-    print(f"⬇️  Pre-downloading HF model: {HF_DEFAULT_MODEL}")
-    code = f"""
-import os
-os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
-model_name = HF_DEFAULT_MODEL
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
-low = model_name.lower()
-is_t5 = ("t5" in low) or ("flan" in low)
-tok = AutoTokenizer.from_pretrained(model_name)
-if is_t5:
-    AutoModelForSeq2SeqLM.from_pretrained(model_name)
-else:
-    AutoModelForCausalLM.from_pretrained(model_name)
-tok("hello world")
-print("OK")
-"""
-    try:
-        out = run_capture([str(py), "-c", code])
-        if "OK" in out:
-            print("✅ HF model cached successfully")
-        else:
-            print("⚠️  HF preload finished without explicit OK (continuing).")
-    except subprocess.CalledProcessError as e:
-        print("❌ Could not pre-download HF model (continuing).")
-        print(e.stdout or e)
+# def preload_hf_model(py, project_dir: Path):
+# --- Disabled: Only used for Hugging Face deployments ---
+#     """Pre-download tokenizer + model inside the venv so first run is fast."""
+#     print(f"⬇️  Pre-downloading HF model: {HF_DEFAULT_MODEL}")
+#     code = f"""
+# import os
+# os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
+# model_name = HF_DEFAULT_MODEL
+# from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
+# low = model_name.lower()
+# is_t5 = ("t5" in low) or ("flan" in low)
+# tok = AutoTokenizer.from_pretrained(model_name)
+# if is_t5:
+#     AutoModelForSeq2SeqLM.from_pretrained(model_name)
+# else:
+#     AutoModelForCausalLM.from_pretrained(model_name)
+# tok("hello world")
+# print("OK")
+# """
+#     try:
+#         out = run_capture([str(py), "-c", code])
+#         if "OK" in out:
+#             print("✅ HF model cached successfully")
+#         else:
+#             print("⚠️  HF preload finished without explicit OK (continuing).")
+#     except subprocess.CalledProcessError as e:
+#         print("❌ Could not pre-download HF model (continuing).")
+#         print(e.stdout or e)
 
-def sanity_generation(py, project_dir: Path):
-    """Tiny generation to verify stack works (runs in venv)."""
-    print("🧪 Running a tiny generation sanity check …")
-    code = f"""
-import os
-os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
-model_name = HF_DEFAULT_MODEL
-from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
-low = model_name.lower()
-is_t5 = ("t5" in low) or ("flan" in low)
-tok = AutoTokenizer.from_pretrained(model_name)
-if is_t5:
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    task = "text2text-generation"
-    prompt = "Instruction:\\nList two synonyms for 'emerging'.\\n\\nAnswer:"
-else:
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    task = "text-generation"
-    prompt = "List two synonyms for 'emerging':"
-pipe = pipeline(task, model=model, tokenizer=tok, device=-1)
-out = pipe(prompt, max_new_tokens=32, do_sample=True, top_p=0.9, temperature=0.8)
-txt = out[0].get("generated_text","").strip()
-print("SAMPLE:", txt[:160])
-"""
-    try:
-        out = run_capture([str(py), "-c", code])
-        print(out)
-        print("✅ Generation sanity check passed")
-    except subprocess.CalledProcessError as e:
-        print("⚠️  Generation sanity check failed (non-fatal).")
-        print(e.stdout or e)
+# def sanity_generation(py, project_dir: Path):
+# --- Disabled: Only used for Hugging Face deployments ---
+#     """Tiny generation to verify stack works (runs in venv)."""
+#     print("🧪 Running a tiny generation sanity check …")
+#     code = f"""
+# import os
+# os.environ.setdefault("HF_HOME", r"{(project_dir / HF_CACHE_DIRNAME).as_posix()}")
+# model_name = HF_DEFAULT_MODEL
+# from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausalLM
+# low = model_name.lower()
+# is_t5 = ("t5" in low) or ("flan" in low)
+# tok = AutoTokenizer.from_pretrained(model_name)
+# if is_t5:
+#     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+#     task = "text2text-generation"
+#     prompt = "Instruction:\\nList two synonyms for 'emerging'.\\n\\nAnswer:"
+# else:
+#     model = AutoModelForCausalLM.from_pretrained(model_name)
+#     task = "text-generation"
+#     prompt = "List two synonyms for 'emerging':"
+# pipe = pipeline(task, model=model, tokenizer=tok, device=-1)
+# out = pipe(prompt, max_new_tokens=32, do_sample=True, top_p=0.9, temperature=0.8)
+# txt = out[0].get("generated_text","").strip()
+# print("SAMPLE:", txt[:160])
+# """
+#     try:
+#         out = run_capture([str(py), "-c", code])
+#         print(out)
+#         print("✅ Generation sanity check passed")
+#     except subprocess.CalledProcessError as e:
+#         print("⚠️  Generation sanity check failed (non-fatal).")
+#         print(e.stdout or e)
 
 def detect_ollama_server():
     """Pure-stdlib probe so we don't depend on 'requests' globally."""
@@ -509,5 +514,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
