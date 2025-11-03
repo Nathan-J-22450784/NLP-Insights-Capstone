@@ -36,27 +36,27 @@ try:
 except ImportError:
     torch = None
 
-def choose_default_model() -> str:
-    """Choose the best default model automatically."""
-    try:
-        if torch.cuda.is_available():
-            print("🧠 GPU detected — using Llama 3 (8B) for richer outputs.")
-            return "meta-llama/Meta-Llama-3-8B"
-        else:
-            print("💡 No GPU detected — using Mistral 7B Instruct (CPU-friendly).")
-            return "mistralai/Mistral-7B-Instruct-v0.1"
-    except Exception:
-        return "mistralai/Mistral-7B-Instruct-v0.1"
+# def choose_default_model() -> str:
+#     """Choose the best default model automatically."""
+#     try:
+#         if torch.cuda.is_available():
+#             print("🧠 GPU detected — using Llama 3 (8B) for richer outputs.")
+#             return "meta-llama/Meta-Llama-3-8B"
+#         else:
+#             print("💡 No GPU detected — using Mistral 7B Instruct (CPU-friendly).")
+#             return "mistralai/Mistral-7B-Instruct-v0.1"
+#     except Exception:
+#         return "mistralai/Mistral-7B-Instruct-v0.1"
 
-HF_DEFAULT_MODEL = os.environ.get("HUGGINGFACE_MODEL", choose_default_model())
-HF_CACHE_DIRNAME = ".hf_cache"
-EXTRA_PKGS = [
-    "transformers>=4.42",
-    "accelerate>=0.33",
-    "sentencepiece",
-    "safetensors",
-    "python-docx",  # used by DOCX parsing in views
-]
+# HF_DEFAULT_MODEL = os.environ.get("HUGGINGFACE_MODEL", choose_default_model())
+# HF_CACHE_DIRNAME = ".hf_cache"
+# EXTRA_PKGS = [
+#     "transformers>=4.42",
+#     "accelerate>=0.33",
+#     "sentencepiece",
+#     "safetensors",
+#     "python-docx",  # used by DOCX parsing in views
+# ]
 
 # --- Utility helpers ---------------------------------------------------------
 def is_windows(): return platform.system().lower().startswith("win")
@@ -116,17 +116,17 @@ def pip_install(py, pkgs):
         pkgs = [pkgs]
     run([str(py), "-m", "pip", "install", "-U"] + list(pkgs))
 
-def ensure_torch(py):
-    # Try import inside the venv
-    code = "import importlib,sys; sys.exit(0 if importlib.util.find_spec('torch') else 1)"
-    rc = subprocess.run([str(py), "-c", code]).returncode
-    if rc == 0:
-        print("🧠 torch already installed")
-        return
-    print("🧠 Installing torch (CPU build)")
-    # CPU wheel index (safe default; CUDA users can upgrade later)
-    run([str(py), "-m", "pip", "install", "-U", "torch", "--index-url",
-         "https://download.pytorch.org/whl/cpu"])
+# def ensure_torch(py):
+#     # Try import inside the venv
+#     code = "import importlib,sys; sys.exit(0 if importlib.util.find_spec('torch') else 1)"
+#     rc = subprocess.run([str(py), "-c", code]).returncode
+#     if rc == 0:
+#         print("🧠 torch already installed")
+#         return
+#     print("🧠 Installing torch (CPU build)")
+#     # CPU wheel index (safe default; CUDA users can upgrade later)
+#     run([str(py), "-m", "pip", "install", "-U", "torch", "--index-url",
+#          "https://download.pytorch.org/whl/cpu"])
 
 def install_local_plus_extras(py):
     print("📦 Installing local-plus extras …")
@@ -144,19 +144,16 @@ def write_env_non_destructive(project_dir: Path):
     merged = dict(existing)
     # merged.setdefault("HUGGINGFACE_MODEL", HF_DEFAULT_MODEL)
     # merged.setdefault("HF_HOME", str(project_dir / HF_CACHE_DIRNAME))
-    merged.setdefault("LLM_PROVIDER", "ollama")
     merged["LLM_PROVIDER"] = "ollama"
     merged["OLLAMA_BASE_URL"] = "http://localhost:11434/api/generate"
-    merged["OLLAMA_MODEL"] = "llama3.2"
-    lines = ["# --- Local-plus defaults (safe to edit) ---"]
+    merged["OLLAMA_MODEL"] = "llama3"
+
+    lines = ["# --- Local Ollama defaults ---"]
     for k in sorted(merged):
         lines.append(f"{k}={merged[k]}")
-    if "OLLAMA_BASE_URL" not in merged:
-        lines.append("# OLLAMA_BASE_URL=http://localhost:11434/api/generate")
-    if "OLLAMA_MODEL" not in merged:
-        lines.append("# OLLAMA_MODEL=llama3.2")
+
     dotenv.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"🧾 Wrote {dotenv} (non-destructive merge)")
+    print(f"🧾 Wrote {dotenv} (Ollama-only configuration)")
 
 def ensure_local_dirs(project_dir: Path):
     # (project_dir / HF_CACHE_DIRNAME).mkdir(parents=True, exist_ok=True)
@@ -514,6 +511,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
