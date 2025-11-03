@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const ProgressBar = ({ loading }) => {
     const [progress, setProgress] = useState(0);
@@ -560,15 +562,20 @@ const KeynessWordDetail = ({
                   </div>
 
                     {synonymsAnalysis && (
-                        <p className="ttc-sub" style={{ margin: 0 }}>
-                            {synonymsAnalysis}
-                        </p>
+                      <div className="ttc-sub markdown-content" style={{ margin: 0, whiteSpace: "pre-wrap" }}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {synonymsAnalysis}
+                        </ReactMarkdown>
+                      </div>
                     )}
-                  </div>
 
                 ) : synonymsAnalysis ? (
                   <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
-                    <div className="chart-summary-text">{synonymsAnalysis}</div>
+                    <div className="chart-summary-text markdown-content" style={{ whiteSpace: "pre-wrap" }}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {synonymsAnalysis.replace(/\d+\.\s/g, "\n\n$&")}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 ) : (
                   renderEmptyState("alternate words", "🔄")
@@ -589,7 +596,11 @@ const KeynessWordDetail = ({
                   </div>
                 ) : conceptsAnalysis ? (
                   <div className="ttc-panel" style={{ maxHeight: "65vh", overflowY: "auto" }}>
-                    <div className="chart-summary-text">{conceptsAnalysis}</div>
+                    <div className="chart-summary-text markdown-content" style={{ whiteSpace: "pre-wrap" }}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {conceptsAnalysis.replace(/\d+\.\s/g, "\n\n$&")}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 ) : (
                   renderEmptyState("concepts", "💡")
