@@ -7,7 +7,7 @@ A Python and React-based application for advanced text analysis, including keyne
 - [Project Overview](#project-overview)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
-- [Installation](#automated-nstallation)
+- [Installation](#automated-installation)
 - [Installation](#manual-installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -96,7 +96,7 @@ py setup.py
 
 ## Manual Installation
 
-## Prerequisites
+### Prerequisites
 
 Before installing, ensure you have the following:
 
