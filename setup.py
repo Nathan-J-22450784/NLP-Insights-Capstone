@@ -11,7 +11,7 @@ What this does:
   2) pip install local-plus extras
   3) Create/merge a .env with local defaults:
        # OLLAMA_BASE_URL=http://localhost:11434/api/generate
-       # OLLAMA_MODEL=llama3.2
+       # OLLAMA_MODEL=llama2
   4) Pre-download the HF model into cache.
   5) Quick generation sanity check.
 """
@@ -40,7 +40,7 @@ except ImportError:
 #     """Choose the best default model automatically."""
 #     try:
 #         if torch.cuda.is_available():
-#             print("🧠 GPU detected — using Llama 3 (8B) for richer outputs.")
+#             print("🧠 GPU detected — using  3 (8B) for richer outputs.")
 #             return "meta-llama/Meta-Llama-3-8B"
 #         else:
 #             print("💡 No GPU detected — using Mistral 7B Instruct (CPU-friendly).")
@@ -146,7 +146,7 @@ def write_env_non_destructive(project_dir: Path):
     # merged.setdefault("HF_HOME", str(project_dir / HF_CACHE_DIRNAME))
     merged["LLM_PROVIDER"] = "ollama"
     merged["OLLAMA_BASE_URL"] = "http://localhost:11434/api/generate"
-    merged["OLLAMA_MODEL"] = "llama3"
+    merged["OLLAMA_MODEL"] = "llama2"
 
     lines = ["# --- Local Ollama defaults ---"]
     for k in sorted(merged):
@@ -511,6 +511,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
